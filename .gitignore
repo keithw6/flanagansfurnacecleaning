@@ -1,0 +1,9 @@
+_preview/
+Thumbs.db
+.DS_Store
+
+# Client and operator documents - deliverables, not website files.
+# Excluded because the repo must be public for free GitHub Pages.
+# Delete these two lines if you'd rather keep them in the repo.
+GBP-SETUP.md
+Flanagans-GBP-Setup-Guide.pdf
