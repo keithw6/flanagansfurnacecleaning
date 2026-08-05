@@ -1,4 +1,4 @@
+# PREVIEW MODE - temporary GitHub URL, placeholder content still present.
+# AT LAUNCH: copy _src/robots-live.txt over this file.
 User-agent: *
-Allow: /
-
-Sitemap: https://flanagansfurnacecleaning.com/sitemap.xml
+Disallow: /
