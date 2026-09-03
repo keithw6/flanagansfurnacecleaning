@@ -282,6 +282,10 @@
       employeesY1: o.emp || 0,
       employeeGrowth: o.empGrowth == null ? 0.15 : o.empGrowth,
       trucksY1: o.trucks || 1,
+      /* Non-producing staff - front office, assistants, dispatch. They
+         sit in overhead, but they are still people on the payroll and
+         belong in the headcount the report shows. */
+      supportStaffY1: o.support == null ? (o.emp || 0) : o.support,
       capexPct: o.capex == null ? 0.04 : o.capex,
       marketingPct: o.marketing == null ? 0.05 : o.marketing,
       workingCapitalPct: o.wc == null ? 0.05 : o.wc,
@@ -319,6 +323,7 @@
       name: 'Plumber', type: 'journeyperson', conf: 'industry',
       note: 'Alberta apprenticeship: four years, earning from day one, technical training in blocks.',
       education: {
+        studentLivingCost: 16000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 6500,
         certification: 450, licensing: 350, examFees: 300, equipment: 1200, other: 500,
@@ -334,6 +339,7 @@
         stage(25, 'Experienced journeyperson', 94000, 14000, 3000, { benefits: 4000, pension: 4000, vehicle: 2500 })
       ],
       business: biz({
+        support: 1,
         materials: 0.24, ownerCapacity: 230000, revPerTech: 300000, costPerTech: 108000, overheadPct: 0.13, fixedOverhead: 26000,
         startAge: 27, startup: 35000, rev: 230000, growth: 0.18, ceiling: 3200000,
         gross: 0.56, net: 0.24, ownerSalary: 95000, emp: 0, marketWage: 95000,
@@ -356,6 +362,7 @@
       name: 'Dentist', type: 'professional', conf: 'industry',
       note: 'Three years of undergraduate prerequisites plus four years of dental school. Four-plus-four is also common - change it if that fits your comparison better.',
       education: {
+        studentLivingCost: 24000, schoolWorkHours: 700,
         yearsEducation: 7, yearsApprenticeship: 0, yearsUnpaidSchool: 7, yearsPaidTraining: 0,
         tuitionPerYear: 21000, tuitionYears: 7, books: 6000, tools: 12000,
         certification: 2500, licensing: 2500, examFees: 4500, equipment: 3000, other: 8000,
@@ -370,6 +377,7 @@
         stage(30, 'Senior associate', 215000, 0, 20000, { benefits: 3000 })
       ],
       business: biz({
+        support: 5,
         materials: 0.22, ownerCapacity: 950000, revPerTech: 700000, costPerTech: 270000, managerSalary: 120000, overheadPct: 0.26, fixedOverhead: 120000,
         startAge: 32, startup: 650000, loanShare: 0.85, loanRate: 0.075, loanYears: 12,
         rev: 950000, growth: 0.07, ceiling: 2600000,
@@ -393,6 +401,7 @@
       name: 'Electrician', type: 'journeyperson', conf: 'industry',
       note: 'Four-year apprenticeship. Slightly cleaner work than plumbing, slightly more competition in residential service.',
       education: {
+        studentLivingCost: 16000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 600, tools: 4500,
         certification: 450, licensing: 400, examFees: 300, equipment: 900, other: 400,
@@ -408,6 +417,7 @@
         stage(25, 'Experienced journeyperson / foreman', 98000, 13000, 4000, { benefits: 4200, pension: 4500, vehicle: 2500 })
       ],
       business: biz({
+        support: 1,
         materials: 0.24, ownerCapacity: 240000, revPerTech: 305000, costPerTech: 110000, overheadPct: 0.13, fixedOverhead: 26000,
         startAge: 28, startup: 40000, rev: 240000, growth: 0.17, ceiling: 3500000,
         gross: 0.55, net: 0.22, ownerSalary: 98000, marketWage: 98000,
@@ -430,6 +440,7 @@
       name: 'HVAC Technician', type: 'journeyperson', conf: 'industry',
       note: 'Strong seasonal overtime, strong service-agreement potential, which is what makes the business version scale.',
       education: {
+        studentLivingCost: 16000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 5500,
         certification: 700, licensing: 350, examFees: 350, equipment: 1500, other: 500,
@@ -443,6 +454,7 @@
         stage(25, 'Service lead', 90000, 16000, 4000, { benefits: 4000, pension: 4000, vehicle: 3000 })
       ],
       business: biz({
+        support: 1,
         materials: 0.32, ownerCapacity: 250000, revPerTech: 320000, costPerTech: 106000, overheadPct: 0.14, fixedOverhead: 30000,
         startAge: 27, startup: 45000, rev: 250000, growth: 0.19, ceiling: 4000000,
         gross: 0.52, net: 0.23, ownerSalary: 95000, marketWage: 92000,
@@ -465,6 +477,7 @@
       name: 'Welder', type: 'journeyperson', conf: 'industry',
       note: 'Very high ceiling on rig and pressure work, but income is tied to projects and to the owner being in the hood.',
       education: {
+        studentLivingCost: 16000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 3, yearsUnpaidSchool: 0.5, yearsPaidTraining: 2.5,
         tuitionPerYear: 1400, tuitionYears: 3, books: 400, tools: 9000,
         certification: 1400, licensing: 200, examFees: 900, equipment: 4000, other: 600,
@@ -478,6 +491,7 @@
         stage(25, 'Pressure / rig welder', 105000, 35000, 3000, { benefits: 3800, pension: 4500, vehicle: 3000 })
       ],
       business: biz({
+        support: 1,
         materials: 0.28, ownerCapacity: 260000, revPerTech: 290000, costPerTech: 125000, overheadPct: 0.12, fixedOverhead: 40000,
         startAge: 28, startup: 90000, rev: 260000, growth: 0.14, ceiling: 2200000,
         gross: 0.48, net: 0.22, ownerSalary: 110000, marketWage: 115000,
@@ -500,6 +514,7 @@
       name: 'Heavy-Duty Mechanic', type: 'journeyperson', conf: 'industry',
       note: 'Fleet and shop work. Very steady demand; the business version is capital-heavy because of the shop and tooling.',
       education: {
+        studentLivingCost: 16000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 22000,
         certification: 500, licensing: 300, examFees: 300, equipment: 3000, other: 600,
@@ -513,7 +528,8 @@
         stage(25, 'Shop lead', 98000, 15000, 4000, { benefits: 4400, pension: 5000, vehicle: 2000 })
       ],
       business: biz({
-        materials: 0.34, ownerCapacity: 300000, revPerTech: 330000, costPerTech: 118000, overheadPct: 0.13, fixedOverhead: 95000,
+        support: 2,
+        materials: 0.34, ownerCapacity: 420000, revPerTech: 330000, costPerTech: 118000, overheadPct: 0.13, fixedOverhead: 60000,
         startAge: 30, startup: 180000, loanShare: 0.6, rev: 420000, growth: 0.13, ceiling: 3000000,
         gross: 0.50, net: 0.20, ownerSalary: 110000, marketWage: 105000,
         multiple: 3.0, leadAge: 32, ownerAge: 35, investorAge: 42,
@@ -535,6 +551,7 @@
       name: 'Software Engineer', type: 'professional', conf: 'industry',
       note: 'Four-year degree, high starting salary, high ceiling - and the only career here with meaningful automation and offshoring exposure.',
       education: {
+        studentLivingCost: 22000, schoolWorkHours: 700,
         yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
         tuitionPerYear: 8500, tuitionYears: 4, books: 2000, tools: 3500,
         certification: 500, licensing: 0, examFees: 300, equipment: 1000, other: 3000,
@@ -549,6 +566,7 @@
         stage(34, 'Staff / lead', 180000, 0, 35000, { benefits: 5500, pension: 9000 })
       ],
       business: biz({
+        support: 1,
         materials: 0.08, ownerCapacity: 180000, revPerTech: 300000, costPerTech: 130000, overheadPct: 0.15, fixedOverhead: 20000,
         startAge: 32, startup: 25000, rev: 180000, growth: 0.22, ceiling: 2500000,
         gross: 0.75, net: 0.30, ownerSalary: 130000, marketWage: 150000,
@@ -571,6 +589,7 @@
       name: 'Accountant (CPA)', type: 'professional', conf: 'industry',
       note: 'Degree plus the CPA program while working. Practice ownership is the real wealth path, and it is a genuinely scalable one.',
       education: {
+        studentLivingCost: 21000, schoolWorkHours: 700,
         yearsEducation: 4, yearsApprenticeship: 2.5, yearsUnpaidSchool: 4, yearsPaidTraining: 2.5,
         tuitionPerYear: 8000, tuitionYears: 4, books: 2500, tools: 1000,
         certification: 12000, licensing: 1200, examFees: 3500, equipment: 1500, other: 2500,
@@ -585,6 +604,7 @@
         stage(34, 'Senior manager / controller', 145000, 0, 22000, { benefits: 5000, pension: 8000 })
       ],
       business: biz({
+        support: 1,
         materials: 0.05, ownerCapacity: 210000, revPerTech: 260000, costPerTech: 95000, overheadPct: 0.14, fixedOverhead: 35000,
         startAge: 31, startup: 40000, rev: 210000, growth: 0.16, ceiling: 2200000,
         gross: 0.70, net: 0.32, ownerSalary: 120000, marketWage: 125000,
@@ -607,6 +627,7 @@
       name: 'Pharmacist', type: 'professional', conf: 'industry',
       note: 'High, flat income. Very little variance either way - the ceiling arrives early and stays.',
       education: {
+        studentLivingCost: 23000, schoolWorkHours: 700,
         yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
         tuitionPerYear: 16000, tuitionYears: 6, books: 5000, tools: 1000,
         certification: 2000, licensing: 1800, examFees: 3000, equipment: 1000, other: 5000,
@@ -620,6 +641,7 @@
         stage(33, 'Senior / clinical pharmacist', 142000, 2000, 10000, { benefits: 5000, pension: 6000 })
       ],
       business: biz({
+        support: 8,
         materials: 0.72, ownerCapacity: 3200000, revPerTech: 900000, costPerTech: 155000, managerSalary: 130000, overheadPct: 0.06, fixedOverhead: 240000,
         startAge: 34, startup: 850000, loanShare: 0.85, loanRate: 0.075, loanYears: 15,
         rev: 3200000, growth: 0.05, ceiling: 6500000,
@@ -643,6 +665,7 @@
       name: 'Lawyer', type: 'professional', conf: 'industry',
       note: 'Seven years to call, then a very wide spread. Big-firm partner and small-town practitioner are not the same career.',
       education: {
+        studentLivingCost: 25000, schoolWorkHours: 700,
         yearsEducation: 7, yearsApprenticeship: 1, yearsUnpaidSchool: 7, yearsPaidTraining: 1,
         tuitionPerYear: 18000, tuitionYears: 7, books: 7000, tools: 2000,
         certification: 4500, licensing: 3500, examFees: 4000, equipment: 2500, other: 9000,
@@ -657,6 +680,7 @@
         stage(35, 'Partner track', 240000, 0, 60000, { benefits: 5000, pension: 8000 })
       ],
       business: biz({
+        support: 2,
         materials: 0.05, ownerCapacity: 320000, revPerTech: 350000, costPerTech: 130000, overheadPct: 0.16, fixedOverhead: 60000,
         startAge: 33, startup: 90000, rev: 320000, growth: 0.15, ceiling: 3000000,
         gross: 0.72, net: 0.34, ownerSalary: 180000, marketWage: 190000,
@@ -679,6 +703,7 @@
       name: 'Professional Engineer', type: 'professional', conf: 'industry',
       note: 'Four-year degree plus four years to P.Eng. Stable, salaried, and rarely spectacular unless it turns into a firm.',
       education: {
+        studentLivingCost: 22000, schoolWorkHours: 700,
         yearsEducation: 4, yearsApprenticeship: 4, yearsUnpaidSchool: 4, yearsPaidTraining: 4,
         tuitionPerYear: 9500, tuitionYears: 4, books: 3000, tools: 2000,
         certification: 1500, licensing: 2500, examFees: 1200, equipment: 1500, other: 3000,
@@ -693,6 +718,7 @@
         stage(36, 'Engineering manager', 155000, 0, 22000, { benefits: 5500, pension: 9000 })
       ],
       business: biz({
+        support: 1,
         materials: 0.08, ownerCapacity: 260000, revPerTech: 300000, costPerTech: 120000, overheadPct: 0.15, fixedOverhead: 35000,
         startAge: 34, startup: 60000, rev: 260000, growth: 0.15, ceiling: 2600000,
         gross: 0.68, net: 0.26, ownerSalary: 140000, marketWage: 140000,
@@ -715,6 +741,7 @@
       name: 'Teacher', type: 'professional', conf: 'industry',
       note: 'Modest ceiling, excellent pension, and the best family calendar of any career on this list. The pension is the wealth engine.',
       education: {
+        studentLivingCost: 20000, schoolWorkHours: 700,
         yearsEducation: 5, yearsApprenticeship: 0, yearsUnpaidSchool: 5, yearsPaidTraining: 0,
         tuitionPerYear: 7500, tuitionYears: 5, books: 2500, tools: 1500,
         certification: 500, licensing: 400, examFees: 200, equipment: 1000, other: 2500,
@@ -729,6 +756,7 @@
         stage(40, 'Department head', 116000, 2500, 2000, { benefits: 6000, pension: 13500 })
       ],
       business: biz({
+        support: 0,
         materials: 0.15, ownerCapacity: 70000, revPerTech: 90000, costPerTech: 45000, managerSalary: 40000, overheadPct: 0.10, fixedOverhead: 6000,
         enabled: false, startAge: 38, startup: 15000, rev: 70000, growth: 0.12, ceiling: 350000,
         gross: 0.80, net: 0.45, ownerSalary: 30000, marketWage: 60000,
@@ -751,6 +779,7 @@
       name: 'Corporate Executive', type: 'professional', conf: 'estimated',
       note: 'Assumes the promotions actually land. Most people on this track top out well below the numbers here - treat it as the successful path, not the average one.',
       education: {
+        studentLivingCost: 25000, schoolWorkHours: 700,
         yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
         tuitionPerYear: 14000, tuitionYears: 6, books: 4000, tools: 2500,
         certification: 3000, licensing: 0, examFees: 1500, equipment: 2000, other: 6000,
@@ -765,6 +794,7 @@
         stage(37, 'Vice-president', 250000, 0, 110000, { benefits: 7000, pension: 14000, other: 40000 })
       ],
       business: biz({
+        support: 2,
         materials: 0.20, ownerCapacity: 500000, revPerTech: 320000, costPerTech: 130000, managerSalary: 150000, overheadPct: 0.16, fixedOverhead: 60000,
         enabled: false, startAge: 40, startup: 200000, rev: 500000, growth: 0.18, ceiling: 4000000,
         gross: 0.65, net: 0.25, ownerSalary: 200000, marketWage: 200000,
@@ -787,6 +817,7 @@
       name: 'Owner-Operator Trucker', type: 'owneroperator', conf: 'industry',
       note: 'Owns the truck, drives the truck. The classic owner-operator trap: good income, almost no transferable asset.',
       education: {
+        studentLivingCost: 15000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0.2, yearsPaidTraining: 0,
         tuitionPerYear: 10000, tuitionYears: 1, books: 200, tools: 800,
         certification: 500, licensing: 900, examFees: 400, equipment: 500, other: 400,
@@ -799,11 +830,12 @@
         stage(23, 'Senior company driver', 85000, 12000, 3000, { benefits: 3200 })
       ],
       business: biz({
-        materials: 0.42, ownerCapacity: 280000, revPerTech: 300000, costPerTech: 95000, managerSalary: 85000, overheadPct: 0.10, fixedOverhead: 22000,
+        support: 0,
+        materials: 0.42, ownerCapacity: 280000, revPerTech: 300000, costPerTech: 95000, managerSalary: 85000, capex: 0.02, overheadPct: 0.10, fixedOverhead: 22000,
         startAge: 25, startup: 160000, loanShare: 0.8, loanRate: 0.09, loanYears: 5,
         rev: 280000, growth: 0.08, ceiling: 1400000,
         gross: 0.40, net: 0.16, ownerSalary: 95000, marketWage: 85000,
-        multiple: 2.0, capex: 0.10, leadAge: 33, ownerAge: 38, investorAge: 0,
+        multiple: 2.0, leadAge: 33, ownerAge: 38, investorAge: 0,
         qOwner: 2, qRecur: 5, qSpread: 3, qMgmt: 2, qAssets: 8, qGrowth: 4
       }),
       lifestyle: life({
@@ -822,6 +854,7 @@
       name: 'Registered Nurse', type: 'professional', conf: 'industry',
       note: 'Four-year degree, strong pension, heavy shift work. Almost no business path unless it becomes an agency.',
       education: {
+        studentLivingCost: 21000, schoolWorkHours: 700,
         yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
         tuitionPerYear: 8500, tuitionYears: 4, books: 3000, tools: 1500,
         certification: 1000, licensing: 900, examFees: 1000, equipment: 1200, other: 2500,
@@ -835,6 +868,7 @@
         stage(32, 'Charge nurse / specialty', 112000, 14000, 2000, { benefits: 6000, pension: 11000 })
       ],
       business: biz({
+        support: 2,
         materials: 0.60, ownerCapacity: 400000, revPerTech: 260000, costPerTech: 105000, overheadPct: 0.10, fixedOverhead: 45000,
         enabled: false, startAge: 36, startup: 60000, rev: 400000, growth: 0.20, ceiling: 3000000,
         gross: 0.30, net: 0.14, ownerSalary: 120000, marketWage: 110000,
@@ -857,6 +891,7 @@
       name: 'Custom career', type: 'professional', conf: 'user',
       note: 'A blank slate. Fill in what you actually know and mark the rest as estimated.',
       education: {
+        studentLivingCost: 20000, schoolWorkHours: 700,
         yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0, yearsPaidTraining: 0,
         tuitionPerYear: 0, tuitionYears: 0, books: 0, tools: 0,
         certification: 0, licensing: 0, examFees: 0, equipment: 0, other: 0,
@@ -865,6 +900,7 @@
       debt: { rate: 0.065, termYears: 10, conf: 'user' },
       stages: [ stage(18, 'Starting out', 45000, 0, 0, {}), stage(25, 'Mid-career', 70000, 0, 0, {}) ],
       business: biz({
+        support: 1,
         materials: 0.25, ownerCapacity: 200000, revPerTech: 280000, costPerTech: 100000, overheadPct: 0.13, fixedOverhead: 25000,
         enabled: false, startAge: 30, startup: 30000, rev: 200000, growth: 0.15, ceiling: 2000000,
         gross: 0.55, net: 0.20, ownerSalary: 90000, marketWage: 90000, multiple: 3.0,
