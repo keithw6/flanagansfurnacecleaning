@@ -319,7 +319,8 @@
         r.appendChild(el('title', null, p.label + ': ' + fmtMoney(p.value)));
         svg.appendChild(r);
         if (pw > 54) {
-          svg.appendChild(el('text', { x: x + pw / 2 - 1, y: y + barH / 2 + 4, class: 'stack-label', 'text-anchor': 'middle' }, fmtMoney(p.value)));
+          svg.appendChild(el('text', { x: x + pw / 2 - 1, y: y + barH / 2 + 4, class: 'stack-label',
+            fill: p.ink || '#fff', 'text-anchor': 'middle' }, fmtMoney(p.value)));
         }
         x += pw;
       });

@@ -572,7 +572,7 @@
   /* =====================================================================
      CHARTS
      ===================================================================== */
-  function chartCard(title, note, node, tableFn) {
+  function chartCard(title, note, node, tableFn, legendItems) {
     var card = document.createElement('div');
     card.className = 'chart-card';
     var head = document.createElement('div');
@@ -584,8 +584,13 @@
     }
     var leg = document.createElement('div');
     leg.className = 'legend';
-    leg.innerHTML = '<span><i style="background:' + colA() + '"></i>' + esc(last.sim.a.name) + '</span>' +
-                    '<span><i style="background:' + colB() + '"></i>' + esc(last.sim.b.name) + '</span>';
+    var items = legendItems || [
+      { color: colA(), label: last.sim.a.name },
+      { color: colB(), label: last.sim.b.name }
+    ];
+    leg.innerHTML = items.map(function (it) {
+      return '<span><i style="background:' + it.color + '"></i>' + esc(it.label) + '</span>';
+    }).join('');
     card.appendChild(leg);
     card.appendChild(node);
     if (tableFn) {
@@ -685,21 +690,36 @@
     }
 
     /* what the final number is made of */
+    /* Parts of one total, so this uses the ordinal ramp rather than the
+       series hues - blue means "Career A" everywhere else on this page and
+       must not quietly start meaning "investments" here. The row label
+       carries identity instead. */
+    var cs = getComputedStyle(document.documentElement);
+    var STACK = [1, 2, 3, 4].map(function (i) {
+      return { fill: cs.getPropertyValue('--stack-' + i).trim(), ink: cs.getPropertyValue('--stack-ink-' + i).trim() };
+    });
+    var PART_LABELS = ['Investments', 'Cash', 'Home equity', 'Business equity'];
     var mkParts = function (res) {
       var t = res.totals;
-      return [
-        { label: 'Investments', value: t.investments, color: colA() },
-        { label: 'Cash', value: t.cash, color: 'var(--muted)' },
-        { label: 'Home equity', value: t.homeEquity, color: colB() },
-        { label: 'Business equity', value: Math.max(0, t.businessEquity), color: 'var(--good)' }
-      ];
+      var vals = [t.investments, t.cash, t.homeEquity, Math.max(0, t.businessEquity)];
+      return PART_LABELS.map(function (label, i) {
+        return { label: label, value: vals[i], color: STACK[i].fill, ink: STACK[i].ink };
+      });
     };
     host.appendChild(chartCard('What the net worth is made of',
-      'Debt is already netted off inside home and business equity.',
+      'Parts of each person’s total. Debt is already netted off inside home and business equity.',
       C.stackChart({
         columns: [{ name: sim.a.name, parts: mkParts(sim.a) }, { name: sim.b.name, parts: mkParts(sim.b) }],
         totals: [sim.a.totals.netWorth, sim.b.totals.netWorth]
-      })));
+      }), function () {
+        return '<div class="tscroll"><table class="data"><thead><tr><th>Component</th><th>' + esc(sim.a.name) +
+          '</th><th>' + esc(sim.b.name) + '</th></tr></thead><tbody>' +
+          PART_LABELS.map(function (label, i) {
+            return '<tr><td>' + esc(label) + '</td><td class="a-val">' + money(mkParts(sim.a)[i].value) +
+              '</td><td class="b-val">' + money(mkParts(sim.b)[i].value) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      },
+      PART_LABELS.map(function (label, i) { return { color: STACK[i].fill, label: label }; })));
 
     /* lifestyle radar */
     var axes = sc.a.lifestyle.rows.map(function (r, i) {

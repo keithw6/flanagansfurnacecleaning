@@ -23,6 +23,17 @@
   --series-a-soft: rgba(42,120,214,.12);
   --series-b-soft: rgba(235,104,52,.12);
 
+  /* Parts-of-a-total ramp. One hue, light to dark - NOT the series
+     colours, which mean "which career" everywhere else on the page. */
+  --stack-1:   #86b6ef;
+  --stack-2:   #3987e5;
+  --stack-3:   #1c5cab;
+  --stack-4:   #0d366b;
+  --stack-ink-1: #14161a;
+  --stack-ink-2: #ffffff;
+  --stack-ink-3: #ffffff;
+  --stack-ink-4: #ffffff;
+
   --good:      #0ca30c;
   --warning:   #fab219;
   --serious:   #ec835a;
@@ -54,6 +65,14 @@
     --series-b:  #d95926;
     --series-a-soft: rgba(57,135,229,.16);
     --series-b-soft: rgba(217,89,38,.16);
+    --stack-1:   #cde2fb;
+    --stack-2:   #9ec5f4;
+    --stack-3:   #5598e7;
+    --stack-4:   #256abf;
+    --stack-ink-1: #14161a;
+    --stack-ink-2: #14161a;
+    --stack-ink-3: #14161a;
+    --stack-ink-4: #ffffff;
     --accent:    #fcfcfb;
     --on-accent: #14161a;
   }
@@ -74,6 +93,14 @@
   --series-b:  #d95926;
   --series-a-soft: rgba(57,135,229,.16);
   --series-b-soft: rgba(217,89,38,.16);
+  --stack-1:   #cde2fb;
+  --stack-2:   #9ec5f4;
+  --stack-3:   #5598e7;
+  --stack-4:   #256abf;
+  --stack-ink-1: #14161a;
+  --stack-ink-2: #14161a;
+  --stack-ink-3: #14161a;
+  --stack-ink-4: #ffffff;
   --accent:    #fcfcfb;
   --on-accent: #14161a;
 }
@@ -246,7 +273,7 @@ main { padding: 22px 0 80px; }
 .bcb-chart .bar-label { font-family: var(--b); font-size: 12px; fill: var(--text); }
 .bcb-chart .bar-value { font-family: var(--b); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .bcb-chart .track { fill: var(--surface-3); }
-.bcb-chart .stack-label { font-family: var(--b); font-size: 10.5px; fill: #fff; font-weight: 600; }
+.bcb-chart .stack-label { font-family: var(--b); font-size: 10.5px; font-weight: 600; }
 .bcb-chart .stack-total { font-family: var(--h); font-size: 14px; fill: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* ---------- tables ---------- */
