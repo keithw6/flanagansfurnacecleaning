@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The 20-Year Test | Blue Collar Business</title>
+<title>The 20-Year Test</title>
 <meta name="description" content="Compare two careers, trades or business paths over 20 years on money, time, debt, lifestyle, ownership and scalability - not just salary.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="css/app.css">
@@ -69,6 +69,10 @@
       <button class="btn btn-o" id="resetBtn">Reset to defaults</button>
     </div>
     <p class="hint" id="saveMsg" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>
+    <div id="exportBox" hidden style="margin-top:10px">
+      <label for="exportText" style="font-size:.78rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Your comparison, as JSON</label>
+      <textarea id="exportText" readonly rows="6" style="width:100%;font-family:var(--mono);font-size:.76rem;padding:9px;border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--text)"></textarea>
+    </div>
   </div>
 </section>
 

@@ -7,3 +7,5 @@ Thumbs.db
 # Delete these two lines if you'd rather keep them in the repo.
 GBP-SETUP.md
 Flanagans-GBP-Setup-Guide.pdf
+# Single-file bundles - regenerate with tools/20-year-test/build-single.mjs
+tools/20-year-test/dist/

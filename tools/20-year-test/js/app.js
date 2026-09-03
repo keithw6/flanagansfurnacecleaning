@@ -1353,13 +1353,30 @@
       } catch (e) { msg('Could not read the saved comparison.'); }
     });
     document.getElementById('exportBtn').addEventListener('click', function () {
-      var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (state.careers.a.name + '-vs-' + state.careers.b.name + '-20-year-test.json')
+      var json = JSON.stringify(state, null, 2);
+      var name = (state.careers.a.name + '-vs-' + state.careers.b.name + '-20-year-test.json')
         .replace(/[^a-z0-9.-]+/gi, '-').toLowerCase();
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      /* Always show it: a browser-started download is blocked outright in a
+         sandboxed frame, and a button that silently does nothing is worse
+         than no button. */
+      var box = document.getElementById('exportBox');
+      box.hidden = false;
+      box.querySelector('textarea').value = json;
+      box.querySelector('textarea').select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(json).then(function () { msg('Copied to the clipboard.'); },
+          function () { msg('Select the text below and copy it.'); });
+      } else {
+        msg('Select the text below and copy it.');
+      }
+      try {
+        var blob = new Blob([json], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      } catch (e) { /* sandboxed - the textarea above is the answer */ }
     });
     document.getElementById('importFile').addEventListener('change', function (ev) {
       var f = ev.target.files[0];
