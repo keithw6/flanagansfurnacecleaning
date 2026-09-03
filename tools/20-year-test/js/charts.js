@@ -48,13 +48,13 @@
     return { lo: lo, hi: hi, step: step, ticks: ticks };
   }
 
-  var PAD = { top: 26, right: 88, bottom: 40, left: 62 };
+  var PAD = { top: 30, right: 108, bottom: 44, left: 74 };
 
   /* -------------------------------------------------------------
      LINE CHART - two series over age. The workhorse.
      ------------------------------------------------------------- */
   function lineChart(opts) {
-    var w = opts.width || 720, h = opts.height || 320;
+    var w = opts.width || 960, h = opts.height || 400;
     var series = opts.series;             /* [{name, color, points:[{x,y}]}] */
     var fmt = opts.format || fmtMoney;
     var pad = Object.assign({}, PAD, opts.pad || {});
@@ -96,12 +96,14 @@
     }
 
     /* Marker lines - business start, the crossover, whatever matters. */
-    (opts.markers || []).forEach(function (mk) {
+    (opts.markers || []).forEach(function (mk, mi) {
       if (mk.x < xMin || mk.x > xMax) { return; }
       svg.appendChild(el('line', { x1: X(mk.x), x2: X(mk.x), y1: pad.top, y2: pad.top + ih, class: 'marker-line' }));
+      /* Stack the captions on separate rows. Two markers a few years
+         apart otherwise print straight over each other. */
       svg.appendChild(el('text', {
-        x: X(mk.x) + 4, y: pad.top + 11, class: 'marker-label',
-        'text-anchor': X(mk.x) > pad.left + iw * 0.7 ? 'end' : 'start'
+        x: X(mk.x) + 4, y: pad.top + 11 + (mi % 3) * 13, class: 'marker-label',
+        'text-anchor': X(mk.x) > pad.left + iw * 0.72 ? 'end' : 'start'
       }, mk.label));
     });
 
@@ -120,11 +122,13 @@
          legend lookup, which is what makes it readable on video. */
       var lastPt = s.points[s.points.length - 1];
       var ly = Y(lastPt.y);
-      /* Nudge apart if the two end labels would collide. */
+      /* Each end label is two lines - a name and a value - so they need a
+         full label's height between them, not a few pixels. */
       if (si === 1 && series[0].points.length) {
         var other = Y(series[0].points[series[0].points.length - 1].y);
-        if (Math.abs(ly - other) < 15) { ly += (ly >= other ? 15 : -15); }
+        if (Math.abs(ly - other) < 32) { ly = other + (ly >= other ? 32 : -32); }
       }
+      ly = Math.max(pad.top + 12, Math.min(pad.top + ih - 6, ly));
       svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
         stroke: 'var(--surface-1)', 'stroke-width': 2 }));
       var g = el('g', { class: 'end-label' });
@@ -189,7 +193,7 @@
      GROUPED BAR CHART - a handful of paired categories.
      ------------------------------------------------------------- */
   function barChart(opts) {
-    var w = opts.width || 720, h = opts.height || 300;
+    var w = opts.width || 960, h = opts.height || 360;
     var cats = opts.categories;    /* [{label, a, b}] */
     var fmt = opts.format || fmtMoney;
     var pad = Object.assign({}, PAD, { right: 24, left: 68 }, opts.pad || {});
@@ -273,7 +277,7 @@
      ------------------------------------------------------------- */
   function scoreBars(opts) {
     var rows = opts.rows;   /* [{label, a, b, max}] */
-    var w = opts.width || 720;
+    var w = opts.width || 960;
     var rowH = 30, labelW = 190;
     var h = rows.length * rowH + 16;
     var svg = el('svg', { viewBox: '0 0 ' + w + ' ' + h, width: '100%', class: 'bcb-chart', role: 'img',
@@ -294,7 +298,7 @@
 
   /* Stacked composition of the final net worth - what it is made of. */
   function stackChart(opts) {
-    var w = opts.width || 720, h = 150;
+    var w = opts.width || 960, h = 170;
     var cols = opts.columns;   /* [{name, parts:[{label,value,color}]}] */
     var svg = el('svg', { viewBox: '0 0 ' + w + ' ' + h, width: '100%', class: 'bcb-chart', role: 'img',
       'aria-label': opts.title || 'net worth composition' });

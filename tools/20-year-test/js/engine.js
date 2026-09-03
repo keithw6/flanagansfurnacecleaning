@@ -635,16 +635,18 @@
         var useCash = Math.min(cash, gap); cash -= useCash; gap -= useCash;
         if (gap > 0) { var useInv = Math.min(investments, gap); investments -= useInv; gap -= useInv; }
         if (gap > 0) {
-          consumerDebt += gap;
-          /* Education is the usual reason for a shortfall this early,
-             so attribute the borrowing honestly between the two. */
-          if (eduSpend > 0) {
+          /* A shortfall during school is student borrowing, whether or
+             not tuition happened to be charged that year. Sending it to
+             a 12% consumer balance instead - which is what happens if
+             you key this off tuition alone - misprices the whole of a
+             long degree's final years. */
+          if (eduRow.inSchool || eduSpend > 0) {
             var eduShare = Math.min(gap, eduSpend);
-            studentDebt += eduShare;
             studentTuitionDebt += eduShare;
             studentLivingDebt += gap - eduShare;
-            studentDebt += gap - eduShare;
-            consumerDebt -= gap;
+            studentDebt += gap;
+          } else {
+            consumerDebt += gap;
           }
         }
       }
