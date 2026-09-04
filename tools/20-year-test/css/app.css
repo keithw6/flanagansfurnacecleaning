@@ -740,3 +740,135 @@ body.st-on { overflow: hidden; }
 .dia-one::after  { right: 11px; bottom: 9px; width: 26%; height: 34%; background: var(--series-b); }
 .dia-two::before { left: 8px; top: 8px; bottom: 8px; width: 58%; background: var(--line); }
 .dia-two::after  { right: 8px; top: 8px; bottom: 8px; width: 32%; background: var(--series-b); }
+
+/* =====================================================================
+   STUDIO THREE - vertical, camera above, explainer below
+   For Reels, TikTok, Shorts and the Instagram feed. Composes inside a
+   fixed-ratio frame rather than the window, because the deliverable is
+   a 9:16 file and anything outside the frame is not in the video.
+
+   Type is sized in vh throughout: the frame's height is the viewport's,
+   so vh is stable here while vw is not - the frame's width depends on
+   the ratio, not the window.
+
+   Additive: every rule is gated on .st-three, so Studios One and Two
+   are reached by none of it.
+   ===================================================================== */
+.st-stage.st-three { display: grid; place-items: center; padding: 0;
+  background: #050506; }
+.st-stage.st-three .st-frame {
+  position: relative; z-index: 1;
+  height: 100vh; aspect-ratio: 9 / 16; max-width: 100vw;
+  display: grid; grid-template-rows: auto 1fr auto;
+  background: #0b0c0d; overflow: hidden;
+  box-shadow: 0 0 0 1px #24272b, 0 30px 80px rgba(0,0,0,.6);
+}
+.st-stage.st-three.ratio-4-5 .st-frame { aspect-ratio: 4 / 5; }
+.st-stage.st-three.ratio-1-1 .st-frame { aspect-ratio: 1 / 1; }
+
+/* Camera on top. object-fit: cover crops the webcam to this band, which
+   is the framing a vertical talking head wants anyway. */
+.st-stage.st-three .st-camcol { grid-row: 1; height: 40vh; position: relative;
+  display: flex; align-items: stretch; }
+.st-stage.st-three.ratio-4-5 .st-camcol { height: 34vh; }
+.st-stage.st-three.ratio-1-1 .st-camcol { height: 30vh; }
+.st-stage.st-three .st-cam.in-col,
+.st-stage.st-three .st-cam-ghost.in-col { border-radius: 0; box-shadow: none; }
+
+/* The brand bar rides over the top of the camera rather than taking a
+   row of its own - vertical frames have no height to spare. */
+.st-stage.st-three .st-top { position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+  padding: 1.6vh 3.4%; align-items: center;
+  background: linear-gradient(to bottom, rgba(6,7,8,.72), transparent); }
+.st-stage.st-three .st-brand { font-size: 1.5vh; }
+.st-stage.st-three .st-brand span { font-size: .95vh; margin-top: 2px; }
+.st-stage.st-three .st-meta { font-size: 1.25vh; gap: 1.4vh; }
+
+/* The explainer half. */
+/* Padded clear of the platform's UI: ~17% up from the bottom for the
+   caption block, ~15% in from the right for the button rail. The camera
+   still runs edge to edge above - a face behind a button is fine, an
+   axis label behind one is not. */
+.st-stage.st-three .st-body { grid-row: 2; padding: 2.2vh 14% 18vh 5.6%;
+  align-items: stretch; text-align: left; justify-content: flex-start;
+  gap: 1.2vh; min-height: 0; overflow: hidden; }
+.st-stage.st-three.ratio-1-1 .st-body { padding-bottom: 6vh; }
+.st-stage.st-three .st-kick { font-size: 1.35vh; letter-spacing: .16em; }
+.st-stage.st-three h1 { font-size: 3.9vh; line-height: 1.02; }
+.st-stage.st-three.chart h1 { font-size: 3vh; }
+.st-stage.st-three .st-visual { max-width: 100%; align-items: stretch; flex: 1;
+  justify-content: flex-start; gap: 1.6vh; min-height: 0; }
+.st-stage.st-three .st-visual > * { width: 100%; }
+.st-stage.st-three .bcb-chart { height: auto; width: 100%; max-height: 25vh; max-width: none; }
+.st-stage.st-three .bcb-radar { max-width: 100%; max-height: 24vh; }
+
+.st-stage.st-three .st-hero { display: flex; flex-direction: column; gap: .6vh; text-align: left; }
+.st-stage.st-three .st-hero-num { font-size: 7vh; line-height: .95; }
+.st-stage.st-three .st-hero-sub { font-size: 1.7vh; margin: 0; max-width: none; }
+.st-stage.st-three .st-hero-kick { font-size: 1.3vh; }
+.st-stage.st-three .st-stats { display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1.6vh 5%; justify-content: start; }
+.st-stage.st-three .st-stat { text-align: left; }
+.st-stage.st-three .st-stat .k { font-size: 1.05vh; letter-spacing: .1em; margin-bottom: .4vh; }
+.st-stage.st-three .st-stat .v { font-size: 3.1vh; }
+.st-stage.st-three .st-stat .n { font-size: 1.15vh; }
+
+.st-stage.st-three .st-cols { grid-template-columns: 1fr 1fr; gap: 4%; }
+.st-stage.st-three .st-col-name { font-size: 1.9vh; }
+.st-stage.st-three .st-col-line { font-size: 1.35vh; padding: .5vh 0; }
+.st-stage.st-three .st-col-total .k { font-size: 1vh; }
+.st-stage.st-three .st-col-total .v { font-size: 3vh; }
+.st-stage.st-three .st-scores { grid-template-columns: 1fr 1fr; gap: 4%; }
+.st-stage.st-three .st-score .n { font-size: 6vh; }
+.st-stage.st-three .st-score .who { font-size: 1.7vh; }
+.st-stage.st-three .st-score .four { grid-template-columns: repeat(2, 1fr); gap: .7vh; }
+.st-stage.st-three .st-score .four strong { font-size: 1.8vh; }
+.st-stage.st-three .st-score .four span { font-size: .95vh; }
+.st-stage.st-three .st-cats { grid-template-columns: 1fr; gap: .3vh; }
+.st-stage.st-three .st-cat { font-size: 1.4vh; padding: .7vh 0; }
+.st-stage.st-three .st-scen-row { font-size: 1.6vh; padding: 1vh 0; }
+.st-stage.st-three .st-brandmark { font-size: 3.6vh; }
+.st-stage.st-three .st-ladder { gap: .6vh; }
+.st-stage.st-three .st-rung { font-size: 1.2vh; padding: .7vh 1.4vh; }
+.st-stage.st-three .st-vs { font-size: 2.8vh; gap: 1.6vh; }
+.st-stage.st-three .st-inset { max-height: 11vh; }
+.st-stage.st-three .st-inset img { max-height: 11vh; }
+
+.st-stage.st-three .st-progress { grid-row: 3; height: .5vh; margin: 0 0 1.4vh; padding: 0 5.6%;
+  position: absolute; left: 0; right: 0; bottom: 0; }
+
+/* Where the platform's own UI covers the frame. A framing aid, not part
+   of the video, so it only shows while paused. */
+.st-safe { position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  opacity: 0; transition: opacity .25s; }
+.st-stage.guides-on .st-safe { opacity: 1; }
+.st-safe .s-right { position: absolute; top: 0; bottom: 0; right: 0; width: 15%;
+  border-left: 1px dashed rgba(235,104,52,.5); background: rgba(235,104,52,.07); }
+.st-safe .s-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 17%;
+  border-top: 1px dashed rgba(235,104,52,.5); background: rgba(235,104,52,.07); }
+.st-safe em { position: absolute; right: 16%; bottom: 18%; transform: translateY(-6px);
+  font-style: normal; font-family: var(--h); text-transform: uppercase; letter-spacing: .12em;
+  font-size: 1.05vh; color: var(--series-b); background: rgba(6,7,8,.8); padding: .3vh .8vh;
+  border-radius: 3px; }
+
+/* The background belongs to the frame, not the window. */
+.st-stage.st-three > .st-bg { display: none; }
+.st-stage.st-three .st-frame::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(60% 32% at 24% 62%, rgba(42,120,214,.18), transparent 70%),
+    radial-gradient(56% 30% at 82% 88%, rgba(235,104,52,.14), transparent 68%),
+    linear-gradient(to bottom, #14161a 0%, #0b0c0d 100%); }
+/* Must exclude the overlaid children: this rule and the .st-top rule
+   above have the same specificity, so this one wins by coming later and
+   silently reverted the brand bar to relative - which dropped it to the
+   bottom of the grid. Same class of collision as the control pill in
+   Studio One. */
+.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe) { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) { .st-safe { transition: none; } }
+
+/* Diagram for the third mode card. */
+.dia-three::before { left: 8px; right: 8px; top: 8px; height: 42%; background: var(--series-b); }
+.dia-three::after  { left: 8px; right: 8px; bottom: 8px; height: 42%; background: var(--line); }
+.st-modes { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1000px) { .st-modes { grid-template-columns: 1fr; } }

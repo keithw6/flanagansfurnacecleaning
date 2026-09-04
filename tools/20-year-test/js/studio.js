@@ -42,7 +42,9 @@
        'two'  explainer column on the left, camera panel on the right
        Studio One's markup and CSS are untouched by mode two; the split
        layout is entirely additive, gated on a class. */
-    mode: 'one'
+    mode: 'one',
+    /* Studio Three only: the frame it composes for. */
+    vertical: { ratio: '9:16', safeGuides: true }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -52,7 +54,8 @@
       if (p.cam) { Object.assign(prefs.cam, p.cam); }
       if (p.prompter) { Object.assign(prefs.prompter, p.prompter); }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
-      if (p.mode === 'one' || p.mode === 'two') { prefs.mode = p.mode; }
+      if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
+      if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -139,15 +142,16 @@
 
     if (b.kind.indexOf('chart:') === 0) {
       var key = b.kind.slice(6);
-      var narrow = prefs.mode === 'two';
+      /* A 1180-wide frame shrinks every label once the column narrows, so
+         each layout gets proportions rather than a scaled-down copy. The
+         vertical frame is squarer again and needs the most room per label. */
+      var dims = prefs.mode === 'three' ? { w: 780, h: 620, gap: 44 }
+               : prefs.mode === 'two'   ? { w: 900, h: 520, gap: 40 }
+               :                          { w: 1180, h: 520, gap: 48 };
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        /* A 1180-wide frame in a 60% column shrinks every label. Give the
-           split layout its own proportions rather than scaling one down. */
-        width: narrow ? 900 : 1180,
-        height: narrow ? 520 : 520,
-        endLabelGap: narrow ? 40 : 48
+        width: dims.w, height: dims.h, endLabelGap: dims.gap
       }));
       wrap.classList.add('wide');
       return wrap;
@@ -355,17 +359,36 @@
   function openPresentation() {
     if (!build()) { return; }
     if (overlay) { overlay.remove(); }
+    var three = prefs.mode === 'three';
     overlay = document.createElement('div');
-    overlay.className = 'st-stage' + (prefs.mode === 'two' ? ' st-two' : '');
-    overlay.innerHTML =
+    overlay.className = 'st-stage' +
+      (prefs.mode === 'two' ? ' st-two' : '') +
+      (three ? ' st-three ratio-' + prefs.vertical.ratio.replace(':', '-') : '');
+
+    var head =
       '<div class="st-top">' +
         '<div class="st-brand">Blue Collar Business<span>The ' + BCB.app.getLast().sim.cfg.years + '-Year Test</span></div>' +
         '<div class="st-meta"><span id="stCount"></span><span id="stClock"></span></div>' +
-      '</div>' +
+      '</div>';
+    var body =
       '<div class="st-body"><div class="st-kick" id="stKick"></div>' +
-      '<h1 id="stTitle"></h1><div id="stVis"></div></div>' +
-      '<div class="st-progress" id="stProg"></div>' +
-      (prefs.mode === 'two' ? '<div class="st-camcol" id="stCamCol"></div>' : '') +
+      '<h1 id="stTitle"></h1><div id="stVis"></div></div>';
+    var prog = '<div class="st-progress" id="stProg"></div>';
+    var camcol = '<div class="st-camcol" id="stCamCol"></div>';
+
+    /* Studio Three composes inside a fixed-ratio frame rather than the
+       whole window, because the deliverable is a 9:16 file - what is
+       outside the frame is not in the video. The frame is a wrapper, so
+       every id below stays where the rest of the code expects it. */
+    var inner = three
+      ? '<div class="st-frame">' + camcol + head + body + prog +
+          (prefs.vertical.safeGuides ? '<div class="st-safe" aria-hidden="true">' +
+            '<span class="s-right"></span><span class="s-bottom"></span>' +
+            '<em>platform UI sits here</em></div>' : '') +
+        '</div>'
+      : head + body + prog + (prefs.mode === 'two' ? camcol : '');
+
+    overlay.innerHTML = inner +
       '<div class="st-controls no-print" id="stCtl">' +
         '<button data-act="prev" title="Previous beat (left arrow)">&larr;</button>' +
         '<button data-act="play" title="Play or pause (space)">Play</button>' +
@@ -420,7 +443,7 @@
      carry their own visual keep it; the rest get the career photograph
      as an inset card above the words. */
   function insetFor(b) {
-    if (prefs.mode !== 'two' || !BCB.media.manifest) { return null; }
+    if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
     var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
@@ -464,6 +487,11 @@
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
     }).join('');
     overlay.querySelector('[data-act="play"]').textContent = playing ? 'Pause' : 'Play';
+    /* The platform-UI guides are a framing aid, not part of the video:
+       visible while you are setting up, gone once you are rolling. Scoped
+       to Studio Three so the other two stages keep the exact class list
+       they had before this mode existed. */
+    if (prefs.mode === 'three') { overlay.classList.toggle('guides-on', !playing); }
     paintBackground();
     tickClock();
   }
@@ -911,7 +939,9 @@
         [['one', 'Studio One - full frame',
           'Slides fill the screen, camera floats in a corner. Best when the numbers are the story.'],
          ['two', 'Studio Two - explainer and camera',
-          'Explainer column on the left for text and images, you on the right at full height. Best when you are the story.']]
+          'Explainer column on the left for text and images, you on the right at full height. Best when you are the story.'],
+         ['three', 'Studio Three - vertical',
+          'You on top, explainer underneath, composed inside a 9:16 frame for Reels, TikTok and Shorts.']]
         .map(function (m) {
           return '<button class="st-mode' + (prefs.mode === m[0] ? ' on' : '') + '" data-mode="' + m[0] + '">' +
             '<span class="k">' + esc(m[1]) + '</span><span class="d">' + esc(m[2]) + '</span>' +
@@ -924,6 +954,21 @@
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
       '<p class="hint" id="prompterNote" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>' +
+      (prefs.mode === 'three'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="vRatio">Frame</label><select id="vRatio">' +
+            [['9:16', '9:16 - Reels, TikTok, Shorts'], ['4:5', '4:5 - Instagram feed'], ['1:1', '1:1 - square']]
+            .map(function (r) {
+              return '<option value="' + r[0] + '"' + (prefs.vertical.ratio === r[0] ? ' selected' : '') +
+                '>' + esc(r[1]) + '</option>'; }).join('') +
+          '</select><div class="hint">Everything outside the frame is not in the video. ' +
+          'Capture the frame, not the window.</div></div>' +
+          '<div class="field"><div class="field-inline" style="margin-top:22px">' +
+          '<input type="checkbox" id="vSafe"' + (prefs.vertical.safeGuides ? ' checked' : '') +
+          '><label for="vSafe" style="margin:0">Show where platform UI covers the frame</label></div>' +
+          '<div class="hint">Captions, buttons and the handle sit over the bottom and right edges. ' +
+          'The guides disappear once you press play.</div></div></div>'
+        : '') +
       '</div>' +
 
       '<div class="callout"><strong>Setting it up on one wide screen.</strong> Put the slide window on the half ' +
@@ -1020,7 +1065,9 @@
       savePrefs();
       return;
     }
-    if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
+    if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
+    else if (t.id === 'vSafe') { prefs.vertical.safeGuides = t.checked; savePrefs(); }
+    else if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
     else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }

@@ -47,7 +47,7 @@ or hand to someone else.
 The Studio tab turns the comparison into an episode: seventeen beats, roughly
 seven minutes of narration, generated from the numbers currently on screen.
 
-**Two layouts.** Pick one on the Studio tab before you start:
+**Three layouts.** Pick one on the Studio tab before you start:
 
 - **Studio One — full frame.** Slides fill the screen, camera floats in a corner
   you can drag. Best when the numbers are the story.
@@ -57,7 +57,15 @@ seven minutes of narration, generated from the numbers currently on screen.
   proportions here rather than being scaled down, and the background sits further
   back because the columns already carry the composition.
 
-The prompter, the script, the beat timing and the keys are identical in both.
+- **Studio Three — vertical.** You on top, explainer underneath, composed inside a
+  9:16 frame (or 4:5, or square) for Reels, TikTok, Shorts and the Instagram feed.
+  Capture the frame, not the window — what falls outside it is not in the video.
+  Content is padded clear of where the platform's own UI sits, roughly 17% up from
+  the bottom and 15% in from the right, and a guide shows those zones while you are
+  paused. The camera still runs edge to edge: a face behind a button is fine, an
+  axis label behind one is not.
+
+The prompter, the script, the beat timing and the keys are identical in all three.
 
 **Three pieces, deliberately kept apart:**
 
