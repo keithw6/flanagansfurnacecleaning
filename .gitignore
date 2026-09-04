@@ -7,3 +7,7 @@ Thumbs.db
 # Delete these two lines if you'd rather keep them in the repo.
 GBP-SETUP.md
 Flanagans-GBP-Setup-Guide.pdf
+# NOTE: tools/20-year-test/dist/ is deliberately NOT ignored. It is generated,
+# but it is also the file a non-developer is meant to download and open, so it
+# has to actually be in the repository. Rebuild it with:
+#   node tools/20-year-test/build-single.mjs
