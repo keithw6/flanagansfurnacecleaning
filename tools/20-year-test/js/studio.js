@@ -44,7 +44,11 @@
        layout is entirely additive, gated on a class. */
     mode: 'one',
     /* Studio Three only: the frame it composes for. */
-    vertical: { ratio: '9:16', safeGuides: true }
+    vertical: { ratio: '9:16', safeGuides: true },
+    /* Studio Two framing. Defaults match a floating presenter card:
+       inset from the edge, rounded, outlined, around 60% of frame
+       height and vertically centred. */
+    split: { camHeight: 62, camWidth: 26, align: 'center' }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -56,6 +60,7 @@
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
+      if (p.split) { Object.assign(prefs.split, p.split); }
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -425,9 +430,17 @@
     overlay.addEventListener('mousemove', poke);
     poke();
 
+    if (prefs.mode === 'two') { applySplitVars(); }
     if (prefs.cam.on) { startCam(); }
     mountCam();
     go(idx, true);
+  }
+
+  function applySplitVars() {
+    if (!overlay) { return; }
+    overlay.style.setProperty('--split-cam-h', prefs.split.camHeight + '%');
+    overlay.style.setProperty('--split-cam-w', prefs.split.camWidth + 'vw');
+    overlay.classList.toggle('align-left', prefs.split.align === 'left');
   }
 
   function closePresentation() {
@@ -954,6 +967,21 @@
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
       '<p class="hint" id="prompterNote" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>' +
+      (prefs.mode === 'two'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="sCamH">Camera height</label>' +
+          '<input type="number" id="sCamH" min="30" max="100" step="2" value="' + prefs.split.camHeight + '">' +
+          '<div class="hint">% of the frame. 100 fills the column edge to edge; ' +
+          'lower floats it as a card.</div></div>' +
+          '<div class="field"><label for="sCamW">Camera width</label>' +
+          '<input type="number" id="sCamW" min="14" max="45" step="1" value="' + prefs.split.camWidth + '">' +
+          '<div class="hint">% of the window width.</div></div>' +
+          '<div class="field"><label for="sAlign">Explainer text</label><select id="sAlign">' +
+            [['center', 'Centred'], ['left', 'Left-aligned']].map(function (o) {
+              return '<option value="' + o[0] + '"' + (prefs.split.align === o[0] ? ' selected' : '') +
+                '>' + o[1] + '</option>'; }).join('') +
+          '</select></div></div>'
+        : '') +
       (prefs.mode === 'three'
         ? '<div class="field-row" style="margin-top:14px">' +
           '<div class="field"><label for="vRatio">Frame</label><select id="vRatio">' +
@@ -1065,7 +1093,10 @@
       savePrefs();
       return;
     }
-    if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
+    if (t.id === 'sCamH') { prefs.split.camHeight = parseFloat(t.value) || 62; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sCamW') { prefs.split.camWidth = parseFloat(t.value) || 26; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sAlign') { prefs.split.align = t.value; savePrefs(); applySplitVars(); }
+    else if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
     else if (t.id === 'vSafe') { prefs.vertical.safeGuides = t.checked; savePrefs(); }
     else if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
     else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }

@@ -51,11 +51,13 @@ seven minutes of narration, generated from the numbers currently on screen.
 
 - **Studio One — full frame.** Slides fill the screen, camera floats in a corner
   you can drag. Best when the numbers are the story.
-- **Studio Two — explainer and camera.** Explainer column on the left carrying the
-  text, figures and a photograph; you on the right at full height, cropped to a
-  presenter frame. Best when you are the story. Charts get their own narrower
-  proportions here rather than being scaled down, and the background sits further
-  back because the columns already carry the composition.
+- **Studio Two — explainer and camera.** Centred explainer block on the left
+  carrying the text, figures and a photograph; you on the right as a floating
+  presenter card — inset from the edge, rounded, outlined, around 60% of frame
+  height and vertically centred. Best when you are the story. Camera height, camera
+  width and text alignment are all adjustable on the Studio tab, because the right
+  proportions are a taste call. Charts get their own narrower proportions here
+  rather than being scaled down.
 
 - **Studio Three — vertical.** You on top, explainer underneath, composed inside a
   9:16 frame (or 4:5, or square) for Reels, TikTok, Shorts and the Instagram feed.

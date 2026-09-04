@@ -643,7 +643,7 @@ body.st-on { overflow: hidden; }
    ===================================================================== */
 .st-stage.st-two {
   display: grid;
-  grid-template-columns: 1fr clamp(300px, 31vw, 560px);
+  grid-template-columns: 1fr calc(var(--split-cam-w, 26vw) + 5vw);
   grid-template-rows: auto 1fr auto;
   grid-template-areas: "top cam" "body cam" "prog cam";
   column-gap: clamp(16px, 2.4vw, 40px);
@@ -653,7 +653,7 @@ body.st-on { overflow: hidden; }
 .st-stage.st-two > .st-body     { grid-area: body; }
 .st-stage.st-two > .st-progress { grid-area: prog; }
 .st-stage.st-two > .st-camcol   { grid-area: cam; position: relative; z-index: 1;
-  display: flex; align-items: stretch; justify-content: stretch; min-height: 0; }
+  display: flex; align-items: center; justify-content: center; min-height: 0; }
 
 /* The explainer column: left-aligned, because a column of centred text
    beside a talking head reads as a title card rather than an explainer. */
@@ -661,8 +661,9 @@ body.st-on { overflow: hidden; }
    and no height attribute has no intrinsic size, so a flex-start column
    collapses to the SVG default of 300x150 and the chart renders as a
    thumbnail. text-align carries the left alignment instead. */
-.st-stage.st-two .st-body { align-items: stretch; text-align: left; justify-content: center;
+.st-stage.st-two .st-body { align-items: stretch; text-align: center; justify-content: center;
   gap: clamp(10px, 1.8vh, 24px); }
+.st-stage.st-two.align-left .st-body { text-align: left; }
 .st-stage.st-two h1 { font-size: clamp(1.5rem, 3.4vw, 3rem); text-wrap: balance; }
 .st-stage.st-two.chart h1 { font-size: clamp(1.15rem, 2.2vw, 1.9rem); }
 .st-stage.st-two .st-visual { max-width: 100%; align-items: stretch; }
@@ -674,21 +675,32 @@ body.st-on { overflow: hidden; }
    narrow, which leaves an orphan and a hole. A two-up grid is stable at
    any count, and the figures step down so they stop competing with the
    headline number above them. */
+/* Centred, the two stat columns drift to opposite ends of the panel and
+   stop reading as one block. Cap the width and centre it. */
 .st-stage.st-two .st-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(10px, 1.6vh, 20px) clamp(14px, 2vw, 34px); justify-content: start; }
-.st-stage.st-two .st-stat { text-align: left; }
+  gap: clamp(10px, 1.6vh, 20px) clamp(20px, 3vw, 48px); justify-content: center;
+  max-width: 34em; margin: 0 auto; }
+.st-stage.st-two.align-left .st-stats { max-width: none; margin: 0; }
+.st-stage.st-two .st-stat { text-align: center; }
+.st-stage.st-two.align-left .st-stats { justify-content: start; }
+.st-stage.st-two.align-left .st-stat { text-align: left; }
 .st-stage.st-two .st-stat .v { font-size: clamp(1.05rem, 2.1vw, 1.85rem); }
 .st-stage.st-two .st-stat .k { font-size: clamp(.56rem, .8vw, .7rem); margin-bottom: 3px; }
 /* The visual is a stack here, so it needs its own rhythm - without a gap
    the hero's sub-line runs straight into the first stat label. */
 .st-stage.st-two .st-visual { gap: clamp(14px, 2.4vh, 30px); }
 .st-stage.st-two .st-hero { display: flex; flex-direction: column; gap: 4px; }
-.st-stage.st-two .st-hero, .st-stage.st-two .st-brandcard { text-align: left; align-items: flex-start; }
-.st-stage.st-two .st-hero-sub { margin-left: 0; margin-top: 2px; max-width: 34ch;
+.st-stage.st-two .st-hero, .st-stage.st-two .st-brandcard { text-align: center; align-items: center; }
+.st-stage.st-two.align-left .st-hero,
+.st-stage.st-two.align-left .st-brandcard { text-align: left; align-items: flex-start; }
+.st-stage.st-two .st-hero-sub { margin: 2px auto 0; max-width: 34ch;
   font-size: clamp(.85rem, 1.25vw, 1.1rem); }
+.st-stage.st-two.align-left .st-hero-sub { margin-left: 0; }
 .st-stage.st-two .st-hero-num { font-size: clamp(2rem, 5.4vw, 4.6rem); }
-.st-stage.st-two .st-ladder { justify-content: flex-start; }
-.st-stage.st-two .st-vs { justify-content: flex-start; }
+.st-stage.st-two .st-ladder { justify-content: center; }
+.st-stage.st-two.align-left .st-ladder { justify-content: flex-start; }
+.st-stage.st-two .st-vs { justify-content: center; }
+.st-stage.st-two.align-left .st-vs { justify-content: flex-start; }
 .st-stage.st-two .st-cats { grid-template-columns: 1fr; }
 .st-stage.st-two .st-cols, .st-stage.st-two .st-scores { gap: clamp(10px, 1.6vw, 22px); }
 
@@ -704,6 +716,20 @@ body.st-on { overflow: hidden; }
   border-radius: 16px; overflow: hidden; cursor: default;
   box-shadow: 0 18px 50px rgba(0,0,0,.5);
 }
+/* Studio Two: a floating presenter card. Inset from the edge, rounded,
+   with a light outline that separates it from the ground behind. */
+.st-stage.st-two .st-cam.in-col,
+.st-stage.st-two .st-cam-ghost.in-col {
+  width: var(--split-cam-w, 26vw);
+  height: var(--split-cam-h, 62%);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,.30), 0 24px 60px rgba(0,0,0,.55);
+}
+/* The camera side sits on its own slightly darker ground, which is what
+   separates the two panels when the picture behind is quiet. */
+.st-stage.st-two > .st-camcol::before { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(6,7,8,.28), rgba(6,7,8,.5)); }
+.st-stage.st-two > .st-camcol > * { position: relative; z-index: 1; }
 .st-cam.in-col video { width: 100%; height: 100%; object-fit: cover; }
 .st-cam-ghost.in-col { background: rgba(20,22,26,.6); border: 1.5px dashed rgba(255,255,255,.20);
   box-shadow: none; }
@@ -5965,7 +5991,11 @@ body.st-on { overflow: hidden; }
        layout is entirely additive, gated on a class. */
     mode: 'one',
     /* Studio Three only: the frame it composes for. */
-    vertical: { ratio: '9:16', safeGuides: true }
+    vertical: { ratio: '9:16', safeGuides: true },
+    /* Studio Two framing. Defaults match a floating presenter card:
+       inset from the edge, rounded, outlined, around 60% of frame
+       height and vertically centred. */
+    split: { camHeight: 62, camWidth: 26, align: 'center' }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -5977,6 +6007,7 @@ body.st-on { overflow: hidden; }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
+      if (p.split) { Object.assign(prefs.split, p.split); }
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -6346,9 +6377,17 @@ body.st-on { overflow: hidden; }
     overlay.addEventListener('mousemove', poke);
     poke();
 
+    if (prefs.mode === 'two') { applySplitVars(); }
     if (prefs.cam.on) { startCam(); }
     mountCam();
     go(idx, true);
+  }
+
+  function applySplitVars() {
+    if (!overlay) { return; }
+    overlay.style.setProperty('--split-cam-h', prefs.split.camHeight + '%');
+    overlay.style.setProperty('--split-cam-w', prefs.split.camWidth + 'vw');
+    overlay.classList.toggle('align-left', prefs.split.align === 'left');
   }
 
   function closePresentation() {
@@ -6875,6 +6914,21 @@ body.st-on { overflow: hidden; }
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
       '<p class="hint" id="prompterNote" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>' +
+      (prefs.mode === 'two'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="sCamH">Camera height</label>' +
+          '<input type="number" id="sCamH" min="30" max="100" step="2" value="' + prefs.split.camHeight + '">' +
+          '<div class="hint">% of the frame. 100 fills the column edge to edge; ' +
+          'lower floats it as a card.</div></div>' +
+          '<div class="field"><label for="sCamW">Camera width</label>' +
+          '<input type="number" id="sCamW" min="14" max="45" step="1" value="' + prefs.split.camWidth + '">' +
+          '<div class="hint">% of the window width.</div></div>' +
+          '<div class="field"><label for="sAlign">Explainer text</label><select id="sAlign">' +
+            [['center', 'Centred'], ['left', 'Left-aligned']].map(function (o) {
+              return '<option value="' + o[0] + '"' + (prefs.split.align === o[0] ? ' selected' : '') +
+                '>' + o[1] + '</option>'; }).join('') +
+          '</select></div></div>'
+        : '') +
       (prefs.mode === 'three'
         ? '<div class="field-row" style="margin-top:14px">' +
           '<div class="field"><label for="vRatio">Frame</label><select id="vRatio">' +
@@ -6986,7 +7040,10 @@ body.st-on { overflow: hidden; }
       savePrefs();
       return;
     }
-    if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
+    if (t.id === 'sCamH') { prefs.split.camHeight = parseFloat(t.value) || 62; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sCamW') { prefs.split.camWidth = parseFloat(t.value) || 26; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sAlign') { prefs.split.align = t.value; savePrefs(); applySplitVars(); }
+    else if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
     else if (t.id === 'vSafe') { prefs.vertical.safeGuides = t.checked; savePrefs(); }
     else if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
     else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
