@@ -100,7 +100,7 @@
       N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
         ' instead of ' + N.say(rGap));
     }
-    script = N.episodeScript(L.sim, L.scores);
+    script = N.episodeScript(L.sim, L.scores, BCB.app.getState().scriptSeed || 0);
     if (idx >= script.beats.length) { idx = 0; }
     return script;
   }
@@ -1044,8 +1044,10 @@
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
           '<div class="hint">One line per sentence. Blank lines are ignored.</div></details>';
       }).join('') +
-      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px">Regenerate from the numbers</button>' +
-      '<span class="hint" style="margin-left:10px;color:var(--muted)">Discards your edits.</span>' +
+      '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
+      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
+      '<span class="hint" style="margin-left:10px;color:var(--muted)">Both discard your edits. Reshuffle keeps the facts and ' +
+      'rewrites every sentence; hit it until it sounds like you.</span>' +
       '</div>' +
 
       '<div class="card"><h3>Keys while presenting</h3>' +
@@ -1083,6 +1085,12 @@
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
       else if (act === 'regen') { script = null; build(); renderStudio(); renderPrompter(); }
+      else if (act === 'reshuffle') {
+        var st = BCB.app.getState();
+        st.scriptSeed = (st.scriptSeed || 0) + 1;
+        script = null; build(); renderStudio(); renderPrompter();
+        BCB.app.recompute(true);   /* the YouTube tab shares the seed */
+      }
       return;
     }
     if (t.dataset && t.dataset.pref) {
