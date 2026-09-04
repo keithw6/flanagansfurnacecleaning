@@ -20,6 +20,8 @@ tools/20-year-test/
   js/narrative.js     the written analysis and the YouTube pack
   js/app.js           form generation, rendering, the printable report
   js/studio.js        the recording rig - stage, prompter window, webcam
+  js/media.js         slide backgrounds and the media library resolver
+  media/manifest.json the image/clip library, keyed by career
   build-single.mjs    bundles all of the above into one self-contained file
 ```
 
@@ -76,6 +78,25 @@ from the numbers" rebuilds it and discards your edits.
 refused camera access outright and cannot open windows, so the camera and the
 pop-out prompter will not work in a hosted copy. Open `index.html` (or the bundled
 `dist/20-year-test.html`) from your own machine to record.
+
+## The media library
+
+`media/manifest.json` maps each career id to background imagery, plus a `_brand`
+block for the intro, outro and title cards. A value is either a path relative to
+`media/` or an absolute URL, so the library works hosted or offline — to go
+offline, download each file into `media/stills/` and replace the URL with the
+filename. Nothing else changes.
+
+Anything left `null` falls back to the procedural background, so a half-filled
+library is never a broken page, and an asset that fails to load falls back the
+same way rather than leaving a heavy photo scrim sitting over nothing.
+
+How strongly a picture shows through is set per beat in `js/media.js`: a title
+card carries the most, a chart almost none. That ordering is deliberate —
+behind a chart, a photograph is a legibility problem, not decoration.
+
+The stills that ship are AI-generated backdrops, not photographs of real people
+or businesses, and the manifest says so.
 
 ## How the model works
 

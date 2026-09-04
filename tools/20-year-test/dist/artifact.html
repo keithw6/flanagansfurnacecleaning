@@ -529,6 +529,113 @@ body.st-on { overflow: hidden; }
 }
 @media print { .st-stage, .st-cam { display: none !important; } }
 
+/* =====================================================================
+   STAGE BACKGROUND
+   A photograph behind white type is a contrast problem, not a
+   decoration. Every picture carries a scrim, and how strong it is
+   allowed to be is set per beat in media.js - a chart gets almost
+   none, a title card gets the most.
+
+   With no library present this is still a designed ground rather than
+   flat black: a slow off-centre glow in the two series hues, a faint
+   rule grid, and film grain. It should read as deliberate at zero
+   assets, because that is how most people will first see it.
+   ===================================================================== */
+.st-bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.st-bg::before {
+  /* The procedural ground. Two soft pools of brand colour, well off
+     centre so the composition is not symmetrical. */
+  content: ""; position: absolute; inset: -20%;
+  background:
+    radial-gradient(48% 42% at 18% 22%, rgba(42,120,214,.20), transparent 68%),
+    radial-gradient(44% 40% at 84% 78%, rgba(235,104,52,.16), transparent 66%),
+    radial-gradient(70% 60% at 50% 50%, #14161a 0%, #0b0c0d 70%);
+  animation: st-drift 46s ease-in-out infinite alternate;
+}
+.st-bg::after {
+  /* Faint rule grid - a nod to a takeoff sheet, not a tech dashboard. */
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+}
+@keyframes st-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1.04); }
+  to   { transform: translate3d(1.5%, 1.5%, 0) scale(1.10); }
+}
+
+.st-bg-art { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; }
+.st-bg-art img, .st-bg-art video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-bg-art.kenburns img { animation: st-kenburns 34s ease-in-out infinite alternate; }
+@keyframes st-kenburns {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to   { transform: scale(1.13) translate3d(-1.6%, -1.2%, 0); }
+}
+
+/* The scrim is what keeps the type legible. Heavier at the bottom,
+   where the value lines and the progress bar sit. */
+.st-bg-scrim { position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(8,9,10,.72) 0%, rgba(8,9,10,.52) 34%, rgba(8,9,10,.74) 78%, rgba(8,9,10,.92) 100%),
+    radial-gradient(78% 70% at 50% 42%, transparent 0%, rgba(8,9,10,.55) 100%);
+}
+.st-bg.bare .st-bg-scrim { background: radial-gradient(80% 72% at 50% 45%, transparent 0%, rgba(8,9,10,.5) 100%); }
+.st-bg-grain { position: absolute; inset: 0; opacity: .055; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* Everything on the stage sits above the background - but name the
+   in-flow children explicitly. A blanket `> *:not(.st-bg)` also hits
+   the fixed-position control pill and the camera, and `position:
+   relative` there stretches the pill across the whole stage. */
+.st-stage > .st-top,
+.st-stage > .st-body,
+.st-stage > .st-progress { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-bg::before, .st-bg-art.kenburns img { animation: none; }
+  .st-bg-art { transition: none; }
+}
+
+/* ---------- the camera stand-in ---------- */
+.st-cam-ghost { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: rgba(20,22,26,.55); color: #6d737b;
+  border: 1.5px dashed rgba(255,255,255,.20); box-shadow: none; cursor: default; }
+.st-cam-ghost svg { width: 42%; height: auto; display: block; }
+.st-cam-ghost span { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
+  font-size: .62rem; color: #7f858d; line-height: 1; }
+.st-cam-ghost.shape-circle { aspect-ratio: 1 / 1; border-radius: 50%; }
+.st-cam-ghost.shape-square { aspect-ratio: 16 / 9; border-radius: 3px; }
+.st-cam-ghost.shape-rounded { aspect-ratio: 16 / 9; border-radius: 14px; }
+.st-camhost .st-cam-ghost { position: relative; }
+
+/* ---------- intro and outro cards ---------- */
+.st-brandcard { text-align: center; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(14px, 3vh, 34px); }
+.st-brandmark { font-family: var(--h); text-transform: uppercase; color: #fff;
+  font-size: clamp(1.6rem, 4.4vw, 3.4rem); line-height: 1.04; letter-spacing: .01em; text-wrap: balance; }
+.st-outro-sub { font-family: var(--h); text-transform: uppercase; letter-spacing: .2em;
+  font-size: clamp(.7rem, 1.2vw, .95rem); color: var(--series-b); }
+
+/* The progression, as an actual ladder - it is the channel's thesis,
+   so it earns being drawn rather than described. */
+.st-ladder { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(6px, 1.2vw, 14px); }
+.st-rung { font-family: var(--h); text-transform: uppercase; letter-spacing: .1em;
+  font-size: clamp(.7rem, 1.5vw, 1.15rem); color: #8b9099;
+  border: 1px solid #33373d; border-radius: 3px; padding: 7px clamp(8px, 1.4vw, 18px); }
+.st-rung.last { color: #0b0c0d; background: var(--series-b); border-color: var(--series-b); font-weight: 600; }
+.st-arrow { width: clamp(10px, 1.6vw, 20px); height: 1px; background: #43484f; flex: none; }
+
+.st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
+  font-size: clamp(1.2rem, 3.4vw, 2.6rem); line-height: 1; }
+.st-vs .a { color: var(--series-a); }
+.st-vs .b { color: var(--series-b); }
+.st-vs em { font-style: normal; color: #6d737b; font-size: .5em; letter-spacing: .18em; }
+
 </style>
 <header class="hdr no-print">
   <div class="wrap hdr-in">
@@ -3803,6 +3910,18 @@ body.st-on { overflow: hidden; }
                    seconds: beatSeconds(lines) });
     }
 
+    beat('brand', 'brand', 'Blue Collar Business',
+      'Learn the trade. Build the business. Own the asset.',
+      ['Welcome to Blue Collar Business.',
+       'This channel is about one idea: a trade is not the ceiling, it is the entry point. ' +
+         'You learn the trade, you build the business, and eventually you own an asset that ' +
+         'works whether you show up or not.',
+       'And the way we test that idea is the 20-Year Test. We take two careers, start them at ' +
+         'the same age, run them side by side, and count everything - not just the salary. ' +
+         'What you earned, what it cost to get in, what you kept, how many hours it took, and ' +
+         'whether you finished with a business or just a good income.',
+       'Today: ' + A + ' against ' + B + '.']);
+
     beat('open', 'title', A + ' vs ' + B,
       'The ' + cfg.years + '-Year Test',
       [yt.hook,
@@ -3922,6 +4041,17 @@ body.st-on { overflow: hidden; }
     beat('verdict', 'verdict', 'The ' + cfg.years + '-year verdict', winner || 'Too close to call',
       [yt.verdict]);
 
+    beat('outro', 'outro', 'Run your own numbers',
+      '',
+      ['Here is what I would take away from this one.',
+       'The job you pick matters. But what you do with it after year five matters more, and ' +
+         'almost nobody runs those numbers before they commit twenty years to an answer.',
+       'So run yours. Change the wage to what they actually pay where you live. Change the ' +
+         'business to the one you would actually start. See whether the answer holds.',
+       'If you want the next one, subscribe - we run a different pair every episode, and the ' +
+         'ones that surprise me are the ones I put out first.',
+       'Learn the trade. Build the business. Own the asset. See you next time.']);
+
     return {
       beats: beats,
       totalSeconds: beats.reduce(function (t, x) { return t + x.seconds; }, 0),
@@ -3941,6 +4071,191 @@ body.st-on { overflow: hidden; }
     analysis: analysis, youtube: youtube, executiveSummary: executiveSummary,
     episodeScript: episodeScript, setScenarioNote: setScenarioNote,
     money: money, moneyShort: moneyShort, say: say
+  };
+
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>window.BCB_MEDIA_MANIFEST = {"_readme":["Media library for the 20-Year Test. Keys match the career ids in js/presets.js,","plus the _brand block used by the intro, outro and title cards.","","A value is EITHER a path relative to tools/20-year-test/media/ OR an absolute URL.","These ship as URLs on the generator's CDN so the library works immediately. To make","it work offline, download each file into media/stills/ and replace the URL with the","filename - nothing else changes.","","Anything null falls back to the procedural background, so a half-filled library is","never a broken page.","","still : a 16:9 photograph used as a slide background, heavily scrimmed","clip  : a short silent loop used the same way, for beats that want motion","","All stills below are AI-generated (Higgsfield soul_2, 2k, 16:9). They are","illustrative backdrops, not photographs of real people or real businesses."],"_brand":{"label":"Blue Collar Business","intro":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125150_056965b0-0910-4fda-8ae0-0ed5c4c2dad7.png","clip":null,"credit":"AI-generated"},"outro":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_a254dacc-d201-48d6-97c6-f782a535a770.png","clip":null,"credit":"AI-generated"},"title":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_f4db3c82-753a-4e92-a9e0-333cf3e6bf7e.png","clip":null,"credit":"AI-generated"}},"careers":{"plumber":{"label":"Plumber","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_c949ce05-104f-4278-94c8-08a1ac24a736.png","clip":null,"credit":"AI-generated"},"electrician":{"label":"Electrician","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_9e5fde75-bb0f-43d8-986d-108e3129d631.png","clip":null,"credit":"AI-generated"},"hvac":{"label":"HVAC Technician","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_215af654-715c-4ba4-9d42-28a66da1e4f0.png","clip":null,"credit":"AI-generated"},"welder":{"label":"Welder","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_c0f1fd22-52e7-4eec-aecd-20b707644e16.png","clip":null,"credit":"AI-generated"},"hdmechanic":{"label":"Heavy-Duty Mechanic","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_eb6e35ae-8cbb-4446-89a3-a7b83a377bc8.png","clip":null,"credit":"AI-generated"},"trucker":{"label":"Owner-Operator Trucker","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_fc035be6-d10e-4ad3-88e0-42bd58372bea.png","clip":null,"credit":"AI-generated"},"dentist":{"label":"Dentist","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_8e1ec3dc-1e1f-442d-a6c8-831c6188ed79.png","clip":null,"credit":"AI-generated"},"pharmacist":{"label":"Pharmacist","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_8b581bcf-d8ae-49a5-b229-d1bd5626653e.png","clip":null,"credit":"AI-generated"},"lawyer":{"label":"Lawyer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_7a4acb63-e70b-49f3-b19a-57b4288b7419.png","clip":null,"credit":"AI-generated"},"accountant":{"label":"Accountant (CPA)","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_ac28d7fb-efdb-4ea7-9b80-230e43ba6592.png","clip":null,"credit":"AI-generated"},"engineer":{"label":"Professional Engineer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_5a56f0a8-4407-414c-9352-0c9d8ca41e47.png","clip":null,"credit":"AI-generated"},"softwareengineer":{"label":"Software Engineer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_4126ae71-770f-4f0b-b714-b5243acf9620.png","clip":null,"credit":"AI-generated"},"teacher":{"label":"Teacher","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_e43fd47e-4281-49f8-b518-e0ef5a6cc2a8.png","clip":null,"credit":"AI-generated"},"nurse":{"label":"Registered Nurse","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_492563c0-a363-487a-be5c-d8743ff51931.png","clip":null,"credit":"AI-generated"},"executive":{"label":"Corporate Executive","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_a7dd340a-f10f-4020-9d39-ebfa65af12e6.png","clip":null,"credit":"AI-generated"},"generic":{"label":"Custom career","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_85cb444a-f3df-46ef-811e-bd6923cc630a.png","clip":null,"credit":"AI-generated"}}};</script>
+<script>
+/* =====================================================================
+   Blue Collar Business - The 20-Year Test
+   media.js : the slide background layer
+
+   Two jobs:
+
+   1. Resolve imagery for whichever careers are being compared, from
+      media/manifest.json. Anything missing falls back to a procedural
+      background, so a half-filled library is never a broken page - and
+      an empty library still looks deliberate rather than unfinished.
+
+   2. Keep the text readable on top of it. That is the whole discipline
+      here: a photograph behind white type is a contrast problem, not a
+      decoration. Every background carries a scrim, and how strong the
+      picture is allowed to be depends on what the slide has to show -
+      a chart gets almost none, a title card gets the most.
+   ===================================================================== */
+(function (global) {
+  'use strict';
+
+  var BCB = global.BCB = global.BCB || {};
+  var manifest = null;
+  var loading = null;
+  var BASE = 'media/';
+
+  /* How much photograph each kind of slide can carry before it starts
+     competing with what the viewer is meant to read. */
+  var INTENSITY = {
+    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
+    headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
+    dependency: 0.24, hours: 0.24, freedom: 0.24,
+    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12,
+    radar: 0.1
+  };
+  function intensityFor(kind) {
+    if (kind.indexOf('chart:') === 0) { return 0.08; }
+    return INTENSITY[kind] == null ? 0.2 : INTENSITY[kind];
+  }
+
+  function load() {
+    if (manifest) { return Promise.resolve(manifest); }
+    if (loading) { return loading; }
+    /* A bundler can inline the library so no request is needed at all. */
+    if (global.BCB_MEDIA_MANIFEST) {
+      manifest = global.BCB_MEDIA_MANIFEST;
+      return Promise.resolve(manifest);
+    }
+    /* fetch() from a file:// page is refused, and the refusal is logged
+       as a console error before any catch can run. Do not ask. */
+    if (global.location && global.location.protocol === 'file:') {
+      manifest = emptyManifest();
+      return Promise.resolve(manifest);
+    }
+    loading = fetch(BASE + 'manifest.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { manifest = j || emptyManifest(); return manifest; })
+      .catch(function () {
+        /* Opening the file straight off disk blocks fetch in some
+           browsers. Not an error - just means no library. */
+        manifest = emptyManifest();
+        return manifest;
+      });
+    return loading;
+  }
+  function emptyManifest() { return { _brand: {}, careers: {} }; }
+
+  /* Career id from a career object. Presets keep their id only in the
+     CAREERS map, so match on name and fall back to a slug. */
+  function idFor(career) {
+    var C = BCB.data.CAREERS;
+    for (var k in C) {
+      if (C.hasOwnProperty(k) && C[k].name === career.name) { return k; }
+    }
+    return String(career.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+
+  function assetFor(careerOrKey, prefer) {
+    if (!manifest) { return null; }
+    var entry;
+    if (typeof careerOrKey === 'string') {
+      entry = (manifest._brand && manifest._brand[careerOrKey]) || null;
+    } else {
+      entry = manifest.careers && manifest.careers[idFor(careerOrKey)];
+    }
+    if (!entry) { return null; }
+    var clip = entry.clip, still = entry.still;
+    if (prefer === 'clip' && clip) { return { kind: 'clip', src: resolve(clip) }; }
+    if (still) { return { kind: 'still', src: resolve(still) }; }
+    if (clip) { return { kind: 'clip', src: resolve(clip) }; }
+    return null;
+  }
+
+  /* A manifest entry is either a file in media/ or an absolute URL.
+     Hosting the assets remotely gets a library working immediately;
+     downloading them into media/ later makes it work offline, and the
+     only change is the manifest value. */
+  function resolve(v) {
+    return /^(https?:)?\/\//.test(v) ? v : BASE + v;
+  }
+
+  /* ---------------------------------------------------------------
+     THE BACKGROUND ELEMENT
+     One node, reused across beats: swapping the source beats
+     rebuilding, and it lets the crossfade actually cross-fade.
+     --------------------------------------------------------------- */
+  function createLayer() {
+    var el = document.createElement('div');
+    el.className = 'st-bg';
+    el.innerHTML =
+      '<div class="st-bg-art" data-slot="a"></div>' +
+      '<div class="st-bg-art" data-slot="b"></div>' +
+      '<div class="st-bg-scrim"></div>' +
+      '<div class="st-bg-grain"></div>';
+    el.__slot = 'a';
+    return el;
+  }
+
+  /* Swap in a new background. Returns quietly when there is nothing to
+     show, leaving the procedural ground in place. */
+  function setBackground(layer, asset, intensity, reduceMotion) {
+    if (!layer) { return; }
+    var next = layer.__slot === 'a' ? 'b' : 'a';
+    var incoming = layer.querySelector('[data-slot="' + next + '"]');
+    var outgoing = layer.querySelector('[data-slot="' + layer.__slot + '"]');
+
+    if (!asset) {
+      /* No asset for this beat: fade the picture out and let the
+         procedural background carry it. */
+      incoming.style.opacity = 0;
+      outgoing.style.opacity = 0;
+      layer.classList.add('bare');
+      return;
+    }
+    layer.classList.remove('bare');
+    incoming.innerHTML = '';
+
+    /* An asset that fails to arrive - an expired link, no network, a
+       blocked host - must not leave the heavy photo scrim sitting over
+       nothing. That reads as a broken, muddy slide; falling back to the
+       designed ground reads as intentional. */
+    function failed() {
+      incoming.style.opacity = 0;
+      outgoing.style.opacity = 0;
+      layer.classList.add('bare');
+    }
+
+    if (asset.kind === 'clip') {
+      var v = document.createElement('video');
+      v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true;
+      v.setAttribute('aria-hidden', 'true');
+      v.addEventListener('error', failed);
+      v.src = asset.src;
+      var p = v.play();
+      if (p && p.catch) { p.catch(function () { /* autoplay refusal is not a failure */ }); }
+      incoming.appendChild(v);
+      incoming.classList.remove('kenburns');
+    } else {
+      var img = document.createElement('img');
+      img.alt = '';
+      img.setAttribute('aria-hidden', 'true');
+      img.addEventListener('error', failed);
+      img.src = asset.src;
+      incoming.appendChild(img);
+      incoming.classList.toggle('kenburns', !reduceMotion);
+    }
+    incoming.style.opacity = intensity;
+    outgoing.style.opacity = 0;
+    layer.__slot = next;
+  }
+
+  BCB.media = {
+    load: load,
+    assetFor: assetFor,
+    idFor: idFor,
+    intensityFor: intensityFor,
+    createLayer: createLayer,
+    setBackground: setBackground,
+    get manifest() { return manifest; }
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -5397,9 +5712,10 @@ body.st-on { overflow: hidden; }
   var promptWin = null;
   var camStream = null;
   var overlay = null;
+  var bgLayer = null;
 
   var prefs = {
-    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '' },
+    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
     prompter: { fontSize: 34, lineHeight: 1.45, width: 26, readingLine: 18, mirror: false, speed: 1 },
     autoAdvance: true
   };
@@ -5507,6 +5823,29 @@ body.st-on { overflow: hidden; }
     }
 
     switch (b.kind) {
+      case 'brand':
+        var brand = document.createElement('div');
+        brand.className = 'st-brandcard';
+        brand.innerHTML =
+          '<div class="st-ladder">' +
+          ['Do', 'Lead', 'Build', 'Own', 'Invest'].map(function (step, i) {
+            return '<span class="st-rung' + (i === 4 ? ' last' : '') + '">' + step + '</span>';
+          }).join('<i class="st-arrow"></i>') +
+          '</div>' +
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span>' +
+          '<em>vs</em><span class="b">' + esc(bb.name) + '</span></div>';
+        wrap.appendChild(brand);
+        wrap.classList.add('wide');
+        return wrap;
+
+      case 'outro':
+        var outro = document.createElement('div');
+        outro.className = 'st-brandcard';
+        outro.innerHTML =
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>';
+        wrap.appendChild(outro);
+        return wrap;
+
       case 'title':
         wrap.appendChild(bigStat([
           { k: 'Starting age', v: String(cfg.startAge) },
@@ -5703,8 +6042,12 @@ body.st-on { overflow: hidden; }
         '<button data-act="cam" title="Toggle the webcam (C)">Camera</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
       '</div>';
+    /* Background sits behind everything on the stage. */
+    bgLayer = BCB.media.createLayer();
+    overlay.insertBefore(bgLayer, overlay.firstChild);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
+    BCB.media.load().then(function () { paintBackground(); });
     overlay.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-act]');
       if (!b) { return; }
@@ -5755,7 +6098,41 @@ body.st-on { overflow: hidden; }
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
     }).join('');
     overlay.querySelector('[data-act="play"]').textContent = playing ? 'Pause' : 'Play';
+    paintBackground();
     tickClock();
+  }
+
+  /* Which career's imagery belongs behind this beat. Beats that are
+     about one side show that side; shared beats alternate so the
+     episode does not sit on one picture for seven minutes. */
+  function paintBackground() {
+    if (!bgLayer || !BCB.media.manifest) { return; }
+    var b = beat();
+    if (!b) { return; }
+    var L = BCB.app.getLast(), sim = L.sim;
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var asset = null;
+
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
+    if (!asset) {
+      /* Otherwise use whichever career the beat is really about, and
+         fall back to alternating between the two. */
+      var hs = sim.headStart;
+      var which = null;
+      if (b.id === 'headstart' && hs.leader) {
+        which = hs.leader === sim.a.name ? sim.a : sim.b;
+      } else {
+        which = (idx % 2 === 0) ? sim.a : sim.b;
+      }
+      asset = BCB.media.assetFor(which.career, idx % 3 === 0 ? 'clip' : 'still');
+      if (!asset) {
+        var other = which === sim.a ? sim.b : sim.a;
+        asset = BCB.media.assetFor(other.career, 'still');
+      }
+    }
+    BCB.media.setBackground(bgLayer, asset, BCB.media.intensityFor(b.kind), reduce);
   }
 
   function tickClock() {
@@ -5833,6 +6210,7 @@ body.st-on { overflow: hidden; }
      WEBCAM
      ===================================================================== */
   var camWrap = null;
+  var camPlaceholder = null;
   var camMessage = '';
   function camNode() {
     if (camWrap) { return camWrap; }
@@ -5864,10 +6242,47 @@ body.st-on { overflow: hidden; }
       w.style.left = ''; w.style.top = '';
     }
   }
+  /* A framed stand-in exactly where the real picture will sit, so the
+     layout can be judged - and rehearsed - before the camera is on. */
+  function placeholderNode() {
+    if (camPlaceholder) { return camPlaceholder; }
+    camPlaceholder = document.createElement('div');
+    camPlaceholder.className = 'st-cam st-cam-ghost';
+    camPlaceholder.innerHTML =
+      '<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="160" height="90" fill="none"></rect>' +
+      '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
+      '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
+      '</svg><span>Your camera</span>';
+    return camPlaceholder;
+  }
   function mountCam() {
     var w = camNode();
     applyCamStyle();
-    if (!prefs.cam.on) { if (w.parentNode) { w.remove(); } return; }
+    var ghost = placeholderNode();
+    if (ghost.parentNode) { ghost.remove(); }
+    if (!prefs.cam.on) {
+      if (w.parentNode) { w.remove(); }
+      /* Show the stand-in on the stage, and in the studio tab's tile. */
+      if (prefs.cam.placeholder) {
+        var gHost = overlay || document.getElementById('camHost');
+        if (gHost) {
+          gHost.appendChild(ghost);
+          ghost.className = 'st-cam st-cam-ghost shape-' + prefs.cam.shape;
+          if (overlay) {
+            ghost.style.position = 'fixed';
+            ghost.style.width = prefs.cam.size + 'vw';
+            ghost.style.right = '2.4vw'; ghost.style.bottom = '2.4vw';
+            ghost.style.left = ''; ghost.style.top = '';
+          } else {
+            ghost.style.position = 'relative';
+            ghost.style.width = '100%';
+            ghost.style.right = ghost.style.bottom = ghost.style.left = ghost.style.top = '';
+          }
+        }
+      }
+      return;
+    }
     var host = overlay || document.getElementById('camHost');
     if (host && w.parentNode !== host) { host.appendChild(w); }
     if (!overlay) { w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = ''; w.style.width = '100%'; }
@@ -6147,6 +6562,9 @@ body.st-on { overflow: hidden; }
           ['rounded', 'circle', 'square'].map(function (s) {
             return '<option value="' + s + '"' + (cam.shape === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
         '</select></div>' +
+        '<div class="field"><div class="field-inline"><input type="checkbox" id="camGhost"' + (cam.placeholder ? ' checked' : '') +
+          '><label for="camGhost" style="margin:0">Show a placeholder when the camera is off</label></div>' +
+          '<div class="hint">Marks exactly where the picture will sit, so you can rehearse the layout.</div></div>' +
         '<div class="field"><div class="field-inline"><input type="checkbox" id="camMirror"' + (cam.mirror ? ' checked' : '') +
           '><label for="camMirror" style="margin:0">Mirror the picture</label></div>' +
           '<div class="hint">Mirrored looks natural to you; unmirrored is what a viewer expects if there is text behind you.</div></div>' +
@@ -6203,7 +6621,8 @@ body.st-on { overflow: hidden; }
       savePrefs();
       return;
     }
-    if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
+    if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
+    else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }
     else if (t.id === 'camShape') { prefs.cam.shape = t.value; savePrefs(); applyCamStyle(); }

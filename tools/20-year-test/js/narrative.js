@@ -450,6 +450,18 @@
                    seconds: beatSeconds(lines) });
     }
 
+    beat('brand', 'brand', 'Blue Collar Business',
+      'Learn the trade. Build the business. Own the asset.',
+      ['Welcome to Blue Collar Business.',
+       'This channel is about one idea: a trade is not the ceiling, it is the entry point. ' +
+         'You learn the trade, you build the business, and eventually you own an asset that ' +
+         'works whether you show up or not.',
+       'And the way we test that idea is the 20-Year Test. We take two careers, start them at ' +
+         'the same age, run them side by side, and count everything - not just the salary. ' +
+         'What you earned, what it cost to get in, what you kept, how many hours it took, and ' +
+         'whether you finished with a business or just a good income.',
+       'Today: ' + A + ' against ' + B + '.']);
+
     beat('open', 'title', A + ' vs ' + B,
       'The ' + cfg.years + '-Year Test',
       [yt.hook,
@@ -568,6 +580,17 @@
 
     beat('verdict', 'verdict', 'The ' + cfg.years + '-year verdict', winner || 'Too close to call',
       [yt.verdict]);
+
+    beat('outro', 'outro', 'Run your own numbers',
+      '',
+      ['Here is what I would take away from this one.',
+       'The job you pick matters. But what you do with it after year five matters more, and ' +
+         'almost nobody runs those numbers before they commit twenty years to an answer.',
+       'So run yours. Change the wage to what they actually pay where you live. Change the ' +
+         'business to the one you would actually start. See whether the answer holds.',
+       'If you want the next one, subscribe - we run a different pair every episode, and the ' +
+         'ones that surprise me are the ones I put out first.',
+       'Learn the trade. Build the business. Own the asset. See you next time.']);
 
     return {
       beats: beats,

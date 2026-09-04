@@ -524,3 +524,110 @@ body.st-on { overflow: hidden; }
   .st-progress i.now::after, .st-controls { transition: none; }
 }
 @media print { .st-stage, .st-cam { display: none !important; } }
+
+/* =====================================================================
+   STAGE BACKGROUND
+   A photograph behind white type is a contrast problem, not a
+   decoration. Every picture carries a scrim, and how strong it is
+   allowed to be is set per beat in media.js - a chart gets almost
+   none, a title card gets the most.
+
+   With no library present this is still a designed ground rather than
+   flat black: a slow off-centre glow in the two series hues, a faint
+   rule grid, and film grain. It should read as deliberate at zero
+   assets, because that is how most people will first see it.
+   ===================================================================== */
+.st-bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.st-bg::before {
+  /* The procedural ground. Two soft pools of brand colour, well off
+     centre so the composition is not symmetrical. */
+  content: ""; position: absolute; inset: -20%;
+  background:
+    radial-gradient(48% 42% at 18% 22%, rgba(42,120,214,.20), transparent 68%),
+    radial-gradient(44% 40% at 84% 78%, rgba(235,104,52,.16), transparent 66%),
+    radial-gradient(70% 60% at 50% 50%, #14161a 0%, #0b0c0d 70%);
+  animation: st-drift 46s ease-in-out infinite alternate;
+}
+.st-bg::after {
+  /* Faint rule grid - a nod to a takeoff sheet, not a tech dashboard. */
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+}
+@keyframes st-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1.04); }
+  to   { transform: translate3d(1.5%, 1.5%, 0) scale(1.10); }
+}
+
+.st-bg-art { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; }
+.st-bg-art img, .st-bg-art video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-bg-art.kenburns img { animation: st-kenburns 34s ease-in-out infinite alternate; }
+@keyframes st-kenburns {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to   { transform: scale(1.13) translate3d(-1.6%, -1.2%, 0); }
+}
+
+/* The scrim is what keeps the type legible. Heavier at the bottom,
+   where the value lines and the progress bar sit. */
+.st-bg-scrim { position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(8,9,10,.72) 0%, rgba(8,9,10,.52) 34%, rgba(8,9,10,.74) 78%, rgba(8,9,10,.92) 100%),
+    radial-gradient(78% 70% at 50% 42%, transparent 0%, rgba(8,9,10,.55) 100%);
+}
+.st-bg.bare .st-bg-scrim { background: radial-gradient(80% 72% at 50% 45%, transparent 0%, rgba(8,9,10,.5) 100%); }
+.st-bg-grain { position: absolute; inset: 0; opacity: .055; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* Everything on the stage sits above the background - but name the
+   in-flow children explicitly. A blanket `> *:not(.st-bg)` also hits
+   the fixed-position control pill and the camera, and `position:
+   relative` there stretches the pill across the whole stage. */
+.st-stage > .st-top,
+.st-stage > .st-body,
+.st-stage > .st-progress { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-bg::before, .st-bg-art.kenburns img { animation: none; }
+  .st-bg-art { transition: none; }
+}
+
+/* ---------- the camera stand-in ---------- */
+.st-cam-ghost { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: rgba(20,22,26,.55); color: #6d737b;
+  border: 1.5px dashed rgba(255,255,255,.20); box-shadow: none; cursor: default; }
+.st-cam-ghost svg { width: 42%; height: auto; display: block; }
+.st-cam-ghost span { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
+  font-size: .62rem; color: #7f858d; line-height: 1; }
+.st-cam-ghost.shape-circle { aspect-ratio: 1 / 1; border-radius: 50%; }
+.st-cam-ghost.shape-square { aspect-ratio: 16 / 9; border-radius: 3px; }
+.st-cam-ghost.shape-rounded { aspect-ratio: 16 / 9; border-radius: 14px; }
+.st-camhost .st-cam-ghost { position: relative; }
+
+/* ---------- intro and outro cards ---------- */
+.st-brandcard { text-align: center; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(14px, 3vh, 34px); }
+.st-brandmark { font-family: var(--h); text-transform: uppercase; color: #fff;
+  font-size: clamp(1.6rem, 4.4vw, 3.4rem); line-height: 1.04; letter-spacing: .01em; text-wrap: balance; }
+.st-outro-sub { font-family: var(--h); text-transform: uppercase; letter-spacing: .2em;
+  font-size: clamp(.7rem, 1.2vw, .95rem); color: var(--series-b); }
+
+/* The progression, as an actual ladder - it is the channel's thesis,
+   so it earns being drawn rather than described. */
+.st-ladder { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(6px, 1.2vw, 14px); }
+.st-rung { font-family: var(--h); text-transform: uppercase; letter-spacing: .1em;
+  font-size: clamp(.7rem, 1.5vw, 1.15rem); color: #8b9099;
+  border: 1px solid #33373d; border-radius: 3px; padding: 7px clamp(8px, 1.4vw, 18px); }
+.st-rung.last { color: #0b0c0d; background: var(--series-b); border-color: var(--series-b); font-weight: 600; }
+.st-arrow { width: clamp(10px, 1.6vw, 20px); height: 1px; background: #43484f; flex: none; }
+
+.st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
+  font-size: clamp(1.2rem, 3.4vw, 2.6rem); line-height: 1; }
+.st-vs .a { color: var(--series-a); }
+.st-vs .b { color: var(--series-b); }
+.st-vs em { font-style: normal; color: #6d737b; font-size: .5em; letter-spacing: .18em; }

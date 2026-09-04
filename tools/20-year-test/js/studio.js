@@ -32,9 +32,10 @@
   var promptWin = null;
   var camStream = null;
   var overlay = null;
+  var bgLayer = null;
 
   var prefs = {
-    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '' },
+    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
     prompter: { fontSize: 34, lineHeight: 1.45, width: 26, readingLine: 18, mirror: false, speed: 1 },
     autoAdvance: true
   };
@@ -142,6 +143,29 @@
     }
 
     switch (b.kind) {
+      case 'brand':
+        var brand = document.createElement('div');
+        brand.className = 'st-brandcard';
+        brand.innerHTML =
+          '<div class="st-ladder">' +
+          ['Do', 'Lead', 'Build', 'Own', 'Invest'].map(function (step, i) {
+            return '<span class="st-rung' + (i === 4 ? ' last' : '') + '">' + step + '</span>';
+          }).join('<i class="st-arrow"></i>') +
+          '</div>' +
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span>' +
+          '<em>vs</em><span class="b">' + esc(bb.name) + '</span></div>';
+        wrap.appendChild(brand);
+        wrap.classList.add('wide');
+        return wrap;
+
+      case 'outro':
+        var outro = document.createElement('div');
+        outro.className = 'st-brandcard';
+        outro.innerHTML =
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>';
+        wrap.appendChild(outro);
+        return wrap;
+
       case 'title':
         wrap.appendChild(bigStat([
           { k: 'Starting age', v: String(cfg.startAge) },
@@ -338,8 +362,12 @@
         '<button data-act="cam" title="Toggle the webcam (C)">Camera</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
       '</div>';
+    /* Background sits behind everything on the stage. */
+    bgLayer = BCB.media.createLayer();
+    overlay.insertBefore(bgLayer, overlay.firstChild);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
+    BCB.media.load().then(function () { paintBackground(); });
     overlay.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-act]');
       if (!b) { return; }
@@ -390,7 +418,41 @@
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
     }).join('');
     overlay.querySelector('[data-act="play"]').textContent = playing ? 'Pause' : 'Play';
+    paintBackground();
     tickClock();
+  }
+
+  /* Which career's imagery belongs behind this beat. Beats that are
+     about one side show that side; shared beats alternate so the
+     episode does not sit on one picture for seven minutes. */
+  function paintBackground() {
+    if (!bgLayer || !BCB.media.manifest) { return; }
+    var b = beat();
+    if (!b) { return; }
+    var L = BCB.app.getLast(), sim = L.sim;
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var asset = null;
+
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
+    if (!asset) {
+      /* Otherwise use whichever career the beat is really about, and
+         fall back to alternating between the two. */
+      var hs = sim.headStart;
+      var which = null;
+      if (b.id === 'headstart' && hs.leader) {
+        which = hs.leader === sim.a.name ? sim.a : sim.b;
+      } else {
+        which = (idx % 2 === 0) ? sim.a : sim.b;
+      }
+      asset = BCB.media.assetFor(which.career, idx % 3 === 0 ? 'clip' : 'still');
+      if (!asset) {
+        var other = which === sim.a ? sim.b : sim.a;
+        asset = BCB.media.assetFor(other.career, 'still');
+      }
+    }
+    BCB.media.setBackground(bgLayer, asset, BCB.media.intensityFor(b.kind), reduce);
   }
 
   function tickClock() {
@@ -468,6 +530,7 @@
      WEBCAM
      ===================================================================== */
   var camWrap = null;
+  var camPlaceholder = null;
   var camMessage = '';
   function camNode() {
     if (camWrap) { return camWrap; }
@@ -499,10 +562,47 @@
       w.style.left = ''; w.style.top = '';
     }
   }
+  /* A framed stand-in exactly where the real picture will sit, so the
+     layout can be judged - and rehearsed - before the camera is on. */
+  function placeholderNode() {
+    if (camPlaceholder) { return camPlaceholder; }
+    camPlaceholder = document.createElement('div');
+    camPlaceholder.className = 'st-cam st-cam-ghost';
+    camPlaceholder.innerHTML =
+      '<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="160" height="90" fill="none"></rect>' +
+      '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
+      '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
+      '</svg><span>Your camera</span>';
+    return camPlaceholder;
+  }
   function mountCam() {
     var w = camNode();
     applyCamStyle();
-    if (!prefs.cam.on) { if (w.parentNode) { w.remove(); } return; }
+    var ghost = placeholderNode();
+    if (ghost.parentNode) { ghost.remove(); }
+    if (!prefs.cam.on) {
+      if (w.parentNode) { w.remove(); }
+      /* Show the stand-in on the stage, and in the studio tab's tile. */
+      if (prefs.cam.placeholder) {
+        var gHost = overlay || document.getElementById('camHost');
+        if (gHost) {
+          gHost.appendChild(ghost);
+          ghost.className = 'st-cam st-cam-ghost shape-' + prefs.cam.shape;
+          if (overlay) {
+            ghost.style.position = 'fixed';
+            ghost.style.width = prefs.cam.size + 'vw';
+            ghost.style.right = '2.4vw'; ghost.style.bottom = '2.4vw';
+            ghost.style.left = ''; ghost.style.top = '';
+          } else {
+            ghost.style.position = 'relative';
+            ghost.style.width = '100%';
+            ghost.style.right = ghost.style.bottom = ghost.style.left = ghost.style.top = '';
+          }
+        }
+      }
+      return;
+    }
     var host = overlay || document.getElementById('camHost');
     if (host && w.parentNode !== host) { host.appendChild(w); }
     if (!overlay) { w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = ''; w.style.width = '100%'; }
@@ -782,6 +882,9 @@
           ['rounded', 'circle', 'square'].map(function (s) {
             return '<option value="' + s + '"' + (cam.shape === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
         '</select></div>' +
+        '<div class="field"><div class="field-inline"><input type="checkbox" id="camGhost"' + (cam.placeholder ? ' checked' : '') +
+          '><label for="camGhost" style="margin:0">Show a placeholder when the camera is off</label></div>' +
+          '<div class="hint">Marks exactly where the picture will sit, so you can rehearse the layout.</div></div>' +
         '<div class="field"><div class="field-inline"><input type="checkbox" id="camMirror"' + (cam.mirror ? ' checked' : '') +
           '><label for="camMirror" style="margin:0">Mirror the picture</label></div>' +
           '<div class="hint">Mirrored looks natural to you; unmirrored is what a viewer expects if there is text behind you.</div></div>' +
@@ -838,7 +941,8 @@
       savePrefs();
       return;
     }
-    if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
+    if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
+    else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }
     else if (t.id === 'camShape') { prefs.cam.shape = t.value; savePrefs(); applyCamStyle(); }
