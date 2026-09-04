@@ -37,7 +37,12 @@
   var prefs = {
     cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
     prompter: { fontSize: 34, lineHeight: 1.45, width: 26, readingLine: 18, mirror: false, speed: 1 },
-    autoAdvance: true
+    autoAdvance: true,
+    /* 'one'  full-bleed slides, camera floating in a corner
+       'two'  explainer column on the left, camera panel on the right
+       Studio One's markup and CSS are untouched by mode two; the split
+       layout is entirely additive, gated on a class. */
+    mode: 'one'
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -47,6 +52,7 @@
       if (p.cam) { Object.assign(prefs.cam, p.cam); }
       if (p.prompter) { Object.assign(prefs.prompter, p.prompter); }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
+      if (p.mode === 'one' || p.mode === 'two') { prefs.mode = p.mode; }
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -133,10 +139,15 @@
 
     if (b.kind.indexOf('chart:') === 0) {
       var key = b.kind.slice(6);
+      var narrow = prefs.mode === 'two';
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        width: 1180, height: 520, endLabelGap: 48
+        /* A 1180-wide frame in a 60% column shrinks every label. Give the
+           split layout its own proportions rather than scaling one down. */
+        width: narrow ? 900 : 1180,
+        height: narrow ? 520 : 520,
+        endLabelGap: narrow ? 40 : 48
       }));
       wrap.classList.add('wide');
       return wrap;
@@ -345,7 +356,7 @@
     if (!build()) { return; }
     if (overlay) { overlay.remove(); }
     overlay = document.createElement('div');
-    overlay.className = 'st-stage';
+    overlay.className = 'st-stage' + (prefs.mode === 'two' ? ' st-two' : '');
     overlay.innerHTML =
       '<div class="st-top">' +
         '<div class="st-brand">Blue Collar Business<span>The ' + BCB.app.getLast().sim.cfg.years + '-Year Test</span></div>' +
@@ -354,6 +365,7 @@
       '<div class="st-body"><div class="st-kick" id="stKick"></div>' +
       '<h1 id="stTitle"></h1><div id="stVis"></div></div>' +
       '<div class="st-progress" id="stProg"></div>' +
+      (prefs.mode === 'two' ? '<div class="st-camcol" id="stCamCol"></div>' : '') +
       '<div class="st-controls no-print" id="stCtl">' +
         '<button data-act="prev" title="Previous beat (left arrow)">&larr;</button>' +
         '<button data-act="play" title="Play or pause (space)">Play</button>' +
@@ -403,6 +415,38 @@
     mountCam();   /* put the camera tile back on the studio tab */
   }
 
+  /* In the split layout the picture is content, not just a backdrop:
+     the brief for this mode is "text and images on the left". Beats that
+     carry their own visual keep it; the rest get the career photograph
+     as an inset card above the words. */
+  function insetFor(b) {
+    if (prefs.mode !== 'two' || !BCB.media.manifest) { return null; }
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1 };
+    if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
+    var sim = BCB.app.getLast().sim;
+    var asset = null;
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'still'); }
+    else {
+      var hs = sim.headStart;
+      var which = (b.id === 'headstart' && hs.leader)
+        ? (hs.leader === sim.a.name ? sim.a : sim.b)
+        : ((idx % 2 === 0) ? sim.a : sim.b);
+      asset = BCB.media.assetFor(which.career, 'still');
+    }
+    if (!asset) { return null; }
+    var fig = document.createElement('div');
+    fig.className = 'st-inset';
+    var img = document.createElement('img');
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.addEventListener('error', function () { fig.remove(); });
+    img.src = asset.src;
+    fig.appendChild(img);
+    return fig;
+  }
+
   function renderStage() {
     if (!overlay) { return; }
     var b = beat();
@@ -412,6 +456,8 @@
     overlay.querySelector('#stTitle').textContent = b.title;
     var host = overlay.querySelector('#stVis');
     host.innerHTML = '';
+    var inset = insetFor(b);
+    if (inset) { host.appendChild(inset); }
     host.appendChild(visualFor(b));
     overlay.querySelector('#stCount').textContent = (idx + 1) + ' / ' + script.beats.length;
     overlay.querySelector('#stProg').innerHTML = script.beats.map(function (x, i) {
@@ -585,11 +631,15 @@
       if (w.parentNode) { w.remove(); }
       /* Show the stand-in on the stage, and in the studio tab's tile. */
       if (prefs.cam.placeholder) {
-        var gHost = overlay || document.getElementById('camHost');
+        var col = overlay && overlay.querySelector('#stCamCol');
+        var gHost = col || overlay || document.getElementById('camHost');
         if (gHost) {
           gHost.appendChild(ghost);
-          ghost.className = 'st-cam st-cam-ghost shape-' + prefs.cam.shape;
-          if (overlay) {
+          ghost.className = 'st-cam st-cam-ghost' + (col ? ' in-col' : ' shape-' + prefs.cam.shape);
+          if (col) {
+            /* The column sizes it; clear anything the floating mode set. */
+            ghost.style.cssText = '';
+          } else if (overlay) {
             ghost.style.position = 'fixed';
             ghost.style.width = prefs.cam.size + 'vw';
             ghost.style.right = '2.4vw'; ghost.style.bottom = '2.4vw';
@@ -603,10 +653,20 @@
       }
       return;
     }
-    var host = overlay || document.getElementById('camHost');
+    var col = overlay && overlay.querySelector('#stCamCol');
+    var host = col || overlay || document.getElementById('camHost');
     if (host && w.parentNode !== host) { host.appendChild(w); }
-    if (!overlay) { w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = ''; w.style.width = '100%'; }
-    else { w.style.position = 'fixed'; }
+    if (col) {
+      /* Filling the column is the whole point of this layout, so the
+         camera is not draggable here - the column places it. */
+      w.className = 'st-cam in-col' + (prefs.cam.mirror ? ' mirror' : '');
+      w.style.cssText = '';
+    } else if (!overlay) {
+      w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = '';
+      w.style.width = '100%';
+    } else {
+      w.style.position = 'fixed';
+    }
   }
   function setCamMessage(text) {
     camMessage = text;
@@ -847,6 +907,17 @@
         '<div class="tile"><div class="k">Comparison</div><div class="v" style="font-size:1.05rem">' +
           esc(BCB.app.getLast().sim.a.name) + ' vs ' + esc(BCB.app.getLast().sim.b.name) + '</div></div>' +
       '</div>' +
+      '<div class="st-modes">' +
+        [['one', 'Studio One - full frame',
+          'Slides fill the screen, camera floats in a corner. Best when the numbers are the story.'],
+         ['two', 'Studio Two - explainer and camera',
+          'Explainer column on the left for text and images, you on the right at full height. Best when you are the story.']]
+        .map(function (m) {
+          return '<button class="st-mode' + (prefs.mode === m[0] ? ' on' : '') + '" data-mode="' + m[0] + '">' +
+            '<span class="k">' + esc(m[1]) + '</span><span class="d">' + esc(m[2]) + '</span>' +
+            '<span class="dia dia-' + m[0] + '" aria-hidden="true"></span></button>';
+        }).join('') +
+      '</div>' +
       '<div class="field-inline" style="flex-wrap:wrap;gap:8px">' +
         '<button class="btn" data-st="stage">Start presenting</button>' +
         '<button class="btn btn-o" data-st="prompter">Open prompter window</button>' +
@@ -924,10 +995,18 @@
 
   function onStudioEvent(ev) {
     var t = ev.target;
+    var modeBtn = t.closest && t.closest('[data-mode]');
+    if (modeBtn && ev.type === 'click') {
+      prefs.mode = modeBtn.dataset.mode;
+      savePrefs();
+      renderStudio();
+      return;
+    }
     var btn = t.closest && t.closest('[data-st]');
     if (btn && ev.type === 'click') {
       var act = btn.dataset.st;
       if (act === 'stage') { openPresentation(); }
+      else if (btn.dataset.mode) { /* handled below */ }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
       else if (act === 'regen') { script = null; build(); renderStudio(); renderPrompter(); }

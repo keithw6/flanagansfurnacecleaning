@@ -47,6 +47,18 @@ or hand to someone else.
 The Studio tab turns the comparison into an episode: seventeen beats, roughly
 seven minutes of narration, generated from the numbers currently on screen.
 
+**Two layouts.** Pick one on the Studio tab before you start:
+
+- **Studio One — full frame.** Slides fill the screen, camera floats in a corner
+  you can drag. Best when the numbers are the story.
+- **Studio Two — explainer and camera.** Explainer column on the left carrying the
+  text, figures and a photograph; you on the right at full height, cropped to a
+  presenter frame. Best when you are the story. Charts get their own narrower
+  proportions here rather than being scaled down, and the background sits further
+  back because the columns already carry the composition.
+
+The prompter, the script, the beat timing and the keys are identical in both.
+
 **Three pieces, deliberately kept apart:**
 
 - **The stage** — full-bleed slides in this window. This is what you capture.
