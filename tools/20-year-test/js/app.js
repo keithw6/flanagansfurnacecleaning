@@ -1189,6 +1189,8 @@
       renderAnalysis();
       renderYouTube();
       renderReport();
+      /* A changed comparison means a changed script. */
+      if (BCB.studio && BCB.studio.refresh) { BCB.studio.refresh(); }
       if (!skipForms) {
         document.getElementById('nameA').textContent = state.careers.a.name;
         document.getElementById('nameB').textContent = state.careers.b.name;
@@ -1401,6 +1403,11 @@
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
   else { init(); }
 
-  BCB.app = { getState: function () { return state; }, recompute: recompute };
+  BCB.app = {
+    getState: function () { return state; },
+    getLast: function () { return last; },
+    getScenarios: function () { return scenarioCache; },
+    recompute: recompute
+  };
 
 })(typeof window !== 'undefined' ? window : globalThis);

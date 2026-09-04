@@ -124,9 +124,10 @@
       var ly = Y(lastPt.y);
       /* Each end label is two lines - a name and a value - so they need a
          full label's height between them, not a few pixels. */
+      var gap = opts.endLabelGap || 32;
       if (si === 1 && series[0].points.length) {
         var other = Y(series[0].points[series[0].points.length - 1].y);
-        if (Math.abs(ly - other) < 32) { ly = other + (ly >= other ? 32 : -32); }
+        if (Math.abs(ly - other) < gap) { ly = other + (ly >= other ? gap : -gap); }
       }
       ly = Math.max(pad.top + 12, Math.min(pad.top + ih - 6, ly));
       svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,

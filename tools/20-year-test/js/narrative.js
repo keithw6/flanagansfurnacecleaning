@@ -407,9 +407,187 @@
     return lines;
   }
 
+
+  /* ---------------------------------------------------------------
+     EPISODE SCRIPT
+     The comparison, broken into beats you can narrate one at a time.
+     Numbers are rounded to something a person can actually say out
+     loud - the slide carries the exact figure, the script carries the
+     spoken one. Durations are estimated from word count at roughly
+     155 words a minute, which is a relaxed on-camera pace.
+     --------------------------------------------------------------- */
+  function say(v) {
+    var a = Math.abs(v);
+    if (a >= 1e6) { return (v < 0 ? '-' : '') + '$' + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2) + ' million'; }
+    if (a >= 1e5) { return (v < 0 ? '-' : '') + '$' + Math.round(a / 1000) + ',000'; }
+    if (a >= 1e4) { return (v < 0 ? '-' : '') + '$' + (Math.round(a / 1000)) + ',000'; }
+    if (a >= 1e3) { return (v < 0 ? '-' : '') + '$' + (Math.round(a / 100) * 100).toLocaleString(); }
+    return (v < 0 ? '-' : '') + '$' + Math.round(a).toLocaleString();
+  }
+
+  function beatSeconds(lines) {
+    var words = lines.join(' ').split(/\s+/).filter(Boolean).length;
+    return Math.max(8, Math.round(words / 2.58) + 2);
+  }
+
+  function episodeScript(sim, scores) {
+    var a = sim.a, b = sim.b, cfg = sim.cfg;
+    var A = a.name, B = b.name;
+    var endAge = cfg.startAge + cfg.years;
+    var hs = sim.headStart;
+    var yt = youtube(sim, scores);
+    var winner = scores.netWorthWinner;
+    var loser = winner === A ? B : A;
+    var wRes = winner === A ? a : b;
+    var lRes = winner === A ? b : a;
+    var gap = Math.abs(a.totals.netWorth - b.totals.netWorth);
+    var earnMore = a.totals.careerEarnings > b.totals.careerEarnings ? a : b;
+    var depA = scores.a.ownerDependency, depB = scores.b.ownerDependency;
+
+    var beats = [];
+    function beat(id, kind, title, kicker, lines) {
+      beats.push({ id: id, kind: kind, title: title, kicker: kicker, lines: lines,
+                   seconds: beatSeconds(lines) });
+    }
+
+    beat('open', 'title', A + ' vs ' + B,
+      'The ' + cfg.years + '-Year Test',
+      [yt.hook,
+       'Same starting age. Same city. Same assumptions about tax, inflation and returns.',
+       'The only thing that changes is the career decision.']);
+
+    beat('setup', 'setup', 'The setup', 'What we are holding constant',
+      ['Both of them start at ' + cfg.startAge + '. We run it for ' + cfg.years + ' years, to age ' + endAge + '.',
+       'Same province, same tax model, same inflation, same investment return, same house.',
+       'That is deliberate. If I let the house or the market differ between them, I would be measuring something other than the career.']);
+
+    if (hs.years > 0) {
+      beat('headstart', 'headstart', 'The head start', hs.leader + ' banks ' + say(hs.total),
+        ['Here is the part almost nobody puts a number on.',
+         hs.leader + ' is earning a full wage for ' + hs.years + ' years before ' + hs.laggard + ' earns a professional income at all.',
+         'In that window ' + hs.leader + ' takes home about ' + say(hs.incomeEarned) + ' and has roughly ' + say(hs.investmentsAccumulated) + ' banked and invested.',
+         hs.debtAvoided > 1000
+           ? 'And they avoid about ' + say(hs.debtAvoided) + ' of education debt that the other one is carrying.'
+           : 'And they do it without borrowing to get there.',
+         'Call it ' + say(hs.total) + ' of head start before the other career even starts.']);
+    }
+
+    beat('education', 'education', 'What the education cost', 'Including the interest',
+      ['Education is not just tuition. It is tuition, plus the years you were not earning, plus the interest on what you borrowed.',
+       'All in, that is ' + say(a.totals.educationTotalCost) + ' for ' + A + ' and ' + say(b.totals.educationTotalCost) + ' for ' + B + '.',
+       (Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt) > 5000
+         ? 'Peak debt hits ' + say(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt)) + '. That balance is growing the whole time it is waiting to be paid.'
+         : 'Neither of them takes on serious debt to get qualified.')]);
+
+    beat('earnings', 'chart:personalIncome', 'What they actually earn', 'Year by year',
+      ['Now watch the income.',
+       earnMore.name + ' out-earns the other one over the ' + cfg.years + ' years, by about ' +
+         say(Math.abs(a.totals.careerEarnings - b.totals.careerEarnings)) + ' in gross pay.',
+       'Hold on to that, because gross pay is the number everybody quotes and it is not the number that decides this.']);
+
+    beat('investments', 'chart:investments', 'The bank balance', 'Cash and investments only',
+      ['This is just cash and investments. No house, no business.',
+       sim.crossoverInvestments
+         ? 'They cross over at age ' + sim.crossoverInvestments.age + '. That is the moment the higher income finally overtakes the earlier start.'
+         : 'They never cross over. The earlier start compounds faster than the higher income can catch it.',
+       'The gap you see early on is the head start doing its work in a brokerage account.']);
+
+    beat('business', 'business', 'The business', 'Where the real money is made',
+      [(a.isOwner || b.isOwner)
+        ? 'This is where a career comparison usually stops, and it should not.'
+        : 'Neither of these two builds a business, which is worth saying out loud.',
+       a.isOwner ? A + ' starts a business at ' + a.milestones.businessStartAge + '.' : A + ' stays an employee the whole way.',
+       b.isOwner ? B + ' starts one at ' + b.milestones.businessStartAge + '.' : B + ' stays an employee the whole way.',
+       (a.totals.businessEquity > 0 || b.totals.businessEquity > 0)
+         ? 'By the end, that is ' + say(a.totals.businessEquity) + ' of business equity for ' + A + ' and ' + say(b.totals.businessEquity) + ' for ' + B + '.'
+         : 'So there is no business equity on either side of this one.']);
+
+    if (depA.applicable || depB.applicable) {
+      var stuck = (depA.applicable && depA.stepBackBlocked) ? A : ((depB.applicable && depB.stepBackBlocked) ? B : null);
+      beat('dependency', 'dependency', 'Owner dependency', 'Can it run without you?',
+        ['But not all businesses are the same asset, and this is the score I care most about.',
+         'Ten means the company keeps producing when the owner stops. One means it stops dead.',
+         (depA.applicable && depB.applicable)
+           ? A + ' scores ' + depA.score + ' out of ten. ' + B + ' scores ' + depB.score + '.'
+           : (depA.applicable ? A + ' scores ' + depA.score + ' out of ten.' : B + ' scores ' + depB.score + ' out of ten.'),
+         stuck
+           ? stuck + ' literally cannot step back. The moment they hand the work to employees, what is left will not cover the bank and a liveable draw.'
+           : 'That difference is the difference between owning an asset and owning a job.',
+         'A business that only works while you are in it is a job with extra paperwork.']);
+    }
+
+    beat('networth', 'chart:netWorth', 'Net worth over time', 'Everything owned, less everything owed',
+      ['Put all of it together and this is the shape of the two lives.',
+       sim.crossoverNetWorth
+         ? (sim.crossoverNetWorth.passer + ' passes ' + sim.crossoverNetWorth.passed + ' at age ' + sim.crossoverNetWorth.age +
+            (sim.crossoverNetWorthProjected ? ', which is past the end of our window, so treat that as a projection.' : '.'))
+         : 'They never cross. On these assumptions the gap never closes.',
+       'Notice where each line bends. Those bends are decisions, not luck.']);
+
+    beat('wealth', 'columns', 'Wealth at year ' + cfg.years, 'Age ' + endAge,
+      ['So here is the scoreboard at ' + endAge + '.',
+       A + ' finishes at ' + say(a.totals.netWorth) + '. ' + B + ' finishes at ' + say(b.totals.netWorth) + '.',
+       (winner ? winner + ' is ahead by about ' + say(gap) + '.' : 'They finish level.'),
+       (winner && earnMore.name !== winner)
+         ? 'And read that against the income slide, because ' + earnMore.name + ' earned more and still finished behind.'
+         : 'Which is roughly what the income slide told us it would be.']);
+
+    beat('hours', 'hours', 'What it cost in hours', 'The number nobody counts',
+      ['Money is only half of it. Here is the time.',
+       A + ' works about ' + Math.round(a.totals.hours / 1000) + ' thousand hours over the period. ' + B + ' works about ' + Math.round(b.totals.hours / 1000) + ' thousand.',
+       'Per hour on the clock, that is ' + say(a.totals.wealthPerHour) + ' of net worth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
+       'That is a very different way to rank two careers, and I think it is a fairer one.']);
+
+    beat('lifestyle', 'radar', 'The life around the money', 'Eight components, out of ten',
+      ['Hours, vacation, stress, physical wear, flexibility, security, family time.',
+       'Further out is better on every axis, including physical demands, where ten means the work is easy on your body.',
+       'Neither shape is better. They are different trades, and you have to know which one you can live inside for twenty years.']);
+
+    beat('freedom', 'freedom', 'When they get free', 'Selling the business, drawing at ' + Math.round(cfg.safeWithdrawal * 100) + '%',
+      ['Financial independence. Sell the business, live off the proceeds.',
+       (a.milestones.financialFreedomAgeWithSale ? A + ' gets there around ' + a.milestones.financialFreedomAgeWithSale + '.' : A + ' does not get there on these numbers.'),
+       (b.milestones.financialFreedomAgeWithSale ? B + ' gets there around ' + b.milestones.financialFreedomAgeWithSale + '.' : B + ' does not get there on these numbers.'),
+       'Keeping the business instead of selling it pushes that later, because only the profit that survives you stepping away is income you can count on.']);
+
+    beat('scores', 'scores', 'The Blue Collar Business score', 'Out of one hundred',
+      ['We score both of them out of a hundred. Financial outcome is the biggest single weight, but it is only a quarter of it.',
+       A + ' comes out at ' + scores.a.score + '. ' + B + ' at ' + scores.b.score + '.',
+       'And underneath that are the four that matter to this channel. Career, owner-operator, business owner, investor.',
+       'That is the whole progression. Do the work, lead the work, own the work, own the asset.']);
+
+    beat('categories', 'categories', 'Winner by category', 'Because one number hides the trade',
+      ['One number always hides something, so here it is broken apart.',
+       'Income, lifestyle, debt, entrepreneurship, scalability, time freedom, net worth.',
+       'Almost nobody wins all of them, and the ones you lose are the ones you have to be honest with yourself about.']);
+
+    beat('scenarios', 'scenarios', 'If I am wrong', 'Conservative, realistic, aggressive',
+      ['Now let me argue against myself.',
+       'Conservative assumes slower raises, weaker markets, a business that grows but never takes off.',
+       'On conservative, ' + (scenarioLead(sim, scores) || 'the answer gets a lot closer') + '.',
+       'I quote the realistic number. But the conservative number is the one I would plan around.']);
+
+    beat('verdict', 'verdict', 'The ' + cfg.years + '-year verdict', winner || 'Too close to call',
+      [yt.verdict]);
+
+    return {
+      beats: beats,
+      totalSeconds: beats.reduce(function (t, x) { return t + x.seconds; }, 0),
+      titles: yt.titles,
+      thumbnails: yt.thumbnails
+    };
+  }
+
+  /* One line on how the conservative case reads, for the scenario beat.
+     Filled in by the caller when it has the scenario runs; falls back to
+     something true but unspecific rather than inventing a figure. */
+  var scenarioNote = null;
+  function setScenarioNote(text) { scenarioNote = text; }
+  function scenarioLead() { return scenarioNote; }
+
   BCB.narrative = {
     analysis: analysis, youtube: youtube, executiveSummary: executiveSummary,
-    money: money, moneyShort: moneyShort
+    episodeScript: episodeScript, setScenarioNote: setScenarioNote,
+    money: money, moneyShort: moneyShort, say: say
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);

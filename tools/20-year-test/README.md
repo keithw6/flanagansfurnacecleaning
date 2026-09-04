@@ -19,6 +19,8 @@ tools/20-year-test/
   js/charts.js        hand-rolled SVG charts
   js/narrative.js     the written analysis and the YouTube pack
   js/app.js           form generation, rendering, the printable report
+  js/studio.js        the recording rig - stage, prompter window, webcam
+  build-single.mjs    bundles all of the above into one self-contained file
 ```
 
 ## How to use it
@@ -33,9 +35,47 @@ tools/20-year-test/
 5. **Analysis** — the written explanation of *why* the numbers came out that way.
 6. **YouTube** — five titles, thumbnail text, an opening hook, key results, verdict.
 7. **Report / PDF** — twenty-five sections. Print to PDF from the browser.
+8. **Studio** — the recording rig. See below.
 
 Save keeps the comparison in this browser. Export writes a JSON file you can keep
 or hand to someone else.
+
+## Recording an episode
+
+The Studio tab turns the comparison into an episode: seventeen beats, roughly
+seven minutes of narration, generated from the numbers currently on screen.
+
+**Three pieces, deliberately kept apart:**
+
+- **The stage** — full-bleed slides in this window. This is what you capture.
+  Beats advance on a timer sized to each script block, and space, the arrow keys
+  and the on-screen controls always override the timer. The controls fade after a
+  couple of seconds so they stay out of the recording.
+- **The prompter** — a *separate window*, because an overlay is inside the thing
+  you are recording. Its reading line is pinned near the top of the window, which
+  is the whole point: on a monitor with the webcam above it, a high reading line
+  puts your eyeline close to the lens, so you look like you are talking to camera
+  rather than reading off to one side. A dashed mark shows exactly where that line
+  is — align it under your lens, then it fades once you start rolling.
+- **The camera** — picture-in-picture over the slides, so a single window capture
+  carries both. Draggable, resizable, circle or rounded, mirrored or not.
+
+**On one wide screen:** put the slide window on the half you are capturing and the
+prompter on the half your webcam sits above. Raise or lower the reading line with
+the up and down arrows until the mark sits just below the lens. Keep the prompter
+column narrow — the default is 26em — so your eyes barely track sideways.
+
+**Keys while presenting:** space play/pause · ← → beat · ↑ ↓ reading line ·
+C camera · F fullscreen · Esc leave.
+
+The script is editable. Every beat is a text area, one sentence per line, and the
+timings recalculate from what you type at about 155 words a minute. "Regenerate
+from the numbers" rebuilds it and discards your edits.
+
+**This part needs the local copy.** A page embedded in another site is normally
+refused camera access outright and cannot open windows, so the camera and the
+pop-out prompter will not work in a hosted copy. Open `index.html` (or the bundled
+`dist/20-year-test.html`) from your own machine to record.
 
 ## How the model works
 
