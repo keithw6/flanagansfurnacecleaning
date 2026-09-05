@@ -287,6 +287,49 @@ main { padding: 22px 0 80px; }
 .bcb-chart .stack-label { font-family: var(--b); font-size: 10.5px; font-weight: 600; }
 .bcb-chart .stack-total { font-family: var(--h); font-size: 14px; fill: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* ---- motion ----
+   Every chart draws itself on when it appears: lines travel left to
+   right, bars grow, the radar blooms, labels arrive last. All of it is
+   CSS with fill-mode both, so wherever animation is off (print, reduced
+   motion) the chart simply sits in its finished state. The stage slows
+   the draw so the line moves while you talk about it. */
+.bcb-chart { --draw: 1.5s; --step: .45s; }
+.st-stage .bcb-chart { --draw: 2.4s; --step: .7s; }
+.bcb-chart .series-line { stroke-dasharray: 1; animation: bcbDraw var(--draw) cubic-bezier(.45,0,.2,1) both;
+  animation-delay: calc(var(--i, 0) * var(--step)); }
+.bcb-chart .series-static { animation: none; stroke-dasharray: none; }
+.bcb-chart .series-area { animation: bcbFade .8s ease-out both; animation-delay: calc(var(--draw) * .6 + var(--i, 0) * var(--step)); }
+.bcb-chart .end-dot, .bcb-chart .end-label { animation: bcbPop .45s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(var(--draw) * .92 + var(--i, 0) * var(--step)); transform-box: fill-box; transform-origin: center; }
+.bcb-chart .end-halo { opacity: 0; }
+.st-stage .bcb-chart .end-halo { animation: bcbHalo 2.2s ease-out infinite; transform-box: fill-box; transform-origin: center;
+  animation-delay: calc(var(--draw) + var(--i, 0) * var(--step)); }
+.bcb-chart .marker-line, .bcb-chart .marker-label { animation: bcbFade .6s ease-out both; animation-delay: .25s; }
+.bcb-chart .bar { transform-box: fill-box; transform-origin: 50% 100%; animation: bcbGrowY .8s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .07s); }
+.bcb-chart .radar-shape { transform-box: view-box; animation: bcbBloom .9s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .35s); }
+.bcb-chart .radar-dot { transform-box: fill-box; transform-origin: center; animation: bcbPop .4s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(.6s + var(--i, 0) * .05s); }
+.bcb-chart .score-fill, .bcb-chart .stack-part { transform-box: fill-box; transform-origin: 0 50%;
+  animation: bcbGrowX .9s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * .09s); }
+.bcb-chart .bar-value, .bcb-chart .stack-label, .bcb-chart .stack-total { animation: bcbFade .5s ease-out both;
+  animation-delay: calc(.5s + var(--i, 0) * .09s); }
+@keyframes bcbDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes bcbFade { from { opacity: 0; } }
+@keyframes bcbPop { from { opacity: 0; transform: scale(.4); } }
+@keyframes bcbGrowY { from { transform: scaleY(0); } }
+@keyframes bcbGrowX { from { transform: scaleX(0); } }
+@keyframes bcbBloom { from { opacity: 0; transform: scale(.15); } }
+@keyframes bcbHalo { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(3.2); } }
+/* Big numbers on the stage count up; the CSS just keeps them from
+   jumping in width while they do. */
+.st-stage [data-count] { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .bcb-chart *, .st-stage .bcb-chart .end-halo { animation: none !important; }
+}
+@media print { .bcb-chart * { animation: none !important; } }
+
 /* ---------- tables ---------- */
 .tscroll { overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; font-size: .84rem; }
@@ -453,6 +496,14 @@ body.st-on { overflow: hidden; }
 .st-stage .bcb-chart .end-name { font-size: 20px; }
 .st-stage .bcb-chart .end-value { fill: #c9ccd1; font-size: 16px; }
 .st-stage .bcb-chart .marker-label { fill: #7c8088; font-size: 13px; }
+.st-stage .bcb-chart .bar-label { fill: #c9ccd1; font-size: 17px; }
+.st-stage .bcb-chart .stack-total { fill: #fff; font-size: 19px; }
+.st-stage .bcb-chart .stack-label { font-size: 14px; }
+/* The compounding slide: two big numbers, then the put-in / growth bars
+   at their natural height rather than letterboxed to the chart height. */
+.st-stage .st-compound { display: flex; flex-direction: column; gap: 3vh; align-items: center; }
+.st-stage .st-compound .bcb-chart { height: auto; width: 100%; max-width: 980px; max-height: 26vh; }
+.st-stage.st-two .st-compound .bcb-chart, .st-stage.st-three .st-compound .bcb-chart { max-width: none; }
 
 .st-hero { text-align: center; }
 .st-hero-kick { font-family: var(--h); text-transform: uppercase; letter-spacing: .18em;
@@ -632,7 +683,9 @@ body.st-on { overflow: hidden; }
   border: 1.5px dashed rgba(255,255,255,.20); box-shadow: none; cursor: default; }
 .st-cam-ghost svg { width: 42%; height: auto; display: block; }
 .st-cam-ghost span { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
-  font-size: .62rem; color: #7f858d; line-height: 1; }
+  font-size: .62rem; color: #7f858d; line-height: 1; text-align: center; padding: 0 8%; }
+.st-cam-ghost span.err { text-transform: none; letter-spacing: 0; font-family: var(--b); font-size: .72rem;
+  line-height: 1.35; color: #ffb3aa; }
 .st-cam-ghost.shape-circle { aspect-ratio: 1 / 1; border-radius: 50%; }
 .st-cam-ghost.shape-square { aspect-ratio: 16 / 9; border-radius: 3px; }
 .st-cam-ghost.shape-rounded { aspect-ratio: 16 / 9; border-radius: 14px; }
@@ -2501,6 +2554,7 @@ body.st-on { overflow: hidden; }
     var homeValue = 0, mortgage = 0, mortgagePaymentFixed = 0, owned = false;
     var bizFailed = false, bizFailedAge = null;
     var cumEarnings = 0, cumTax = 0, cumHours = 0, cumInvested = 0, cumEduSpend = 0, cumInterest = 0;
+    var cumInvestReturns = 0;
     var debtFreeAge = null, firstPositiveNetWorthAge = null, freedomAge = null, freedomSaleAge = null;
     var everBorrowed = false;
     var peakBizValue = 0;
@@ -2746,10 +2800,14 @@ body.st-on { overflow: hidden; }
         cash -= payDown; consumerDebt -= payDown;
       }
 
-      /* Compound. Mid-year convention on the year's contribution. */
+      /* Compound. Mid-year convention on the year's contribution. The
+         return credited this year is kept separately so the story can
+         say how much of the balance was earned rather than deposited. */
+      var investReturn = investments * ret + (contrib + pension) * ret / 2;
       investments = investments * (1 + ret) + (contrib + pension) * (1 + ret / 2);
       cash = cash * (1 + Math.min(infl, 0.03));
       cumInvested += contrib + pension;
+      cumInvestReturns += investReturn;
 
       /* ---------- 7. balance sheet ---------- */
       var homeEquity = owned ? Math.max(0, homeValue - mortgage) : 0;
@@ -2813,6 +2871,7 @@ body.st-on { overflow: hidden; }
         studentPayment: studentPayment, studentInterest: studentInterest,
         mortgagePayment: mortgagePayment,
         investable: investableRaw, contribution: contrib + pension,
+        investReturn: investReturn, cumInvestReturns: cumInvestReturns,
 
         investments: investments, cash: cash, registered: registered,
         homeValue: owned ? homeValue : 0, mortgage: mortgage, homeEquity: homeEquity,
@@ -2856,6 +2915,8 @@ body.st-on { overflow: hidden; }
         studentLivingDebt: studentLivingDebt,
         peakStudentDebt: Math.max.apply(null, rows.map(function (r) { return r.studentDebt; })),
         investments: last.investments,
+        invested: last.cumInvested,
+        investmentGrowth: last.cumInvestReturns,
         cash: last.cash,
         homeEquity: last.homeEquity,
         businessEquity: last.businessEquity,
@@ -3560,9 +3621,15 @@ body.st-on { overflow: hidden; }
       svg.appendChild(el('text', { x: pad.left + iw / 2, y: h - 4, class: 'axis-title', 'text-anchor': 'middle' }, opts.xTitle));
     }
 
+    /* A reveal shows the story up to one age and animates only the
+       stretch since the last slide, so a chart can be walked through in
+       stages without the frame or the scales jumping between them. */
+    var rv = opts.reveal || null;
+
     /* Marker lines - business start, the crossover, whatever matters. */
     (opts.markers || []).forEach(function (mk, mi) {
       if (mk.x < xMin || mk.x > xMax) { return; }
+      if (rv && mk.x > rv.to) { return; }
       svg.appendChild(el('line', { x1: X(mk.x), x2: X(mk.x), y1: pad.top, y2: pad.top + ih, class: 'marker-line' }));
       /* Stack the captions on separate rows. Two markers a few years
          apart otherwise print straight over each other. */
@@ -3572,32 +3639,54 @@ body.st-on { overflow: hidden; }
       }, mk.label));
     });
 
+    var lastEnds = [];
     series.forEach(function (s, si) {
-      var d = s.points.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      var pts = rv ? s.points.filter(function (p) { return p.x <= rv.to; }) : s.points;
+      if (!pts.length) { return; }
+      var seg = function (list) {
+        return list.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      };
+      /* --i staggers the second series behind the first; pathLength=1
+         lets the CSS draw-on run in path units whatever the length. */
+      var stagger = '--i:' + si;
       if (opts.area) {
         svg.appendChild(el('path', {
-          d: d + ' L' + X(s.points[s.points.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(s.points[0].x) + ' ' + Y(ys.lo) + ' Z',
-          fill: s.color, opacity: 0.10, stroke: 'none'
+          d: seg(pts) + ' L' + X(pts[pts.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(pts[0].x) + ' ' + Y(ys.lo) + ' Z',
+          fill: s.color, opacity: 0.10, stroke: 'none', class: 'series-area', style: stagger
         }));
       }
-      svg.appendChild(el('path', { d: d, fill: 'none', stroke: s.color, 'stroke-width': 2.5,
-        'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'series-line' }));
+      /* Already-told years sit still; only the new stretch draws on. */
+      var k = -1;
+      if (rv && rv.from != null) {
+        for (var pi = 0; pi < pts.length; pi++) { if (pts[pi].x <= rv.from) { k = pi; } }
+      }
+      var lineAttrs = { fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      if (k > 0) {
+        svg.appendChild(el('path', Object.assign({ d: seg(pts.slice(0, k + 1)), class: 'series-line series-static' }, lineAttrs)));
+      }
+      var live = k > 0 ? pts.slice(k) : pts;
+      if (live.length > 1) {
+        svg.appendChild(el('path', Object.assign({ d: seg(live), class: 'series-line', pathLength: 1, style: stagger }, lineAttrs)));
+      }
 
       /* Direct label at the end of the line: identity without a
          legend lookup, which is what makes it readable on video. */
-      var lastPt = s.points[s.points.length - 1];
+      var lastPt = pts[pts.length - 1];
+      lastEnds[si] = lastPt;
       var ly = Y(lastPt.y);
       /* Each end label is two lines - a name and a value - so they need a
          full label's height between them, not a few pixels. */
       var gap = opts.endLabelGap || 32;
-      if (si === 1 && series[0].points.length) {
-        var other = Y(series[0].points[series[0].points.length - 1].y);
+      if (si === 1 && lastEnds[0]) {
+        var other = Y(lastEnds[0].y);
         if (Math.abs(ly - other) < gap) { ly = other + (ly >= other ? gap : -gap); }
       }
       ly = Math.max(pad.top + 12, Math.min(pad.top + ih - 6, ly));
       svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
-        stroke: 'var(--surface-1)', 'stroke-width': 2 }));
-      var g = el('g', { class: 'end-label' });
+        class: 'end-halo', style: stagger }));
+      svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
+        stroke: 'var(--surface-1)', 'stroke-width': 2, class: 'end-dot', style: stagger }));
+      var g = el('g', { class: 'end-label', style: stagger });
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly - 2, class: 'end-name', fill: s.color }, s.name));
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly + 12, class: 'end-value' }, fmt(lastPt.y)));
       svg.appendChild(g);
@@ -3686,7 +3775,8 @@ body.st-on { overflow: hidden; }
         /* 2px surface gap between the pair, per the mark spec. */
         var x = cx + side * 1 + (side < 0 ? -barW : 0);
         var y = Math.min(Y(v), Y(0)), bh = Math.abs(Y(v) - Y(0));
-        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4 });
+        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4,
+          class: 'bar', style: '--i:' + i });
         r.appendChild(el('title', null, c.label + ': ' + fmt(v)));
         svg.appendChild(r);
       });
@@ -3727,10 +3817,12 @@ body.st-on { overflow: hidden; }
     [['a', opts.colorA], ['b', opts.colorB]].forEach(function (pair) {
       var key = pair[0], colour = pair[1];
       var d = axes.map(function (ax, i) { var p = pt(i, ax[key]); return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ') + ' Z';
-      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+        class: 'radar-shape', style: '--i:' + (key === 'a' ? 0 : 1) + ';transform-origin:' + cx + 'px ' + cy + 'px' }));
       axes.forEach(function (ax, i) {
         var p = pt(i, ax[key]);
-        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5 });
+        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5,
+          class: 'radar-dot', style: '--i:' + (i + (key === 'a' ? 0 : n)) });
         c.appendChild(el('title', null, ax.label + ': ' + ax[key] + '/10'));
         svg.appendChild(c);
       });
@@ -3753,11 +3845,13 @@ body.st-on { overflow: hidden; }
       var y = 8 + i * rowH;
       svg.appendChild(el('text', { x: 0, y: y + 15, class: 'bar-label' }, r.label));
       svg.appendChild(el('rect', { x: labelW, y: y + 3, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA }));
+      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA,
+        class: 'score-fill', style: '--i:' + i }));
       svg.appendChild(el('rect', { x: labelW, y: y + 16, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB }));
-      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA }, r.a));
-      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB }, r.b));
+      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB,
+        class: 'score-fill', style: '--i:' + i }));
+      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA, style: '--i:' + i }, r.a));
+      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB, style: '--i:' + i }, r.b));
     });
     return svg;
   }
@@ -3777,20 +3871,21 @@ body.st-on { overflow: hidden; }
     cols.forEach(function (c, ci) {
       var y = 14 + ci * (barH + gap);
       svg.appendChild(el('text', { x: 0, y: y + barH / 2 + 5, class: 'bar-label' }, c.name));
-      var x = left;
+      var x = left, pi = 0;
       c.parts.forEach(function (p) {
         if (p.value <= 0) { return; }
         var pw = p.value / maxTotal * trackW;
-        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3 });
+        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3,
+          class: 'stack-part', style: '--i:' + (pi + ci * 4) });
         r.appendChild(el('title', null, p.label + ': ' + fmtMoney(p.value)));
         svg.appendChild(r);
         if (pw > 54) {
           svg.appendChild(el('text', { x: x + pw / 2 - 1, y: y + barH / 2 + 4, class: 'stack-label',
-            fill: p.ink || '#fff', 'text-anchor': 'middle' }, fmtMoney(p.value)));
+            fill: p.ink || '#fff', 'text-anchor': 'middle', style: '--i:' + (pi + ci * 4) }, fmtMoney(p.value)));
         }
-        x += pw;
+        x += pw; pi++;
       });
-      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total' }, fmtMoney(opts.totals[ci])));
+      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total', style: '--i:' + (pi + ci * 4) }, fmtMoney(opts.totals[ci])));
     });
     return svg;
   }
@@ -4104,36 +4199,36 @@ body.st-on { overflow: hidden; }
       'RICHER AT ' + endAge
     ];
 
-    var peakDebt = moneyShort(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt));
+    var peakDebt = say(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt));
     var waitedWins = winner === hs.laggard;
     var hook = hs.years > 0
       ? pk(
           'One of them starts earning at ' + cfg.startAge + '. The other spends ' + hs.years +
-            ' years in school first and comes out owing ' + peakDebt + '. But ' +
-            (waitedWins ? 'the one who waited ends up ahead anyway' : cfg.years + ' years later the one who waited is still behind') +
-            ". So which decision actually paid? We're running both of them through the Blue Collar Business " +
+            ' years in school first and comes out owing ' + peakDebt + '. ' +
+            (waitedWins ? 'And the one who waited ends up ahead anyway.' : 'And ' + cfg.years + ' years later, the one who waited is still behind.') +
+            ' So which choice actually paid? We\'re running both of them through the Blue Collar Business ' +
             cfg.years + '-Year Test.',
-          'Here\'s a question I get asked a lot. Is it smarter to go to school for ' + hs.years +
-            ' years and come out as a ' + hs.laggard.toLowerCase() + ', or start earning at ' + cfg.startAge +
-            ' as a ' + hs.leader.toLowerCase() + '? Everyone has an opinion. Almost nobody has done the math. ' +
-            'So I did the math. ' + cfg.years + ' years, both careers, everything counted.',
-          'A ' + hs.leader.toLowerCase() + ' and a ' + hs.laggard.toLowerCase() + ' start at ' + cfg.startAge +
+          'Here\'s a question I get asked a lot. Is it smarter to spend ' + hs.years +
+            ' years in school and come out as ' + hs.laggard + '? Or start earning at ' + cfg.startAge +
+            ' as ' + hs.leader + '? Everyone has an opinion. Almost nobody has done the math. ' +
+            'So I did the math. ' + cfg.years + ' years. Both careers. Everything counted.',
+          hs.leader + ' and ' + hs.laggard + ' both start at ' + cfg.startAge +
             '. One of them is earning by next week. The other is ' + hs.years + ' years and ' + peakDebt +
-            ' of debt away from their first real paycheque. ' +
-            (waitedWins ? 'And the one who waited still wins. Or does it?' : 'And here\'s the thing - the head start never gets caught.') +
+            ' of debt away from a first real paycheque. ' +
+            (waitedWins ? 'And the one who waited still wins. Or do they?' : 'And here\'s the thing. The head start never gets caught.') +
             ' Let\'s run it.',
-          'I want to show you something that changed how I think about careers. Not salaries - anyone can look up a salary. ' +
+          'I want to show you something that changed how I think about careers. Not salaries. Anyone can look up a salary. ' +
             'What a career actually leaves you with after ' + cfg.years + ' years. Today it\'s ' + A + ' against ' + B +
-            ', and I think the answer is going to surprise some of you.'
+            '. And I think the answer is going to surprise some of you.'
         )
       : pk(
-          'Two people, same age, same starting line - one stays an employee, one builds a business. ' +
-            cfg.years + ' years later the gap between them is ' + moneyShort(gap) +
-            ". We're running both through the Blue Collar Business " + cfg.years + '-Year Test.',
+          'Two people. Same age. Same starting line. One stays an employee, one builds a business. ' +
+            cfg.years + ' years later, the gap between them is ' + say(gap) +
+            '. We\'re running both through the Blue Collar Business ' + cfg.years + '-Year Test.',
           'Same trade. Same start date. Same wages for the first few years. The only difference is that one of them ' +
-            'starts a company and the other one doesn\'t. ' + cfg.years + ' years on, they\'re ' + moneyShort(gap) +
+            'starts a company and the other one doesn\'t. ' + cfg.years + ' years on, they\'re ' + say(gap) +
             ' apart. Let me show you where that gap comes from.',
-          'What\'s a business actually worth to the person who builds it? Not in theory - in dollars, after ' +
+          'What\'s a business actually worth to the person who builds it? Not in theory. In dollars, after ' +
             cfg.years + ' years, against the exact same career as an employee. That\'s today\'s test.'
         );
 
@@ -4176,24 +4271,31 @@ body.st-on { overflow: hidden; }
 
     var earnedMore = a.totals.careerEarnings > b.totals.careerEarnings ? A : B;
     var wonOnTime = hs.years > 0 && winner === hs.leader;
-    var verdict =
-      pk(
-        winner + ' comes out ahead on this one - ' + moneyShort(wRes.totals.netWorth) + ' against ' +
-          moneyShort(lRes.totals.netWorth) + ' after ' + cfg.years + ' years. But read why before you take that as advice. ',
-        'So. ' + winner + ' wins. ' + moneyShort(wRes.totals.netWorth) + ' to ' + moneyShort(lRes.totals.netWorth) +
-          '. Before anyone runs off and quits their job, let me tell you why, because the why matters more than the number. ',
-        'The scoreboard says ' + winner + ', by about ' + moneyShort(gap) + '. That\'s the headline. ' +
+    var verdict = !winner
+      ? pk('This one is a draw. ' + say(a.totals.netWorth) + ' against ' + say(b.totals.netWorth) + ' after ' + cfg.years + ' years, which is the same number for our purposes. ',
+           'Dead heat. ' + A + ' and ' + B + ' land within a rounding error of each other. ') +
+        pk('Which means the money is not the deciding factor here. The hours, the stress, and whether you own anything at the end are. ',
+           'So the decision is not about the total. It comes down to the life around it: the hours, the wear, and what you own when you stop. ') +
+        flipCondition(A, B, a, b) + ' ' +
+        pk('Learn the trade. Build the business. Own the asset.',
+           'The ladder is the same either way. Learn the trade, build the business, own the asset.')
+      : pk(
+        winner + ' comes out ahead on this one. ' + say(wRes.totals.netWorth) + ' against ' +
+          say(lRes.totals.netWorth) + ' after ' + cfg.years + ' years. But hear the why before you take that as advice. ',
+        'So. ' + winner + ' wins. ' + say(wRes.totals.netWorth) + ' to ' + say(lRes.totals.netWorth) +
+          '. Before anyone runs off and quits their job, let me tell you why. The why matters more than the number. ',
+        'The scoreboard says ' + winner + ', by about ' + say(gap) + '. That\'s the headline. ' +
           'Here\'s the part the headline leaves out. '
       ) +
       (wonOnTime
         ? pk(
-            hs.leader + ' did not win on income - ' + earnedMore + ' out-earned them. They won on time: ' + hs.years +
-              ' extra years of earning, no education debt, and a business built while the other one was still in school. ',
+            hs.leader + ' did not win on income. ' + earnedMore + ' out-earned them. ' + hs.leader + ' won on time. ' + hs.years +
+              ' extra years of earning. No student debt. And a business built while the other one was still in school. ',
             hs.leader + ' never had the bigger paycheque. ' + earnedMore + ' earned more, and it wasn\'t close. ' +
-              'What ' + hs.leader + ' had was ' + hs.years + ' years - ' + hs.years + ' years of wages, of compounding, of no ' +
-              'student loan, and a business already running by the time the other one graduated. ',
-            'This wasn\'t a salary win. It was a calendar win. ' + hs.leader + ' started ' + hs.years + ' years earlier, ' +
-              'and in this model that head start is worth more than ' + earnedMore + '\'s higher pay ever catches up to. '
+              'What ' + hs.leader + ' had was ' + hs.years + ' years. ' + hs.years + ' years of wages. No student loan. ' +
+              'And a business already running by the time the other one graduated. ',
+            'This wasn\'t a salary win. It was a calendar win. ' + hs.leader + ' started ' + hs.years + ' years earlier. ' +
+              'In this model, that head start is worth more than ' + earnedMore + '\'s higher pay ever catches up to. '
           )
         : pk(
             winner + ' won on income and kept enough of it to matter. ',
@@ -4202,17 +4304,17 @@ body.st-on { overflow: hidden; }
           )) +
       pk(
         'Change the assumptions and you change the answer. ',
-        'And I want to be honest with you: move a couple of the inputs and this flips. ',
-        'Now - none of this is carved in stone. '
+        'And I want to be honest with you. Move a couple of the inputs and this flips. ',
+        'Now. None of this is carved in stone. '
       ) +
       flipCondition(winner, loser, wRes, lRes) + ' ' +
       pk(
-        'The point of the ' + cfg.years + '-Year Test is not to crown a trade. It is to show that the decision is ' +
-          'never just what the job pays - it is what you earn, what it cost to get in, what you kept, how many hours ' +
-          'it took, and whether you finished with an asset or just a good income. Learn the trade, build the business, own the asset.',
+        'The point of the ' + cfg.years + '-Year Test is not to crown a trade. It\'s to show that the decision is ' +
+          'never just what the job pays. It\'s what you earn, what it cost to get in, what you kept, how many hours ' +
+          'it took, and whether you finish with an asset or just a good income. Learn the trade. Build the business. Own the asset.',
         'I don\'t run these to crown a winner. I run them because "what does it pay" is the wrong question, and almost everyone ' +
-          'asks it. The right questions are what it cost to get in, what you kept, what it took out of your week, and whether ' +
-          'you own anything at the end. Learn the trade. Build the business. Own the asset.',
+          'asks it. The right questions are: what did it cost to get in? What did you keep? What did it take out of your week? ' +
+          'And do you own anything at the end? Learn the trade. Build the business. Own the asset.',
         'That\'s the whole idea behind this channel. A job is what you do. A business is what you build. An asset is what ' +
           'you own when you stop. Pick the career that gets you to the third one. Learn the trade, build the business, own the asset.'
       );
@@ -4235,12 +4337,12 @@ body.st-on { overflow: hidden; }
     if (!lRes.isOwner) {
       bits.push('If ' + loser + ' builds a business instead of staying employed, this flips.');
     } else if (lRes.totals.businessEquity < wRes.totals.businessEquity) {
-      bits.push('If ' + loser + " grows the business harder - or buys a second location instead of one - the gap closes fast.");
+      bits.push('If ' + loser + ' grows the business harder, or opens a second location, the gap closes fast.');
     } else {
       bits.push('If ' + loser + ' can get the business off their own back so it keeps earning without them, this flips.');
     }
     if (wRes.isOwner) {
-      bits.push('If ' + winner + "'s business never gets past being a one-truck operation, it flips harder the other way.");
+      bits.push('If ' + winner + "'s business never grows past a one-person operation, it flips harder the other way.");
     } else {
       bits.push('And if ' + winner + ' never gets the raises this assumes, it narrows just as quickly.');
     }
@@ -4349,66 +4451,140 @@ body.st-on { overflow: hidden; }
     return Math.max(8, Math.round(words / 2.58) + 2);
   }
 
+  /* Break a paragraph into prompter lines, one sentence each, so the
+     live-line highlight has something to follow. */
+  function sentences(text) {
+    var parts = String(text || '').replace(/([.!?])\s+(?=["$A-Z0-9])/g, '$1\n').split('\n')
+      .map(function (l) { return l.trim(); }).filter(Boolean);
+    /* A two-word sentence ("So.") is a pause, not a line: it rides with
+       the sentence after it, and a line stays under about fourteen words
+       so it fits the prompter column in one or two rows. */
+    var out = [];
+    parts.forEach(function (p) {
+      var last = out[out.length - 1];
+      var words = function (t) { return t.split(/\s+/).length; };
+      if (last && (words(last) < 5 || (words(p) < 5 && words(last) + words(p) <= 14))) { out[out.length - 1] = last + ' ' + p; }
+      else { out.push(p); }
+    });
+    return out;
+  }
+
   function episodeScript(sim, scores, seed) {
     var pk = makePicker(seed || 0, 'ep');
     var a = sim.a, b = sim.b, cfg = sim.cfg;
     var A = a.name, B = b.name;
-    var al = A.toLowerCase(), bl = B.toLowerCase();
     var endAge = cfg.startAge + cfg.years;
     var hs = sim.headStart;
     var yt = youtube(sim, scores, seed);
     var winner = scores.netWorthWinner;
-    var wRes = winner === A ? a : b;
-    var lRes = winner === A ? b : a;
     var gap = Math.abs(a.totals.netWorth - b.totals.netWorth);
     var earnMore = a.totals.careerEarnings > b.totals.careerEarnings ? a : b;
+    var earnGap = Math.abs(a.totals.careerEarnings - b.totals.careerEarnings);
     var depA = scores.a.ownerDependency, depB = scores.b.ownerDependency;
     var peakDebt = Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt);
+    var where = cfg.country === 'US' ? 'state' : (cfg.country === 'CA' ? 'province' : 'place');
+    var years = cfg.years;
+    /* Hours are easier to feel per week than per career. */
+    function perWeek(res) { return Math.round(res.totals.hours / (years * 50)); }
+    function thousands(res) { return Math.round(res.totals.hours / 1000) + ' thousand'; }
 
     var beats = [];
     var names = [A, B];
-    function beat(id, kind, title, kicker, lines) {
-      lines = lines.filter(Boolean).map(function (l) { return humanise(l, names); });
-      beats.push({ id: id, kind: kind, title: title, kicker: kicker, lines: lines, seconds: beatSeconds(lines) });
+    function beat(id, kind, title, kicker, lines, extra) {
+      lines = [].concat.apply([], lines.filter(Boolean).map(function (l) { return Array.isArray(l) ? l : [l]; }))
+        .map(function (l) { return humanise(l, names); });
+      beats.push(Object.assign({ id: id, kind: kind, title: title, kicker: kicker, lines: lines, seconds: beatSeconds(lines) }, extra || {}));
+    }
+    function rowAt(res, age) {
+      var hit = null;
+      res.rows.forEach(function (r) { if (r.age <= age) { hit = r; } });
+      return hit || res.rows[0];
+    }
+    function schoolEnds(res) {
+      for (var i = 0; i < res.rows.length; i++) { if (!res.rows[i].inSchool) { return res.rows[i].age; } }
+      return null;
+    }
+    /* One career's pay over a stretch of years, said the way a person
+       would: what it was, what it became, and what happened in between. */
+    function payStory(res, from, to) {
+      var r0 = rowAt(res, from), r1 = rowAt(res, to);
+      var ends = schoolEnds(res);
+      var startedBiz = res.milestones.businessStartAge && res.milestones.businessStartAge > from && res.milestones.businessStartAge <= to;
+      /* An apprentice is "in school" on the schedule and on a full wage
+         at the same time. That is a different story from a student. */
+      var paidTraining = r0.inSchool && r0.personalIncome >= 30000;
+      if (paidTraining && r1.inSchool) {
+        return pk(res.name + ' is learning on the job. Paid from day one: ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  'For ' + res.name + ', training is a paycheque. ' + say(r0.personalIncome) + ' in year one, ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  res.name + ' earns while learning. ' + say(r0.personalIncome) + ' to start, ' + say(r1.personalIncome) + ' by ' + to + '.');
+      }
+      if (paidTraining && !r1.inSchool) {
+        return pk(res.name + ' is paid right through training, and finishes it at ' + ends + '. By ' + to + ', ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' earns all the way through the apprenticeship, from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year by ' + to + '. Fully qualified at ' + ends + '.',
+                  'No unpaid years for ' + res.name + '. ' + say(r0.personalIncome) + ' as a first-year, ' + say(r1.personalIncome) + ' by ' + to + ', qualified at ' + ends + '.');
+      }
+      if (r0.inSchool && r1.inSchool) {
+        return pk(res.name + ' is in school this whole stretch, earning about ' + say(r1.personalIncome) + ' a year on the side.',
+                  'For ' + res.name + ', these are school years. Part-time money, roughly ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' is still studying. Call it ' + say(r1.personalIncome) + ' a year from part-time work.');
+      }
+      if (r0.inSchool && !r1.inSchool) {
+        return pk(res.name + ' finishes school at ' + ends + ' and is earning ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  'At ' + ends + ', ' + res.name + ' is done with school. By ' + to + ' the pay is ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' gets out of school at ' + ends + '. First real paycheques. ' + say(r1.personalIncome) + ' a year by ' + to + '.');
+      }
+      if (startedBiz) {
+        return pk(res.name + ' goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year. The business starts at ' + res.milestones.businessStartAge + ', and you can see it in the line.',
+                  'This is where ' + res.name + ' starts the business, at ' + res.milestones.businessStartAge + '. Pay goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ': ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' at ' + to + '. The bend in the line is the business opening at ' + res.milestones.businessStartAge + '.');
+      }
+      return pk(res.name + ' goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year.',
+                res.name + ': ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' by ' + to + '.',
+                'For ' + res.name + ', pay climbs from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + '.');
+    }
+    function peakPay(res) {
+      var best = res.rows[0];
+      res.rows.forEach(function (r) { if (r.personalIncome > best.personalIncome) { best = r; } });
+      return best;
     }
 
     /* ---- intro: who we are, who is on the block ---- */
     beat('brand', 'brand', 'Blue Collar Business',
       'Learn the trade. Build the business. Own the asset.',
       [pk('Welcome to Blue Collar Business.',
-          'Hey - welcome back to Blue Collar Business.',
-          'This is Blue Collar Business. If you\'re new here, here\'s the idea in one breath.'),
-       pk('This channel is about one idea: a trade is not the ceiling, it\'s the entry point. You learn the trade, you build the business, and eventually you own an asset that works whether you show up or not.',
-          'Everything on this channel comes back to one thing. A trade is a starting line, not a finish line. Learn it, build a business on it, and end up owning something that pays you whether you\'re on the tools or not.',
-          'The whole channel is built on a simple progression. Learn the trade. Build the business. Own the asset. Most people stop at the first step and never find out what the other two are worth.'),
-       pk('And the way we test that idea is the ' + cfg.years + '-Year Test. Two careers, same starting age, run side by side, and we count everything - not just the salary. What you earned, what it cost to get in, what you kept, how many hours it took, and whether you finished with a business or just a good income.',
-          'To test it, we run something I call the ' + cfg.years + '-Year Test. Take two careers, start them at the same age, and follow both for ' + cfg.years + ' years counting everything. Not just pay - what it cost to get in, what you kept, the hours, and whether there\'s an asset at the end.',
-          'So we built a test. Two careers, same age, ' + cfg.years + ' years. And we don\'t stop at salary, because salary is the least interesting number in the whole thing. We count the debt, the tax, the hours, and what you actually own at the end.'),
+          'Hey. Welcome back to Blue Collar Business.',
+          'This is Blue Collar Business. If you\'re new here, here\'s the whole idea in one breath.'),
+       pk('This channel runs on one idea. A trade isn\'t the ceiling. It\'s the front door. You learn the trade, you build a business on it, and one day you own something that pays you whether you show up or not.',
+          'Everything here comes back to one thing. A trade is a starting line, not a finish line. Learn it. Build a business on it. End up owning something that earns while you sleep.',
+          'Simple ladder. Learn the trade. Build the business. Own the asset. Most people stop on the first rung and never find out what the other two pay.'),
+       pk('And the way we test that is the ' + years + '-Year Test. Two careers. Same starting age. Side by side for ' + years + ' years. And we count everything, not just the paycheque. What it cost to get in, what you kept, how many hours it took, and whether you end up owning anything.',
+          'To check it, we run the ' + years + '-Year Test. Take two careers, start them at the same age, and follow both for ' + years + ' years. Not just the pay. The debt, the tax, the hours, and whether there\'s a business at the end.',
+          'So we built a test. Two careers. Same age. ' + years + ' years. And we don\'t stop at salary, because salary is honestly the least interesting number in here. We count the debt, the tax, the hours, and what you actually own at the end.'),
        pk('Today: ' + A + ' against ' + B + '.',
           'Today it\'s ' + A + ' versus ' + B + '. Let\'s go.',
-          'On the block today - the ' + al + ' and the ' + bl + '.')]);
+          'On the block today, ' + A + ' and ' + B + '.')]);
 
     /* ---- the hook ---- */
-    beat('open', 'title', A + ' vs ' + B, 'The ' + cfg.years + '-Year Test',
-      [yt.hook,
-       pk('Same starting age. Same city. Same assumptions about tax, inflation and returns.',
-          'Same age, same town, same tax rules, same market returns. I\'ve held all of that still on purpose.',
-          'Everything that isn\'t the career is identical - the age they start, the city, the tax, what the market does.'),
-       pk('The only thing that changes is the career decision.',
-          'The one variable is the choice. That\'s it.',
+    beat('open', 'title', A + ' vs ' + B, 'The ' + years + '-Year Test',
+      [sentences(yt.hook),
+       pk('Same starting age. Same town. Same tax, same inflation, same market.',
+          'Same age, same town, same tax rules, same boring market returns. I\'ve held all of that still on purpose.',
+          'Everything that isn\'t the career is identical. Same age. Same town. Same tax. Same luck.'),
+       pk('The only thing that changes is the career.',
+          'One thing changes. The career. That\'s it.',
           'So whatever gap shows up at the end, the career did that.')]);
 
     /* ---- what we hold constant ---- */
     beat('setup', 'setup', 'The setup', 'What we\'re holding constant',
-      [pk('Both of them start at ' + cfg.startAge + '. We run it for ' + cfg.years + ' years, to age ' + endAge + '.',
+      [pk('Both of them start at ' + cfg.startAge + '. We follow them for ' + years + ' years, to age ' + endAge + '.',
           'Two people, both ' + cfg.startAge + ' years old. We follow them to ' + endAge + '.',
-          'Start age ' + cfg.startAge + ', finish at ' + endAge + '. ' + cfg.years + ' years, start to finish.'),
-       pk('Same province, same tax model, same inflation, same investment return, same house.',
-          'They live in the same place, pay the same tax, get the same return on their investments, and - this matters - they buy the same house.',
-          'Same tax. Same inflation. Same returns. And I gave them the exact same house, because the house is not the thing I\'m testing.'),
-       pk('That\'s deliberate. If I let the house or the market differ between them, I\'d be measuring something other than the career.',
-          'If I let any of that vary I\'d be comparing two lives, not two careers. So it all stays fixed.',
-          'The moment one of them gets a cheaper house or a luckier decade in the market, the comparison is meaningless. So they don\'t.')]);
+          'Start at ' + cfg.startAge + '. Finish at ' + endAge + '. ' + years + ' years, start to finish.'),
+       pk('Same ' + where + ', same tax, same inflation, same investment returns. And the same house.',
+          'They live in the same ' + where + '. They pay the same tax. Their investments grow at the same rate. And, this matters, they buy the same house.',
+          'Same tax. Same inflation. Same returns. Same house. I\'m not testing luck, I\'m testing the career.'),
+       pk('That\'s on purpose. If I let the house or the market differ, I\'d be measuring something other than the career.',
+          'If I let any of that move, I\'d be comparing two lives, not two careers. So it all stays put.',
+          'The moment one of them gets a cheaper house or a luckier decade, the comparison is worthless. So they don\'t.')]);
 
     /* ---- head start ---- */
     if (hs.years > 0) {
@@ -4416,244 +4592,319 @@ body.st-on { overflow: hidden; }
         [pk('Here\'s the part almost nobody puts a number on.',
             'This is the slide I built the whole test around.',
             'Okay. This is the one people underestimate.'),
-         pk(hs.leader + ' is earning a full wage for ' + hs.years + ' years before ' + hs.laggard + ' earns a professional income at all.',
+         pk(hs.leader + ' is earning a full wage for ' + hs.years + ' years before ' + hs.laggard + ' earns a real paycheque.',
             'For ' + hs.years + ' straight years, ' + hs.leader + ' is getting paid and ' + hs.laggard + ' is paying tuition.',
-            'While ' + hs.laggard + ' is in school, ' + hs.leader + ' is on the clock. ' + hs.years + ' years of that.'),
-         pk('In that window ' + hs.leader + ' takes home about ' + say(hs.incomeEarned) + ' and has roughly ' + say(hs.investmentsAccumulated) + ' banked and invested.',
-            'Add it up and ' + hs.leader + ' has earned around ' + say(hs.incomeEarned) + ' in that time, with something like ' + say(hs.investmentsAccumulated) + ' actually sitting in the bank.',
+            'While ' + hs.laggard + ' is in class, ' + hs.leader + ' is on the clock. For ' + hs.years + ' years.'),
+         pk('In that window, ' + hs.leader + ' takes home about ' + say(hs.incomeEarned) + '. And roughly ' + say(hs.investmentsAccumulated) + ' of it is saved and invested.',
+            'Add it up and ' + hs.leader + ' earns around ' + say(hs.incomeEarned) + ' in that time. Something like ' + say(hs.investmentsAccumulated) + ' of that is actually sitting in the bank.',
             say(hs.incomeEarned) + ' earned. ' + say(hs.investmentsAccumulated) + ' kept and invested. All before the other one has a job.'),
          hs.debtAvoided > 1000
-           ? pk('And they avoid about ' + say(hs.debtAvoided) + ' of education debt that the other one is carrying.',
-                'Meanwhile ' + hs.laggard + ' is carrying roughly ' + say(hs.debtAvoided) + ' of debt that ' + hs.leader + ' simply never took on.',
-                'Oh - and there\'s no loan. ' + hs.laggard + ' is ' + say(hs.debtAvoided) + ' in the hole by comparison.')
+           ? pk('And no student loan. ' + hs.laggard + ' is carrying about ' + say(hs.debtAvoided) + ' that ' + hs.leader + ' never borrowed.',
+                'Meanwhile ' + hs.laggard + ' owes roughly ' + say(hs.debtAvoided) + '. ' + hs.leader + ' owes nothing.',
+                'Oh, and there\'s no loan. ' + hs.laggard + ' is ' + say(hs.debtAvoided) + ' in the hole by comparison.')
            : pk('And they do it without borrowing to get there.', 'No debt to get there, either.'),
-         pk('Call it ' + say(hs.total) + ' of head start before the other career even starts.',
-            'All in, that\'s about ' + say(hs.total) + ' of head start. Before the race even begins.',
+         pk('Call it ' + say(hs.total) + ' of head start before the other career even begins.',
+            'All in, that\'s about ' + say(hs.total) + ' of head start. Before the race even starts.',
             'Put a number on it: ' + say(hs.total) + '. That\'s the gap on day one of ' + hs.laggard + '\'s career.')]);
     }
 
     /* ---- education ---- */
     beat('education', 'education', 'What the education cost', 'Including the interest',
       [pk('Education isn\'t just tuition. It\'s tuition, plus the years you weren\'t earning, plus the interest on what you borrowed.',
-          'People think education costs whatever the tuition is. It doesn\'t. It costs tuition, plus every year you weren\'t earning, plus interest.',
-          'Tuition is the sticker price. The real price is tuition plus lost years plus interest, and it\'s a lot bigger.'),
+          'People think school costs whatever the tuition is. It doesn\'t. The real price tag has three parts. Tuition. The years you weren\'t earning. And the interest.',
+          'Tuition is the sticker price. The real price is tuition, plus lost years, plus interest. And it\'s a lot bigger.'),
        pk('All in, that\'s ' + say(a.totals.educationTotalCost) + ' for ' + A + ' and ' + say(b.totals.educationTotalCost) + ' for ' + B + '.',
-          'For ' + A + ' the whole thing comes to about ' + say(a.totals.educationTotalCost) + '. For ' + B + ', ' + say(b.totals.educationTotalCost) + '.',
+          'For ' + A + ', the whole thing comes to about ' + say(a.totals.educationTotalCost) + '. For ' + B + ', ' + say(b.totals.educationTotalCost) + '.',
           say(a.totals.educationTotalCost) + ' versus ' + say(b.totals.educationTotalCost) + '. ' + A + ' first, ' + B + ' second.'),
        peakDebt > 5000
-         ? pk('Peak debt hits ' + say(peakDebt) + '. That balance is growing the whole time it\'s waiting to be paid.',
-              'At the worst point the debt is ' + say(peakDebt) + ' - and it\'s compounding while they\'re still in class.',
-              'The loan peaks at ' + say(peakDebt) + '. Interest doesn\'t wait for graduation.')
-         : pk('Neither of them takes on serious debt to get qualified.', 'No real debt on either side here, which is rarer than it should be.')]);
+         ? pk('The debt peaks at ' + say(peakDebt) + '. And it\'s growing the whole time it\'s waiting to be paid.',
+              'At the worst point the loan is ' + say(peakDebt) + '. And it\'s charging interest while they\'re still in class.',
+              'The loan tops out at ' + say(peakDebt) + '. Interest doesn\'t wait for graduation.')
+         : pk('Neither of them borrows much to get qualified.', 'No real debt on either side here. Rarer than it should be.')]);
 
-    /* ---- earnings ---- */
-    beat('earnings', 'chart:personalIncome', 'What they actually earn', 'Year by year',
-      [pk('Now watch the income.', 'Here\'s the pay, year by year.', 'Let\'s look at what they actually take home.'),
-       pk(earnMore.name + ' out-earns the other one over the ' + cfg.years + ' years, by about ' + say(Math.abs(a.totals.careerEarnings - b.totals.careerEarnings)) + ' in gross pay.',
-          'Over ' + cfg.years + ' years, ' + earnMore.name + ' earns more - roughly ' + say(Math.abs(a.totals.careerEarnings - b.totals.careerEarnings)) + ' more, before tax.',
-          earnMore.name + ' wins on pay. Not by a little, either - ' + say(Math.abs(a.totals.careerEarnings - b.totals.careerEarnings)) + ' over the period.'),
-       pk('Hold on to that, because gross pay is the number everybody quotes and it\'s not the number that decides this.',
-          'Remember that number. Everyone leads with it, and it turns out not to be the one that matters.',
-          'That\'s the figure you\'d see in a job ad. Keep it in your head - we\'re about to find out how much of it survives.')]);
+    /* ---- earnings, told in stages ----
+       The same chart three times, each slide drawing on the next
+       stretch of years, so the pay is a story with a shape rather than
+       one line that appears finished. */
+    var S = cfg.startAge;
+    var stops = years > 12 ? [S + 5, S + 10] : [S + Math.round(years / 2)];
+    var stageNames = years > 12
+      ? [['The first five years', 'Ages ' + S + ' to ' + (S + 5)], ['Years six to ten', 'Ages ' + (S + 5) + ' to ' + (S + 10)]]
+      : [['The first half', 'Ages ' + S + ' to ' + stops[0]]];
+    var prev = null;
+    stops.forEach(function (to, si) {
+      var from = prev == null ? S : prev;
+      beat('earnings' + (si + 1), 'chart:personalIncome', stageNames[si][0], stageNames[si][1],
+        [si === 0
+          ? pk('Let\'s take the pay in pieces, because the shape matters as much as the total.',
+               'Now the paycheque. I want to show you how it builds, not just where it ends up.',
+               'Here\'s the income, and we\'ll walk it in stages. Watch the shape.')
+          : pk('Next stretch.', 'Now the next ' + (to - from) + ' years.', 'Keep watching the lines.'),
+         payStory(a, from, to),
+         payStory(b, from, to),
+         si === 0
+           ? pk('Early on, the gap is mostly about who is working at all.',
+                'This first stretch is not about talent. It\'s about who has a job.',
+                'Nothing clever yet. One of them is earning and one of them is getting ready to.')
+           : pk('This is where the careers start to look like themselves.',
+                'By now, each of them is doing the job they trained for. The lines start to tell the truth.',
+                'These are the years where the choice starts to pay off, one way or the other.')],
+        { reveal: { from: from, to: to } });
+      prev = to;
+    });
+    var pkA = peakPay(a), pkB = peakPay(b);
+    beat('earnings', 'chart:personalIncome', 'What they actually earn', 'The full ' + years + ' years',
+      [pk('And here\'s the whole run.', 'Now the full picture.', 'Let the lines finish.'),
+       pk(A + ' peaks at ' + say(pkA.personalIncome) + ' a year, at age ' + pkA.age + '. ' + B + ' peaks at ' + say(pkB.personalIncome) + ', at ' + pkB.age + '.',
+          'Best year for ' + A + ': ' + say(pkA.personalIncome) + ', at ' + pkA.age + '. Best year for ' + B + ': ' + say(pkB.personalIncome) + ', at ' + pkB.age + '.',
+          'Top pay is ' + say(pkA.personalIncome) + ' for ' + A + ' and ' + say(pkB.personalIncome) + ' for ' + B + '.'),
+       pk(earnMore.name + ' out-earns the other one over the ' + years + ' years. By about ' + say(earnGap) + ', before tax.',
+          'Over ' + years + ' years, ' + earnMore.name + ' earns more. Roughly ' + say(earnGap) + ' more, before tax.',
+          earnMore.name + ' wins on pay. And not by a little. ' + say(earnGap) + ' over the period.'),
+       pk('Hold on to that number. It\'s the one everybody quotes, and it\'s not the one that decides this.',
+          'Remember that number. Everyone leads with it. It turns out not to be the one that matters.',
+          'That\'s the number in the job ad. Let\'s see how much of it survives contact with real life.')],
+      { reveal: { from: prev, to: S + years } });
 
-    /* ---- investments ---- */
+    /* ---- investing: the habit, then what compounding did with it ---- */
+    var inv = cfg.investing || {};
+    var ruleText = inv.mode === 'percent'
+      ? Math.round((inv.percent || 0) * 100) + ' percent of whatever is left'
+      : say(inv.fixedAmount || 0) + ' a year';
+    var retPct = (cfg.investReturn * 100).toFixed(1).replace(/\.0$/, '');
+    var dollarFull = Math.pow(1 + cfg.investReturn, years);
+    var halfYears = years - Math.round(years / 2);
+    var dollarHalf = Math.pow(1 + cfg.investReturn, halfYears);
+    var growA = a.totals.investmentGrowth, growB = b.totals.investmentGrowth;
+    var bigGrow = growA >= growB ? a : b;
+    beat('invest', 'invest', 'The investing habit', 'Pay yourself first',
+      [pk('Now, the part of this that people skip. Investing.',
+          'Here\'s the quiet part of the model. It matters more than almost anything on the pay slide.',
+          'Let\'s talk about the boring habit that ends up doing most of the work.'),
+       pk('Both of them follow the same rule. Pay the bills, and ' + ruleText + ' gets invested. Not spent. Invested.',
+          'Same rule for both. After living costs, ' + ruleText + ' goes into investments. Every single year.',
+          'The rule is simple. Cover the bills, and ' + ruleText + ' gets put away. Every year, no exceptions.'),
+       pk('Over the ' + years + ' years, ' + A + ' puts in about ' + say(a.totals.invested) + '. ' + B + ' puts in about ' + say(b.totals.invested) + '.',
+          'That adds up to ' + say(a.totals.invested) + ' from ' + A + ' and ' + say(b.totals.invested) + ' from ' + B + '.',
+          A + ' saves ' + say(a.totals.invested) + ' over the run. ' + B + ', ' + say(b.totals.invested) + '.'),
+       pk('That\'s money they never see. It goes out the day it comes in. Which is exactly why it works.',
+          'Nobody misses money they never had in their chequing account. That\'s the whole trick.',
+          'It\'s not a lot at a time. It\'s the every-year part that matters.')]);
+
+    beat('compound', 'compound', 'Money that makes money', 'Compound growth at ' + retPct + '%',
+      [pk('Here\'s why. The returns get reinvested, so next year you earn returns on the returns. Slowly at first. Then not slowly.',
+          'This is compound growth. Your money earns money, and then that money earns money. It feels like nothing for years. Then it doesn\'t.',
+          'Compounding is boring for a decade and then it isn\'t. The growth starts growing.'),
+       pk('At ' + retPct + ' percent a year, a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
+          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent it\'s ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
+          'A dollar at ' + S + ' becomes ' + '$' + dollarFull.toFixed(2) + '. A dollar at ' + (S + Math.round(years / 2)) + ' becomes ' + '$' + dollarHalf.toFixed(2) + '. Half the time, ' + Math.round((dollarHalf - 1) / (dollarFull - 1) * 100) + ' percent of the growth. Time is the ingredient.'),
+       pk('So look at the pile. ' + A + ' put in ' + say(a.totals.invested) + ' and the market added ' + say(growA) + '. ' + B + ' put in ' + say(b.totals.invested) + ' and the market added ' + say(growB) + '.',
+          'The grey part is what they put in. The coloured part is what it earned on its own. ' + say(growA) + ' for ' + A + '. ' + say(growB) + ' for ' + B + '.',
+          'What went in, and what it grew. ' + A + ': ' + say(a.totals.invested) + ' in, ' + say(growA) + ' of growth. ' + B + ': ' + say(b.totals.invested) + ' in, ' + say(growB) + ' of growth.'),
+       pk('That ' + say(bigGrow.totals.investmentGrowth) + ' is money ' + bigGrow.name + ' never worked an hour for.',
+          'Nobody worked for that ' + say(bigGrow.totals.investmentGrowth) + '. It showed up because the money was left alone.',
+          'That growth is the closest thing to free money in this whole test. And it only shows up if you start.')]);
+
     beat('investments', 'chart:investments', 'The bank balance', 'Cash and investments only',
-      [pk('This is just cash and investments. No house, no business.',
-          'Strip out the house and the business and this is what\'s left - money in accounts.',
-          'Pure liquid money here. Nothing you\'d have to sell.'),
+      [pk('This is just cash and investments. No house. No business.',
+          'Strip out the house and the business and this is what\'s left. Money in accounts.',
+          'This is the money you could actually spend on a Tuesday. Nothing you\'d have to sell first.'),
        sim.crossoverInvestments
-         ? pk('They cross over at age ' + sim.crossoverInvestments.age + '. That\'s the moment the higher income finally overtakes the earlier start.',
-              'Watch age ' + sim.crossoverInvestments.age + '. That\'s where the bigger paycheque finally catches the head start.',
-              'The lines cross at ' + sim.crossoverInvestments.age + '. Everything before that is the head start winning; everything after is income winning.')
-         : pk('They never cross over. The earlier start compounds faster than the higher income can catch it.',
-              'And they don\'t cross. Not in ' + cfg.years + ' years. The early money keeps compounding faster than the late money arrives.',
+         ? pk('They cross at age ' + sim.crossoverInvestments.age + '. That\'s the moment the bigger paycheque finally catches the earlier start.',
+              'Watch age ' + sim.crossoverInvestments.age + '. That\'s where the higher income finally overtakes the head start.',
+              'The lines cross at ' + sim.crossoverInvestments.age + '. Before that, the head start is winning. After it, the income is.')
+         : pk('They never cross. The early money grows faster than the late money arrives.',
+              'And they don\'t cross. Not in ' + years + ' years. The early money keeps growing faster than the bigger paycheque can catch it.',
               'No crossover. The head start just keeps pulling away.'),
-       pk('The gap you see early on is the head start doing its work in a brokerage account.',
-          'That early gap? That\'s the head start, sitting in an index fund, doing what compounding does.',
-          'Early on, that\'s not skill or effort. It\'s time in the market.')]);
+       pk('That early gap is the head start, sitting in an index fund, doing what money does when you leave it alone.',
+          'That early gap? That\'s the head start, invested, quietly growing on its own.',
+          'Early on, that\'s not skill or effort. It\'s just time. Money that got a ' + (hs.years || 'few') + '-year start on the other money.')]);
 
     /* ---- business ---- */
     beat('business', 'business', 'The business', 'Where the real money is made',
       [(a.isOwner || b.isOwner)
-        ? pk('This is where a career comparison usually stops, and it shouldn\'t.',
-             'Most career comparisons end before this slide. That\'s the mistake.',
+        ? pk('This is where a career comparison usually stops. It shouldn\'t.',
+             'Most career comparisons end right before this slide. That\'s a bit like reviewing a restaurant from the parking lot.',
              'Here\'s the part every salary comparison leaves out.')
-        : pk('Neither of these two builds a business, which is worth saying out loud.',
+        : pk('Neither of these two builds a business. Worth saying out loud.',
              'Nobody starts a company in this one. Keep that in mind, because it changes everything when someone does.'),
        a.isOwner
          ? pk(A + ' starts a business at ' + a.milestones.businessStartAge + '.', 'At ' + a.milestones.businessStartAge + ', ' + A + ' goes out on their own.', A + ' opens the doors at ' + a.milestones.businessStartAge + '.')
          : pk(A + ' stays an employee the whole way.', A + ' never leaves the paycheque.'),
        b.isOwner
          ? pk(B + ' starts one at ' + b.milestones.businessStartAge + '.', B + ' does the same at ' + b.milestones.businessStartAge + '.', 'For ' + B + ', it\'s age ' + b.milestones.businessStartAge + '.')
-         : pk(B + ' stays an employee the whole way.', B + ' works for someone else start to finish.'),
+         : pk(B + ' stays an employee the whole way.', B + ' works for someone else, start to finish.'),
        (a.totals.businessEquity > 0 || b.totals.businessEquity > 0)
-         ? pk('By the end, that\'s ' + say(a.totals.businessEquity) + ' of business equity for ' + A + ' and ' + say(b.totals.businessEquity) + ' for ' + B + '.',
-              'And by the finish line the business itself is worth ' + say(a.totals.businessEquity) + ' to ' + A + ' and ' + say(b.totals.businessEquity) + ' to ' + B + ', after what\'s owed on it.',
-              'Business equity at ' + endAge + ': ' + say(a.totals.businessEquity) + ' and ' + say(b.totals.businessEquity) + '. That\'s money that doesn\'t exist for an employee.')
-         : pk('So there\'s no business equity on either side of this one.', 'Zero business equity, both sides. Which is the point.')]);
+         ? pk('By the end, the business itself is worth about ' + say(a.totals.businessEquity) + ' to ' + A + ' and ' + say(b.totals.businessEquity) + ' to ' + B + '. That\'s after what\'s still owed on it.',
+              'At the finish line, what the business is worth, minus what\'s owed on it, comes to ' + say(a.totals.businessEquity) + ' for ' + A + ' and ' + say(b.totals.businessEquity) + ' for ' + B + '.',
+              'What the business is worth at ' + endAge + ': ' + say(a.totals.businessEquity) + ' and ' + say(b.totals.businessEquity) + '. That\'s money an employee simply doesn\'t have.')
+         : pk('So there\'s no business value on either side of this one.', 'Zero business value, both sides. Which is the point.')]);
 
     /* ---- dependency ---- */
     if (depA.applicable || depB.applicable) {
       var stuck = (depA.applicable && depA.stepBackBlocked) ? A : ((depB.applicable && depB.stepBackBlocked) ? B : null);
       beat('dependency', 'dependency', 'Owner dependency', 'Can it run without you?',
-        [pk('But not all businesses are the same asset, and this is the score I care most about.',
-            'Now - two businesses can be worth the same on paper and be completely different things to own. This score is how I tell them apart.',
+        [pk('But not every business is the same kind of thing to own. This is the score I care about most.',
+            'Now. Two businesses can be worth the same on paper and be completely different things to own. This score is how I tell them apart.',
             'This is my favourite number in the whole test, and almost nobody tracks it.'),
-         pk('Ten means the company keeps producing when the owner stops. One means it stops dead.',
-            'It\'s out of ten. Ten, the business runs without you. One, the business is you.',
-            'Simple scale. Ten: you could take a month off. One: if you stop, the revenue stops.'),
+         pk('It\'s out of ten. Ten means the company keeps earning when the owner stops. One means it stops dead.',
+            'Out of ten. Ten, the business runs without you. One, the business is you. Take a week off and the revenue takes a week off too.',
+            'Simple scale. Ten: you could disappear for a month. One: if you stop, the money stops.'),
          (depA.applicable && depB.applicable)
-           ? pk(A + ' scores ' + depA.score + ' out of ten. ' + B + ' scores ' + depB.score + '.',
+           ? pk(A + ' scores ' + depA.score + '. ' + B + ' scores ' + depB.score + '.',
                 A + ': ' + depA.score + '. ' + B + ': ' + depB.score + '.',
                 'It\'s ' + depA.score + ' for ' + A + ' and ' + depB.score + ' for ' + B + '.')
            : (depA.applicable ? A + ' scores ' + depA.score + ' out of ten.' : B + ' scores ' + depB.score + ' out of ten.'),
          stuck
-           ? pk(stuck + ' literally cannot step back. The moment they hand the work to employees, what\'s left won\'t cover the bank and a liveable draw.',
-                'And here\'s the trap: ' + stuck + ' can\'t get out. Hand the work to staff and the numbers stop working - the loan doesn\'t get paid and neither do they.',
+           ? pk(stuck + ' can\'t step back. Hand the work to staff, and what\'s left won\'t cover the loan and a living wage.',
+                'And here\'s the trap. ' + stuck + ' can\'t get out. Hand the work to employees and the numbers stop working. The bank doesn\'t get paid, and neither do they.',
                 stuck + ' is stuck in it. The business only makes money while they personally do the work. Try to step back and it falls over.')
            : pk('That difference is the difference between owning an asset and owning a job.',
                 'That gap is what separates a business you can sell from a job you happen to own.'),
          pk('A business that only works while you\'re in it is a job with extra paperwork.',
             'If it only runs while you\'re there, you didn\'t build a business. You built a job with a payroll.',
-            'Owning a job is fine. Just don\'t confuse it with owning an asset.')]);
+            'Owning a job is fine. Just don\'t mistake it for owning an asset.')]);
     }
 
     /* ---- net worth chart ---- */
     beat('networth', 'chart:netWorth', 'Net worth over time', 'Everything owned, less everything owed',
-      [pk('Put all of it together and this is the shape of the two lives.',
-          'Add it all up - house, business, investments, minus every debt - and this is what you get.',
-          'This is everything. Every asset, every liability, both careers, ' + cfg.years + ' years.'),
+      [pk('Put it all together and this is the shape of the two lives.',
+          'Add it all up. House, business, investments, minus every debt. This is what you get.',
+          'This is everything. Every asset, every debt, both careers, ' + years + ' years.'),
        sim.crossoverNetWorth
-         ? pk(sim.crossoverNetWorth.passer + ' passes ' + sim.crossoverNetWorth.passed + ' at age ' + sim.crossoverNetWorth.age + (sim.crossoverNetWorthProjected ? ', which is past the end of our window, so treat that as a projection.' : '.'),
-              'The lines cross at ' + sim.crossoverNetWorth.age + ' - that\'s ' + sim.crossoverNetWorth.passer + ' going past ' + sim.crossoverNetWorth.passed + (sim.crossoverNetWorthProjected ? '. That\'s outside the ' + cfg.years + ' years, so it\'s a projection, not a result.' : '.'))
-         : pk('They never cross. On these assumptions the gap never closes.',
-              'And no, they don\'t cross. Not by ' + endAge + ', and not after it either, on these numbers.',
+         ? pk(sim.crossoverNetWorth.passer + ' passes ' + sim.crossoverNetWorth.passed + ' at age ' + sim.crossoverNetWorth.age + (sim.crossoverNetWorthProjected ? '. That\'s past the end of our window, so treat it as a projection.' : '.'),
+              'The lines cross at ' + sim.crossoverNetWorth.age + '. That\'s ' + sim.crossoverNetWorth.passer + ' going past ' + sim.crossoverNetWorth.passed + (sim.crossoverNetWorthProjected ? '. That\'s outside the ' + years + ' years, so it\'s a projection, not a result.' : '.'))
+         : pk('They never cross. On these numbers, the gap never closes.',
+              'And no, they don\'t cross. Not by ' + endAge + '. Not after it either, on these numbers.',
               'No crossover. I ran it out to 75 to check. The gap holds.'),
-       pk('Notice where each line bends. Those bends are decisions, not luck.',
-          'Look at the kinks in the lines. Every one of those is a decision - a business started, a loan paid off, a house bought.',
+       pk('Look at where each line bends. Those bends are decisions, not luck.',
+          'Look at the kinks in the lines. Every one of those is a decision. A business started. A loan paid off. A house bought.',
           'See the bends? That\'s not the market. That\'s a choice somebody made.')]);
 
     /* ---- wealth columns ---- */
-    beat('wealth', 'columns', 'Wealth at year ' + cfg.years, 'Age ' + endAge,
+    beat('wealth', 'columns', 'Wealth at year ' + years, 'Age ' + endAge,
       [pk('So here\'s the scoreboard at ' + endAge + '.',
           'Final numbers. Age ' + endAge + '.',
-          'Right. ' + cfg.years + ' years in, here\'s where they stand.'),
+          'Right. ' + years + ' years in, here\'s where they stand.'),
        pk(A + ' finishes at ' + say(a.totals.netWorth) + '. ' + B + ' finishes at ' + say(b.totals.netWorth) + '.',
           say(a.totals.netWorth) + ' for ' + A + '. ' + say(b.totals.netWorth) + ' for ' + B + '.',
           A + ': ' + say(a.totals.netWorth) + '. ' + B + ': ' + say(b.totals.netWorth) + '.'),
        winner
-         ? pk(winner + ' is ahead by about ' + say(gap) + '.', 'That\'s ' + winner + ' up by ' + say(gap) + '.', say(gap) + ' between them, ' + winner + ' on top.')
+         ? pk(winner + ' is ahead by about ' + say(gap) + '.', 'That\'s ' + winner + ' up by ' + say(gap) + '.', say(gap) + ' between them. ' + winner + ' on top.')
          : 'They finish level.',
        (winner && earnMore.name !== winner)
-         ? pk('And read that against the income slide, because ' + earnMore.name + ' earned more and still finished behind.',
-              'Now go back to the pay chart. ' + earnMore.name + ' earned more. ' + earnMore.name + ' finished behind. Sit with that for a second.',
-              'Which means the person with the bigger paycheque lost. ' + earnMore.name + ' out-earned ' + winner + ' and still ended up with less.')
-         : pk('Which is roughly what the income slide told us it would be.', 'No surprise there - the pay chart called it.')]);
+         ? pk('Now go back to the pay chart. ' + earnMore.name + ' earned more and still finished behind.',
+              'Go back to the pay chart for a second. ' + earnMore.name + ' earned more. ' + earnMore.name + ' finished behind. Sit with that.',
+              'So the bigger paycheque lost. ' + earnMore.name + ' out-earned ' + winner + ' and still ended up with less.')
+         : pk('Which is roughly what the pay chart said would happen.', 'No surprise there. The pay chart called it.')]);
 
     /* ---- hours ---- */
     beat('hours', 'hours', 'What it cost in hours', 'The number nobody counts',
       [pk('Money is only half of it. Here\'s the time.',
-          'Okay, now the cost nobody puts on a spreadsheet. Hours.',
+          'Okay. Now the cost nobody puts on a spreadsheet. Hours. We put it on a spreadsheet.',
           'Let\'s talk about the price you pay in time, because it\'s not the same for both.'),
-       pk(A + ' works about ' + Math.round(a.totals.hours / 1000) + ' thousand hours over the period. ' + B + ' works about ' + Math.round(b.totals.hours / 1000) + ' thousand.',
-          Math.round(a.totals.hours / 1000) + ' thousand hours for ' + A + '. ' + Math.round(b.totals.hours / 1000) + ' thousand for ' + B + '.',
-          'Over ' + cfg.years + ' years ' + A + ' puts in roughly ' + Math.round(a.totals.hours / 1000) + ' thousand hours, ' + B + ' about ' + Math.round(b.totals.hours / 1000) + ' thousand.'),
-       pk('Per hour on the clock, that\'s ' + say(a.totals.wealthPerHour) + ' of net worth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
-          'Divide the net worth by the hours and you get ' + say(a.totals.wealthPerHour) + ' an hour for ' + A + ', ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
-          'So every hour worked built ' + say(a.totals.wealthPerHour) + ' of wealth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.'),
-       pk('That\'s a very different way to rank two careers, and I think it\'s a fairer one.',
+       pk(A + ' works about ' + thousands(a) + ' hours over the ' + years + ' years. ' + B + ' works about ' + thousands(b) + '.',
+          thousands(a) + ' hours for ' + A + '. ' + thousands(b) + ' for ' + B + '.',
+          'Over ' + years + ' years, ' + A + ' puts in roughly ' + thousands(a) + ' hours. ' + B + ', about ' + thousands(b) + '.'),
+       pk('That\'s about ' + perWeek(a) + ' hours a week for ' + A + ' and ' + perWeek(b) + ' for ' + B + '. Every week. For ' + years + ' years.',
+          'Per week, that\'s roughly ' + perWeek(a) + ' hours for ' + A + ' against ' + perWeek(b) + ' for ' + B + '.',
+          'Call it ' + perWeek(a) + ' hours a week versus ' + perWeek(b) + '. That difference is your evenings.'),
+       pk('Divide the net worth by the hours, and every hour worked built ' + say(a.totals.wealthPerHour) + ' of wealth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
+          'So per hour on the clock, that\'s ' + say(a.totals.wealthPerHour) + ' of net worth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
+          'Wealth per hour worked: ' + say(a.totals.wealthPerHour) + ' for ' + A + '. ' + say(b.totals.wealthPerHour) + ' for ' + B + '.'),
+       pk('That\'s a very different way to rank two careers. I think it\'s a fairer one.',
           'I\'d argue that\'s the fairest single number in the whole test.',
-          'If you only remember one metric from this video, make it that one.')]);
+          'If you only remember one number from this video, make it that one.')]);
 
     /* ---- lifestyle ---- */
     beat('lifestyle', 'radar', 'The life around the money', 'Eight components, out of ten',
-      [pk('Hours, vacation, stress, physical wear, flexibility, security, family time.',
-          'This is the stuff that doesn\'t show up in a bank balance. Hours, holidays, stress, your body, your evenings.',
+      [pk('Hours, vacation, stress, wear and tear on your body, flexibility, security, family time.',
+          'This is the stuff that doesn\'t show up in a bank balance. Hours. Holidays. Stress. Your back. Your evenings.',
           'Eight things that decide whether you actually like your life. None of them are money.'),
-       pk('Further out is better on every axis, including physical demands, where ten means the work is easy on your body.',
-          'Bigger shape, better life. That includes the physical axis - ten there means the job goes easy on your knees and your back.',
-          'Read it as: the more area, the better. Even the physical one - a ten means minimal wear on your body.'),
-       pk('Neither shape is better. They\'re different trades, and you have to know which one you can live inside for twenty years.',
+       pk('Further out is better on every line. Including the physical one, where ten means the work is easy on your body.',
+          'Bigger shape, better life. That includes the physical line. A ten there means your knees still work at ' + endAge + '.',
+          'Read it as: more area, better life. Even the physical one. A ten means the job goes easy on you.'),
+       pk('Neither shape is better. They\'re different trades, and you have to know which one you can live inside for ' + years + ' years.',
           'There\'s no winner on this slide. There\'s the shape you could live in for two decades and the shape you couldn\'t.',
-          'I\'m not going to call this one. Look at the two shapes and ask which set of trade-offs you\'d actually accept.')]);
+          'I\'m not calling this one. Look at the two shapes and ask which set of trade-offs you\'d actually accept.')]);
 
     /* ---- freedom ---- */
     beat('freedom', 'freedom', 'When they get free', 'Selling the business, drawing at ' + Math.round(cfg.safeWithdrawal * 100) + '%',
-      [pk('Financial independence. Sell the business, live off the proceeds.',
-          'When can each of them stop? Sell the business, invest the money, live on the returns.',
-          'The retirement question. Cash out the business, and how soon does the money cover the bills?'),
+      [pk('Financial freedom. The age where they could sell the business, invest the money, and live on what it earns.',
+          'When can each of them stop, if they want to? Sell the business, invest the money, live on the returns.',
+          'The "I could stop tomorrow" age. Cash out the business, and how soon does the money cover the bills on its own?'),
        a.milestones.financialFreedomAgeWithSale
          ? pk(A + ' gets there around ' + a.milestones.financialFreedomAgeWithSale + '.', 'For ' + A + ', roughly age ' + a.milestones.financialFreedomAgeWithSale + '.')
          : A + ' doesn\'t get there on these numbers.',
        b.milestones.financialFreedomAgeWithSale
          ? pk(B + ' gets there around ' + b.milestones.financialFreedomAgeWithSale + '.', B + ', about ' + b.milestones.financialFreedomAgeWithSale + '.')
          : B + ' doesn\'t get there on these numbers.',
-       pk('Keeping the business instead of selling it pushes that later, because only the profit that survives you stepping away is income you can count on.',
-          'If they keep the business instead, it\'s later - because only the part of the profit that doesn\'t depend on them showing up actually counts.',
-          'Hold onto the business and the date moves out. Profit that needs you in the building isn\'t retirement income.')]);
+       pk('Keep the business instead of selling it, and that date moves later. Only the profit that keeps coming without you counts as income you can rely on.',
+          'If they keep the business, it\'s later. Because only the part of the profit that doesn\'t need them in the building actually counts.',
+          'Hold on to the business and the date slides out. Profit that needs you on site isn\'t retirement income. It\'s a job.')]);
 
     /* ---- scores ---- */
     beat('scores', 'scores', 'The Blue Collar Business score', 'Out of one hundred',
-      [pk('We score both of them out of a hundred. Financial outcome is the biggest single weight, but it\'s only a quarter of it.',
-          'Everything rolls up into one score out of a hundred. Money is the biggest piece, but it\'s still only twenty-five points.',
-          'One number, out of a hundred. And before anyone says it - yes, money counts. It\'s a quarter of the score, not all of it.'),
+      [pk('We score both of them out of a hundred. Money is the biggest single piece, but it\'s only a quarter of it.',
+          'Everything rolls up into one score out of a hundred. Money is the biggest piece, and it\'s still only twenty-five points.',
+          'One number, out of a hundred. And before anyone says it: yes, money counts. It\'s a quarter of the score. Not all of it.'),
        pk(A + ' comes out at ' + scores.a.score + '. ' + B + ' at ' + scores.b.score + '.',
           scores.a.score + ' for ' + A + '. ' + scores.b.score + ' for ' + B + '.',
-          A + ' scores ' + scores.a.score + ', ' + B + ' scores ' + scores.b.score + '.'),
-       pk('And underneath that are the four that matter to this channel. Career, owner-operator, business owner, investor.',
-          'Under the hood are the four scores this channel is really about: as an employee, as an owner-operator, as a business owner, and as an investor.',
+          A + ' scores ' + scores.a.score + '. ' + B + ' scores ' + scores.b.score + '.'),
+       pk('Underneath that are the four scores this channel is really about. As an employee. As an owner-operator. As a business owner. As an investor.',
+          'Under the hood are four smaller scores. How you do as an employee, as an owner-operator, as a business owner, and as an investor.',
           'The four numbers beneath it are the ones I actually care about. Employee. Owner-operator. Business owner. Investor.'),
-       pk('That\'s the whole progression. Do the work, lead the work, own the work, own the asset.',
+       pk('That\'s the whole ladder. Do the work. Lead the work. Own the work. Then own the thing that does the work.',
           'That\'s the ladder. Do it, lead it, own it, then own the thing that does it without you.',
-          'Same progression every time. Do, lead, build, own, invest.')]);
+          'Same ladder every time. Do, lead, own, invest.')]);
 
     /* ---- categories ---- */
     beat('categories', 'categories', 'Winner by category', 'Because one number hides the trade',
-      [pk('One number always hides something, so here it is broken apart.',
+      [pk('One number always hides something. So here it is, pulled apart.',
           'A single score always buries the trade-offs. So let\'s pull it apart.',
           'I don\'t trust one number, and neither should you. Here\'s the breakdown.'),
-       pk('Income, lifestyle, debt, entrepreneurship, scalability, time freedom, net worth.',
-          'Best for income. Best for lifestyle. Lowest debt. Best to start a business in. Most scalable. Most time freedom. Highest net worth.',
-          'Pay, lifestyle, debt, business potential, scale, time, net worth - who wins each one.'),
-       pk('Almost nobody wins all of them, and the ones you lose are the ones you have to be honest with yourself about.',
-          'Nobody sweeps this. And the categories you\'d lose are exactly the ones you need to be honest about before you commit.',
+       pk('Income, lifestyle, debt, starting a business, growing it, time freedom, net worth.',
+          'Best pay. Best lifestyle. Least debt. Best to start a business in. Easiest to grow. Most free time. Highest net worth.',
+          'Pay, lifestyle, debt, business potential, growth, time, net worth. Who wins each one.'),
+       pk('Nobody wins all of them. And the ones you\'d lose are the ones you have to be honest with yourself about.',
+          'Nobody sweeps this. Nobody ever sweeps this. The categories you\'d lose are exactly the ones to be honest about before you commit.',
           'Notice it\'s split. It\'s always split. The question is which losses you can live with.')]);
 
     /* ---- scenarios ---- */
     beat('scenarios', 'scenarios', 'If I\'m wrong', 'Conservative, realistic, aggressive',
       [pk('Now let me argue against myself.',
-          'Okay, let me try to break my own result.',
-          'Here\'s where I stress-test this, because I\'d rather do it than have you do it in the comments.'),
-       pk('Conservative assumes slower raises, weaker markets, a business that grows but never takes off.',
-          'The conservative case is: raises are smaller, the market underperforms, and the business is fine but never really takes off.',
-          'Conservative means everything goes a bit worse. Smaller raises, a weaker decade in the market, a business that stays small.'),
-       pk('On conservative, ' + (scenarioLead() || 'the answer gets a lot closer') + '.',
-          'Run it that way and ' + (scenarioLead() || 'it tightens up considerably') + '.',
+          'Okay. Let me try to break my own result before the comments do.',
+          'Here\'s where I stress-test this. I\'d rather do it than have you do it for me.'),
+       pk('The conservative case means smaller raises, a weaker market, and a business that grows but never takes off.',
+          'Conservative means everything goes a bit worse. Smaller raises. A weaker decade in the market. A business that stays small.',
+          'The cautious version. Raises are smaller, the market underperforms, and the business is fine but never really takes off.'),
+       pk('On the cautious numbers, ' + (scenarioLead() || 'the answer gets a lot closer') + '.',
+          'Run it that way and ' + (scenarioLead() || 'it tightens up a lot') + '.',
           'And on those numbers, ' + (scenarioLead() || 'the gap narrows') + '.'),
-       pk('I quote the realistic number. But the conservative number is the one I\'d plan around.',
-          'I\'ll say the realistic figure out loud. I\'d plan my life around the conservative one.',
-          'Headline is the realistic case. If it were my money, I\'d budget on the conservative case.')]);
+       pk('I quote the realistic number. The conservative number is the one I\'d plan around.',
+          'I\'ll say the realistic figure out loud. I\'d plan my life around the cautious one.',
+          'The headline is the realistic case. If it were my money, I\'d budget on the cautious case.')]);
 
     /* ---- verdict ---- */
-    beat('verdict', 'verdict', 'The ' + cfg.years + '-year verdict', winner || 'Too close to call', [yt.verdict]);
+    beat('verdict', 'verdict', 'The ' + years + '-year verdict', winner || 'Too close to call', [sentences(yt.verdict)]);
 
     /* ---- outro ---- */
     beat('outro', 'outro', 'Run your own numbers', '',
       [pk('Here\'s what I\'d take away from this one.',
           'So what do you do with this?',
           'Let me leave you with the thing that actually matters here.'),
-       pk('The job you pick matters. But what you do with it after year five matters more, and almost nobody runs those numbers before they commit twenty years to an answer.',
-          'The career matters less than what you do with it once you\'re in. That second part is where all the money is, and it\'s the part nobody models.',
-          'Picking the job is maybe a third of it. What you build on top of the job is the rest, and almost nobody runs that math before they commit.'),
-       pk('So run yours. Change the wage to what they actually pay where you live. Change the business to the one you\'d actually start. See whether the answer holds.',
-          'So go run your own. Put in real local wages. Put in the business you\'d actually open. See if the answer survives.',
-          'Do it with your own numbers. Your city\'s wages, your tuition, the business you\'d really start. Then see what twenty years looks like.'),
-       pk('If you want the next one, subscribe - we run a different pair every episode, and the ones that surprise me are the ones I put out first.',
+       pk('The job you pick matters. What you do with it after year five matters more. And almost nobody runs those numbers before they commit twenty years to an answer.',
+          'The career matters less than what you do with it once you\'re in. That second part is where all the money is. It\'s also the part nobody models.',
+          'Picking the job is maybe a third of it. What you build on top of the job is the rest. Almost nobody does that math before they commit.'),
+       pk('So run yours. Put in what they actually pay where you live. Put in the business you\'d actually start. See if the answer holds.',
+          'So go run your own. Real local wages. The business you\'d actually open. See if the answer survives.',
+          'Do it with your own numbers. Your town\'s wages, your tuition, the business you\'d really start. Then see what twenty years looks like. It\'s usually not what you expected.'),
+       pk('If you want the next one, subscribe. We run a different pair every episode, and the ones that surprise me go out first.',
           'Subscribe if you want the next matchup. Different pair every time, and I always lead with the ones that surprised me.',
           'There\'s a new pair every episode. Hit subscribe and I\'ll show you the ones that didn\'t go the way I expected.'),
        pk('Learn the trade. Build the business. Own the asset. See you next time.',
           'Learn the trade, build the business, own the asset. See you in the next one.',
-          'Learn the trade. Build the business. Own the asset. That\'s it - see you next time.')]);
+          'Learn the trade. Build the business. Own the asset. That\'s it. See you next time.')]);
 
     return {
       beats: beats,
@@ -4713,7 +4964,7 @@ body.st-on { overflow: hidden; }
     brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
     headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
     dependency: 0.24, hours: 0.24, freedom: 0.24,
-    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12,
+    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12, compound: 0.12, invest: 0.24,
     radar: 0.1
   };
   function intensityFor(kind) {
@@ -6662,6 +6913,7 @@ body.st-on { overflow: hidden; }
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
+      prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -6698,8 +6950,15 @@ body.st-on { overflow: hidden; }
       var cGap = c.a.totals.netWorth - c.b.totals.netWorth;
       var cWin = cGap >= 0 ? c.a.name : c.b.name;
       var rGap = Math.abs(L.sim.a.totals.netWorth - L.sim.b.totals.netWorth);
-      N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
-        ' instead of ' + N.say(rGap));
+      var rWin = L.scores.netWorthWinner;
+      if (Math.abs(cGap) < 1000) {
+        N.setScenarioNote('it\'s a dead heat');
+      } else if (rWin && cWin !== rWin) {
+        N.setScenarioNote('it flips. ' + cWin + ' comes out ahead, by ' + N.say(Math.abs(cGap)));
+      } else {
+        N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
+          ' instead of ' + N.say(rGap));
+      }
     }
     script = N.episodeScript(L.sim, L.scores, BCB.app.getState().scriptSeed || 0);
     if (idx >= script.beats.length) { idx = 0; }
@@ -6740,6 +6999,33 @@ body.st-on { overflow: hidden; }
     return d;
   }
 
+  /* Numbers marked data-count roll up from zero when the slide lands.
+     The final text is already in the element, so anything that skips
+     the tween (reduced motion, print) shows the right figure. */
+  var countRaf = 0;
+  function countUp(host) {
+    if (countRaf) { global.cancelAnimationFrame(countRaf); countRaf = 0; }
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var nodes = Array.prototype.slice.call(host.querySelectorAll('[data-count]'));
+    if (!nodes.length || reduce) { return; }
+    var items = nodes.map(function (n) { return { el: n, target: parseFloat(n.dataset.count) || 0, final: n.textContent, money: !!n.dataset.money }; });
+    /* Hold the final width while the shorter numbers roll through, so
+       the layout does not breathe in and out during the count. */
+    items.forEach(function (it) { it.el.style.minWidth = it.el.getBoundingClientRect().width + 'px'; });
+    var t0 = performance.now(), dur = 1300;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) {
+        if (k >= 1) { it.el.textContent = it.final; it.el.style.minWidth = ''; return; }
+        var v = it.target * e;
+        it.el.textContent = it.money ? money(v) : String(Math.round(v));
+      });
+      if (k < 1) { countRaf = global.requestAnimationFrame(frame); } else { countRaf = 0; }
+    }
+    countRaf = global.requestAnimationFrame(frame);
+  }
+
   function visualFor(b) {
     var L = BCB.app.getLast(), sim = L.sim, sc = L.scores, cfg = sim.cfg;
     var a = sim.a, bb = sim.b;
@@ -6757,7 +7043,8 @@ body.st-on { overflow: hidden; }
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        width: dims.w, height: dims.h, endLabelGap: dims.gap
+        width: dims.w, height: dims.h, endLabelGap: dims.gap,
+        reveal: b.reveal || null
       }));
       wrap.classList.add('wide');
       return wrap;
@@ -6869,7 +7156,7 @@ body.st-on { overflow: hidden; }
               return '<div class="st-col-line"><span>' + esc(l[0]) + '</span><span>' + esc(l[1]) + '</span></div>';
             }).join('') +
             '<div class="st-col-total"><div class="k">Estimated net worth</div>' +
-            '<div class="v">' + money(t.netWorth) + '</div></div></div>';
+            '<div class="v" data-count="' + Math.round(t.netWorth) + '" data-money="1">' + money(t.netWorth) + '</div></div></div>';
         });
         wrap.appendChild(cols);
         wrap.classList.add('wide');
@@ -6893,6 +7180,50 @@ body.st-on { overflow: hidden; }
         ]));
         return wrap;
 
+      case 'invest': {
+        /* The rule, then what each of them actually put away. */
+        var inv = cfg.investing || {};
+        var rule = inv.mode === 'percent'
+          ? Math.round((inv.percent || 0) * 100) + '% of what\'s left'
+          : money((inv.fixedAmount || 0)) + ' a year';
+        var shareOf = function (res) {
+          var at = res.rows.reduce(function (t, r) { return t + Math.max(0, r.afterTax); }, 0);
+          return at > 0 ? Math.round(res.totals.invested / at * 100) : 0;
+        };
+        wrap.appendChild(bigStat([
+          { k: 'The rule', v: rule, n: 'after living costs, invested every year' },
+          { k: a.name + ' - put in', v: money(a.totals.invested), n: shareOf(a) + '% of take-home pay', side: 'a' },
+          { k: bb.name + ' - put in', v: money(bb.totals.invested), n: shareOf(bb) + '% of take-home pay', side: 'b' }
+        ]));
+        return wrap;
+      }
+
+      case 'compound': {
+        /* A dollar's journey, then the pile: what went in against what
+           the market added. Totals are the balance at the end. */
+        var r = cfg.investReturn, yrs = cfg.years;
+        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var grey = '#5f656d';
+        wrap.appendChild(bigStat([
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
+        ]));
+        var stack = C.stackChart({
+          columns: [a, bb].map(function (res, i) {
+            return { name: res.name, parts: [
+              { label: 'Put in', value: res.totals.invested, color: grey, ink: '#fff' },
+              { label: 'Growth', value: res.totals.investmentGrowth, color: i === 0 ? colA() : colB(), ink: '#fff' }
+            ] };
+          }),
+          totals: [a.totals.investments, bb.totals.investments],
+          width: 900, height: 150
+        });
+        wrap.appendChild(stack);
+        wrap.classList.add('wide');
+        wrap.classList.add('st-compound');
+        return wrap;
+      }
+
       case 'radar':
         wrap.appendChild(C.radarChart({
           axes: sc.a.lifestyle.rows.map(function (r, i) {
@@ -6907,7 +7238,7 @@ body.st-on { overflow: hidden; }
         s.className = 'st-scores';
         [[a, sc.a, 'a'], [bb, sc.b, 'b']].forEach(function (p) {
           s.innerHTML += '<div class="st-score ' + p[2] + '"><div class="who">' + esc(p[0].name) + '</div>' +
-            '<div class="n">' + p[1].score + '</div><div class="of">out of 100</div>' +
+            '<div class="n" data-count="' + p[1].score + '">' + p[1].score + '</div><div class="of">out of 100</div>' +
             '<div class="four">' +
             [['Career', p[1].four.career.score], ['Owner-op', p[1].four.ownerOperator.score],
              ['Business', p[1].four.businessOwner.score], ['Investor', p[1].four.investor.score]]
@@ -7040,7 +7371,9 @@ body.st-on { overflow: hidden; }
     poke();
 
     if (prefs.mode === 'two') { applySplitVars(); }
-    if (prefs.cam.on) { startCam(); }
+    /* The camera is never opened on page load, but it is remembered:
+       if it was on last time you presented, it comes back on now. */
+    if (prefs.cam.on || prefs.cam.wanted) { startCam(); }
     mountCam();
     recDeclined = false;
     go(idx, true);
@@ -7071,7 +7404,7 @@ body.st-on { overflow: hidden; }
      as an inset card above the words. */
   function insetFor(b) {
     if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
-    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1 };
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
     var asset = null;
@@ -7109,6 +7442,7 @@ body.st-on { overflow: hidden; }
     var inset = insetFor(b);
     if (inset) { host.appendChild(inset); }
     host.appendChild(visualFor(b));
+    countUp(host);
     overlay.querySelector('#stCount').textContent = (idx + 1) + ' / ' + script.beats.length;
     overlay.querySelector('#stProg').innerHTML = script.beats.map(function (x, i) {
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
@@ -7425,7 +7759,7 @@ body.st-on { overflow: hidden; }
       '<rect width="160" height="90" fill="none"></rect>' +
       '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
       '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
-      '</svg><span>Your camera</span>';
+      '</svg><span>Your camera \u00b7 press C to turn it on</span>';
     return camPlaceholder;
   }
   function mountCam() {
@@ -7479,16 +7813,46 @@ body.st-on { overflow: hidden; }
     var note = document.getElementById('camNote');
     if (note) { note.textContent = text; }
   }
+  /* Why the camera did not start, in words that say what to do next.
+     The browser's own error names are precise and useless on their own. */
+  function camFailure(err) {
+    var name = (err && err.name) || '';
+    var embedded = false;
+    try { embedded = global.top !== global.self; } catch (e) { embedded = true; }
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      if (embedded) {
+        return 'This page is embedded inside another site, which blocks the camera. Open the GitHub Pages link ' +
+          'or the local file in its own browser tab.';
+      }
+      if (!global.isSecureContext) {
+        return 'The browser only allows the camera on an https address or a local file. This page is neither.';
+      }
+      return 'Camera blocked for this page. Click the camera icon at the right end of the address bar, allow it, ' +
+        'then press C again.';
+    }
+    if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') {
+      return 'The camera is busy in another app. Close the Windows camera settings preview, Zoom, Teams, OBS ' +
+        'or the Camera app, then press C again.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') {
+      return 'No camera found. Check it is plugged in, and that Windows privacy settings allow desktop apps ' +
+        'to use the camera.';
+    }
+    return 'The camera did not start (' + (name || 'unknown error') + '). Press C to try again.';
+  }
   function startCam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCamMessage('This browser will not give a page camera access here.');
-      prefs.cam.on = false; renderStudio(); return;
+      camFailed('This browser will not give a page camera access here. Use Chrome or Edge, from the local ' +
+        'file or the GitHub Pages link.');
+      return;
     }
     var constraints = { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
     if (prefs.cam.deviceId) { constraints.video.deviceId = { exact: prefs.cam.deviceId }; }
+    camFailed('');
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
       camStream = stream;
       prefs.cam.on = true;
+      prefs.cam.wanted = true;
       camNode().querySelector('video').srcObject = stream;
       mountCam();
       savePrefs();
@@ -7496,16 +7860,34 @@ body.st-on { overflow: hidden; }
       listCams();
       renderStudio();
     }).catch(function (err) {
-      prefs.cam.on = false;
-      camMessage = err && err.name === 'NotAllowedError'
-        ? 'Camera blocked. Allow it for this page - or open the local copy of the file, since a page embedded in another site is usually refused the camera outright.'
-        : 'No camera available: ' + (err && err.name ? err.name : 'unknown error') + '.';
-      renderStudio();
+      /* A remembered camera that is no longer plugged in should not
+         stop the one that is: fall back to the default and try again. */
+      var missing = err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError');
+      if (missing && prefs.cam.deviceId) {
+        prefs.cam.deviceId = ''; savePrefs();
+        startCam();
+        return;
+      }
+      camFailed(camFailure(err));
     });
+  }
+  /* A failure has to be visible where you are: on the stage it goes on
+     the placeholder and the toast, on the tab it goes under the tile. */
+  function camFailed(text) {
+    prefs.cam.on = false;
+    camMessage = text;
+    var ghost = placeholderNode().querySelector('span');
+    if (ghost) {
+      ghost.textContent = text || 'Your camera \u00b7 press C to turn it on';
+      ghost.classList.toggle('err', !!text);
+    }
+    if (text && overlay) { showTake(null, text); }
+    if (!overlay) { renderStudio(); }
   }
   function stopCam() {
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     prefs.cam.on = false;
+    prefs.cam.wanted = false;
     if (camWrap && camWrap.parentNode) { camWrap.remove(); }
     camMessage = '';
     savePrefs();

@@ -29,7 +29,7 @@
     brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
     headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
     dependency: 0.24, hours: 0.24, freedom: 0.24,
-    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12,
+    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12, compound: 0.12, invest: 0.24,
     radar: 0.1
   };
   function intensityFor(kind) {

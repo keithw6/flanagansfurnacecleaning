@@ -65,6 +65,7 @@
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
+      prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -101,8 +102,15 @@
       var cGap = c.a.totals.netWorth - c.b.totals.netWorth;
       var cWin = cGap >= 0 ? c.a.name : c.b.name;
       var rGap = Math.abs(L.sim.a.totals.netWorth - L.sim.b.totals.netWorth);
-      N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
-        ' instead of ' + N.say(rGap));
+      var rWin = L.scores.netWorthWinner;
+      if (Math.abs(cGap) < 1000) {
+        N.setScenarioNote('it\'s a dead heat');
+      } else if (rWin && cWin !== rWin) {
+        N.setScenarioNote('it flips. ' + cWin + ' comes out ahead, by ' + N.say(Math.abs(cGap)));
+      } else {
+        N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
+          ' instead of ' + N.say(rGap));
+      }
     }
     script = N.episodeScript(L.sim, L.scores, BCB.app.getState().scriptSeed || 0);
     if (idx >= script.beats.length) { idx = 0; }
@@ -143,6 +151,33 @@
     return d;
   }
 
+  /* Numbers marked data-count roll up from zero when the slide lands.
+     The final text is already in the element, so anything that skips
+     the tween (reduced motion, print) shows the right figure. */
+  var countRaf = 0;
+  function countUp(host) {
+    if (countRaf) { global.cancelAnimationFrame(countRaf); countRaf = 0; }
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var nodes = Array.prototype.slice.call(host.querySelectorAll('[data-count]'));
+    if (!nodes.length || reduce) { return; }
+    var items = nodes.map(function (n) { return { el: n, target: parseFloat(n.dataset.count) || 0, final: n.textContent, money: !!n.dataset.money }; });
+    /* Hold the final width while the shorter numbers roll through, so
+       the layout does not breathe in and out during the count. */
+    items.forEach(function (it) { it.el.style.minWidth = it.el.getBoundingClientRect().width + 'px'; });
+    var t0 = performance.now(), dur = 1300;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) {
+        if (k >= 1) { it.el.textContent = it.final; it.el.style.minWidth = ''; return; }
+        var v = it.target * e;
+        it.el.textContent = it.money ? money(v) : String(Math.round(v));
+      });
+      if (k < 1) { countRaf = global.requestAnimationFrame(frame); } else { countRaf = 0; }
+    }
+    countRaf = global.requestAnimationFrame(frame);
+  }
+
   function visualFor(b) {
     var L = BCB.app.getLast(), sim = L.sim, sc = L.scores, cfg = sim.cfg;
     var a = sim.a, bb = sim.b;
@@ -160,7 +195,8 @@
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        width: dims.w, height: dims.h, endLabelGap: dims.gap
+        width: dims.w, height: dims.h, endLabelGap: dims.gap,
+        reveal: b.reveal || null
       }));
       wrap.classList.add('wide');
       return wrap;
@@ -272,7 +308,7 @@
               return '<div class="st-col-line"><span>' + esc(l[0]) + '</span><span>' + esc(l[1]) + '</span></div>';
             }).join('') +
             '<div class="st-col-total"><div class="k">Estimated net worth</div>' +
-            '<div class="v">' + money(t.netWorth) + '</div></div></div>';
+            '<div class="v" data-count="' + Math.round(t.netWorth) + '" data-money="1">' + money(t.netWorth) + '</div></div></div>';
         });
         wrap.appendChild(cols);
         wrap.classList.add('wide');
@@ -296,6 +332,50 @@
         ]));
         return wrap;
 
+      case 'invest': {
+        /* The rule, then what each of them actually put away. */
+        var inv = cfg.investing || {};
+        var rule = inv.mode === 'percent'
+          ? Math.round((inv.percent || 0) * 100) + '% of what\'s left'
+          : money((inv.fixedAmount || 0)) + ' a year';
+        var shareOf = function (res) {
+          var at = res.rows.reduce(function (t, r) { return t + Math.max(0, r.afterTax); }, 0);
+          return at > 0 ? Math.round(res.totals.invested / at * 100) : 0;
+        };
+        wrap.appendChild(bigStat([
+          { k: 'The rule', v: rule, n: 'after living costs, invested every year' },
+          { k: a.name + ' - put in', v: money(a.totals.invested), n: shareOf(a) + '% of take-home pay', side: 'a' },
+          { k: bb.name + ' - put in', v: money(bb.totals.invested), n: shareOf(bb) + '% of take-home pay', side: 'b' }
+        ]));
+        return wrap;
+      }
+
+      case 'compound': {
+        /* A dollar's journey, then the pile: what went in against what
+           the market added. Totals are the balance at the end. */
+        var r = cfg.investReturn, yrs = cfg.years;
+        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var grey = '#5f656d';
+        wrap.appendChild(bigStat([
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
+        ]));
+        var stack = C.stackChart({
+          columns: [a, bb].map(function (res, i) {
+            return { name: res.name, parts: [
+              { label: 'Put in', value: res.totals.invested, color: grey, ink: '#fff' },
+              { label: 'Growth', value: res.totals.investmentGrowth, color: i === 0 ? colA() : colB(), ink: '#fff' }
+            ] };
+          }),
+          totals: [a.totals.investments, bb.totals.investments],
+          width: 900, height: 150
+        });
+        wrap.appendChild(stack);
+        wrap.classList.add('wide');
+        wrap.classList.add('st-compound');
+        return wrap;
+      }
+
       case 'radar':
         wrap.appendChild(C.radarChart({
           axes: sc.a.lifestyle.rows.map(function (r, i) {
@@ -310,7 +390,7 @@
         s.className = 'st-scores';
         [[a, sc.a, 'a'], [bb, sc.b, 'b']].forEach(function (p) {
           s.innerHTML += '<div class="st-score ' + p[2] + '"><div class="who">' + esc(p[0].name) + '</div>' +
-            '<div class="n">' + p[1].score + '</div><div class="of">out of 100</div>' +
+            '<div class="n" data-count="' + p[1].score + '">' + p[1].score + '</div><div class="of">out of 100</div>' +
             '<div class="four">' +
             [['Career', p[1].four.career.score], ['Owner-op', p[1].four.ownerOperator.score],
              ['Business', p[1].four.businessOwner.score], ['Investor', p[1].four.investor.score]]
@@ -443,7 +523,9 @@
     poke();
 
     if (prefs.mode === 'two') { applySplitVars(); }
-    if (prefs.cam.on) { startCam(); }
+    /* The camera is never opened on page load, but it is remembered:
+       if it was on last time you presented, it comes back on now. */
+    if (prefs.cam.on || prefs.cam.wanted) { startCam(); }
     mountCam();
     recDeclined = false;
     go(idx, true);
@@ -474,7 +556,7 @@
      as an inset card above the words. */
   function insetFor(b) {
     if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
-    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1 };
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
     var asset = null;
@@ -512,6 +594,7 @@
     var inset = insetFor(b);
     if (inset) { host.appendChild(inset); }
     host.appendChild(visualFor(b));
+    countUp(host);
     overlay.querySelector('#stCount').textContent = (idx + 1) + ' / ' + script.beats.length;
     overlay.querySelector('#stProg').innerHTML = script.beats.map(function (x, i) {
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
@@ -828,7 +911,7 @@
       '<rect width="160" height="90" fill="none"></rect>' +
       '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
       '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
-      '</svg><span>Your camera</span>';
+      '</svg><span>Your camera \u00b7 press C to turn it on</span>';
     return camPlaceholder;
   }
   function mountCam() {
@@ -882,16 +965,46 @@
     var note = document.getElementById('camNote');
     if (note) { note.textContent = text; }
   }
+  /* Why the camera did not start, in words that say what to do next.
+     The browser's own error names are precise and useless on their own. */
+  function camFailure(err) {
+    var name = (err && err.name) || '';
+    var embedded = false;
+    try { embedded = global.top !== global.self; } catch (e) { embedded = true; }
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      if (embedded) {
+        return 'This page is embedded inside another site, which blocks the camera. Open the GitHub Pages link ' +
+          'or the local file in its own browser tab.';
+      }
+      if (!global.isSecureContext) {
+        return 'The browser only allows the camera on an https address or a local file. This page is neither.';
+      }
+      return 'Camera blocked for this page. Click the camera icon at the right end of the address bar, allow it, ' +
+        'then press C again.';
+    }
+    if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') {
+      return 'The camera is busy in another app. Close the Windows camera settings preview, Zoom, Teams, OBS ' +
+        'or the Camera app, then press C again.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') {
+      return 'No camera found. Check it is plugged in, and that Windows privacy settings allow desktop apps ' +
+        'to use the camera.';
+    }
+    return 'The camera did not start (' + (name || 'unknown error') + '). Press C to try again.';
+  }
   function startCam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCamMessage('This browser will not give a page camera access here.');
-      prefs.cam.on = false; renderStudio(); return;
+      camFailed('This browser will not give a page camera access here. Use Chrome or Edge, from the local ' +
+        'file or the GitHub Pages link.');
+      return;
     }
     var constraints = { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
     if (prefs.cam.deviceId) { constraints.video.deviceId = { exact: prefs.cam.deviceId }; }
+    camFailed('');
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
       camStream = stream;
       prefs.cam.on = true;
+      prefs.cam.wanted = true;
       camNode().querySelector('video').srcObject = stream;
       mountCam();
       savePrefs();
@@ -899,16 +1012,34 @@
       listCams();
       renderStudio();
     }).catch(function (err) {
-      prefs.cam.on = false;
-      camMessage = err && err.name === 'NotAllowedError'
-        ? 'Camera blocked. Allow it for this page - or open the local copy of the file, since a page embedded in another site is usually refused the camera outright.'
-        : 'No camera available: ' + (err && err.name ? err.name : 'unknown error') + '.';
-      renderStudio();
+      /* A remembered camera that is no longer plugged in should not
+         stop the one that is: fall back to the default and try again. */
+      var missing = err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError');
+      if (missing && prefs.cam.deviceId) {
+        prefs.cam.deviceId = ''; savePrefs();
+        startCam();
+        return;
+      }
+      camFailed(camFailure(err));
     });
+  }
+  /* A failure has to be visible where you are: on the stage it goes on
+     the placeholder and the toast, on the tab it goes under the tile. */
+  function camFailed(text) {
+    prefs.cam.on = false;
+    camMessage = text;
+    var ghost = placeholderNode().querySelector('span');
+    if (ghost) {
+      ghost.textContent = text || 'Your camera \u00b7 press C to turn it on';
+      ghost.classList.toggle('err', !!text);
+    }
+    if (text && overlay) { showTake(null, text); }
+    if (!overlay) { renderStudio(); }
   }
   function stopCam() {
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     prefs.cam.on = false;
+    prefs.cam.wanted = false;
     if (camWrap && camWrap.parentNode) { camWrap.remove(); }
     camMessage = '';
     savePrefs();

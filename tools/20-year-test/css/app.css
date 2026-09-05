@@ -278,6 +278,49 @@ main { padding: 22px 0 80px; }
 .bcb-chart .stack-label { font-family: var(--b); font-size: 10.5px; font-weight: 600; }
 .bcb-chart .stack-total { font-family: var(--h); font-size: 14px; fill: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* ---- motion ----
+   Every chart draws itself on when it appears: lines travel left to
+   right, bars grow, the radar blooms, labels arrive last. All of it is
+   CSS with fill-mode both, so wherever animation is off (print, reduced
+   motion) the chart simply sits in its finished state. The stage slows
+   the draw so the line moves while you talk about it. */
+.bcb-chart { --draw: 1.5s; --step: .45s; }
+.st-stage .bcb-chart { --draw: 2.4s; --step: .7s; }
+.bcb-chart .series-line { stroke-dasharray: 1; animation: bcbDraw var(--draw) cubic-bezier(.45,0,.2,1) both;
+  animation-delay: calc(var(--i, 0) * var(--step)); }
+.bcb-chart .series-static { animation: none; stroke-dasharray: none; }
+.bcb-chart .series-area { animation: bcbFade .8s ease-out both; animation-delay: calc(var(--draw) * .6 + var(--i, 0) * var(--step)); }
+.bcb-chart .end-dot, .bcb-chart .end-label { animation: bcbPop .45s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(var(--draw) * .92 + var(--i, 0) * var(--step)); transform-box: fill-box; transform-origin: center; }
+.bcb-chart .end-halo { opacity: 0; }
+.st-stage .bcb-chart .end-halo { animation: bcbHalo 2.2s ease-out infinite; transform-box: fill-box; transform-origin: center;
+  animation-delay: calc(var(--draw) + var(--i, 0) * var(--step)); }
+.bcb-chart .marker-line, .bcb-chart .marker-label { animation: bcbFade .6s ease-out both; animation-delay: .25s; }
+.bcb-chart .bar { transform-box: fill-box; transform-origin: 50% 100%; animation: bcbGrowY .8s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .07s); }
+.bcb-chart .radar-shape { transform-box: view-box; animation: bcbBloom .9s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .35s); }
+.bcb-chart .radar-dot { transform-box: fill-box; transform-origin: center; animation: bcbPop .4s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(.6s + var(--i, 0) * .05s); }
+.bcb-chart .score-fill, .bcb-chart .stack-part { transform-box: fill-box; transform-origin: 0 50%;
+  animation: bcbGrowX .9s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * .09s); }
+.bcb-chart .bar-value, .bcb-chart .stack-label, .bcb-chart .stack-total { animation: bcbFade .5s ease-out both;
+  animation-delay: calc(.5s + var(--i, 0) * .09s); }
+@keyframes bcbDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes bcbFade { from { opacity: 0; } }
+@keyframes bcbPop { from { opacity: 0; transform: scale(.4); } }
+@keyframes bcbGrowY { from { transform: scaleY(0); } }
+@keyframes bcbGrowX { from { transform: scaleX(0); } }
+@keyframes bcbBloom { from { opacity: 0; transform: scale(.15); } }
+@keyframes bcbHalo { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(3.2); } }
+/* Big numbers on the stage count up; the CSS just keeps them from
+   jumping in width while they do. */
+.st-stage [data-count] { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .bcb-chart *, .st-stage .bcb-chart .end-halo { animation: none !important; }
+}
+@media print { .bcb-chart * { animation: none !important; } }
+
 /* ---------- tables ---------- */
 .tscroll { overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; font-size: .84rem; }
@@ -444,6 +487,14 @@ body.st-on { overflow: hidden; }
 .st-stage .bcb-chart .end-name { font-size: 20px; }
 .st-stage .bcb-chart .end-value { fill: #c9ccd1; font-size: 16px; }
 .st-stage .bcb-chart .marker-label { fill: #7c8088; font-size: 13px; }
+.st-stage .bcb-chart .bar-label { fill: #c9ccd1; font-size: 17px; }
+.st-stage .bcb-chart .stack-total { fill: #fff; font-size: 19px; }
+.st-stage .bcb-chart .stack-label { font-size: 14px; }
+/* The compounding slide: two big numbers, then the put-in / growth bars
+   at their natural height rather than letterboxed to the chart height. */
+.st-stage .st-compound { display: flex; flex-direction: column; gap: 3vh; align-items: center; }
+.st-stage .st-compound .bcb-chart { height: auto; width: 100%; max-width: 980px; max-height: 26vh; }
+.st-stage.st-two .st-compound .bcb-chart, .st-stage.st-three .st-compound .bcb-chart { max-width: none; }
 
 .st-hero { text-align: center; }
 .st-hero-kick { font-family: var(--h); text-transform: uppercase; letter-spacing: .18em;
@@ -623,7 +674,9 @@ body.st-on { overflow: hidden; }
   border: 1.5px dashed rgba(255,255,255,.20); box-shadow: none; cursor: default; }
 .st-cam-ghost svg { width: 42%; height: auto; display: block; }
 .st-cam-ghost span { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
-  font-size: .62rem; color: #7f858d; line-height: 1; }
+  font-size: .62rem; color: #7f858d; line-height: 1; text-align: center; padding: 0 8%; }
+.st-cam-ghost span.err { text-transform: none; letter-spacing: 0; font-family: var(--b); font-size: .72rem;
+  line-height: 1.35; color: #ffb3aa; }
 .st-cam-ghost.shape-circle { aspect-ratio: 1 / 1; border-radius: 50%; }
 .st-cam-ghost.shape-square { aspect-ratio: 16 / 9; border-radius: 3px; }
 .st-cam-ghost.shape-rounded { aspect-ratio: 16 / 9; border-radius: 14px; }
