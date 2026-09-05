@@ -33,6 +33,10 @@
   var camStream = null;
   var overlay = null;
   var bgLayer = null;
+  var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
+  var armingRec = false;
+  var recTimer = null;
+  var recMessage = '';
 
   var prefs = {
     cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
@@ -400,8 +404,10 @@
         '<button data-act="next" title="Next beat (right arrow)">&rarr;</button>' +
         '<button data-act="prompter" title="Open the prompter window">Prompter</button>' +
         '<button data-act="cam" title="Toggle the webcam (C)">Camera</button>' +
+        '<button data-act="rec" id="stRecBtn" title="Start or stop a take (R)">Record</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
-      '</div>';
+      '</div>' +
+      '<div class="st-take no-print" id="stTake" hidden></div>';
     /* Background sits behind everything on the stage. */
     bgLayer = BCB.media.createLayer();
     overlay.insertBefore(bgLayer, overlay.firstChild);
@@ -417,7 +423,13 @@
       else if (act === 'play') { toggle(); }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
+      else if (act === 'rec') { toggleRecording(); }
+      else if (act === 'save') { BCB.recorder.saveAs(); }
+      else if (act === 'dismiss') { showTake(null); }
       else if (act === 'exit') { closePresentation(); }
+      /* A focused button would pin the control pill on screen - and so
+         into the recording. Drop focus once the click is handled. */
+      if (b.blur) { b.blur(); }
     });
     document.addEventListener('keydown', onKey);
     /* Hide the controls while you are actually recording. */
@@ -433,7 +445,9 @@
     if (prefs.mode === 'two') { applySplitVars(); }
     if (prefs.cam.on) { startCam(); }
     mountCam();
+    recDeclined = false;
     go(idx, true);
+    renderRecState();
   }
 
   function applySplitVars() {
@@ -445,6 +459,9 @@
 
   function closePresentation() {
     stop();
+    /* Leaving the stage ends the take and lets go of the screen share,
+       so the browser's "sharing this tab" bar goes away with it. */
+    if (BCB.recorder) { BCB.recorder.disarm(); }
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
     document.body.classList.remove('st-on');
@@ -574,12 +591,30 @@
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
         if (idx < script.beats.length - 1) { go(idx + 1); }
-        else { stop(); }
+        else { stop(); endTake(); }
       }
     }, 250);
   }
   function play() {
     if (!script) { return; }
+    var R = BCB.recorder;
+    /* Ask for the screen before the clock starts, so the share picker is
+       never the first two seconds of the take. If they cancel it, the
+       next Play runs without recording rather than nagging. */
+    if (overlay && R && R.supported() && R.prefs.autoRecord && !R.isRecording() && !recDeclined) {
+      if (armingRec) { return; }
+      armingRec = true;
+      var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+      R.start({ cropTo: frame }).then(function (ok) {
+        armingRec = false;
+        if (ok) { beginPlay(); }
+        else { recDeclined = true; }
+      });
+      return;
+    }
+    beginPlay();
+  }
+  function beginPlay() {
     playing = true;
     if (remaining <= 0) { remaining = beat().seconds; }
     restartTicker();
@@ -603,6 +638,7 @@
     else if (k === 'ArrowLeft' || k === 'PageUp') { ev.preventDefault(); go(idx - 1); }
     else if (k === 'Escape') { closePresentation(); }
     else if (k === 'c' || k === 'C') { toggleCam(); }
+    else if (k === 'r' || k === 'R') { toggleRecording(); }
     else if (k === 'f' || k === 'F') { toggleFullscreen(); }
     else if (k === 'ArrowUp') { ev.preventDefault(); nudgePrompter(-1); }
     else if (k === 'ArrowDown') { ev.preventDefault(); nudgePrompter(1); }
@@ -611,6 +647,138 @@
     if (!document.fullscreenElement) {
       (document.documentElement.requestFullscreen || function () {}).call(document.documentElement);
     } else if (document.exitFullscreen) { document.exitFullscreen(); }
+  }
+
+  /* =====================================================================
+     RECORDING
+     The page records its own tab (recorder.js). Two rules keep the
+     indicator out of the file: nothing on the stage itself changes while
+     a take runs, and the REC clock lives in the control pill (which
+     hides itself) and in the prompter window (which is never captured).
+     ===================================================================== */
+  function toggleRecording() {
+    var R = BCB.recorder;
+    if (!R || !overlay) { return; }
+    if (R.isRecording()) { R.stop(); return; }
+    if (armingRec) { return; }
+    armingRec = true;
+    recDeclined = false;
+    var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+    R.start({ cropTo: frame }).then(function () { armingRec = false; });
+  }
+  function endTake() {
+    var R = BCB.recorder;
+    if (R && R.isRecording()) { R.stop(); }
+  }
+  function fmtBytes(n) {
+    if (n > 1e9) { return (n / 1e9).toFixed(2) + ' GB'; }
+    if (n > 1e6) { return Math.round(n / 1e6) + ' MB'; }
+    return Math.round(n / 1e3) + ' KB';
+  }
+  function takeSummary(t) {
+    return 'Take ' + t.take + ' \u00b7 ' + mmss(t.seconds) + ' \u00b7 ' + fmtBytes(t.bytes) + ' \u00b7 ' + t.name;
+  }
+  /* The toast above the control pill: a finished take, or why there is
+     no recording. Hidden while a take is running. */
+  function showTake(take, message) {
+    if (!overlay) { return; }
+    var el = overlay.querySelector('#stTake');
+    if (!el) { return; }
+    if (!take && !message) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = take
+      ? '<span>' + esc(takeSummary(take)) + '</span>' +
+        '<button data-act="save">Save the file</button><button data-act="dismiss" title="Hide">&times;</button>'
+      : '<span>' + esc(message) + '</span><button data-act="dismiss" title="Hide">&times;</button>';
+  }
+  function renderRecState() {
+    var R = BCB.recorder;
+    if (!R) { return; }
+    var on = R.isRecording();
+    var label = on ? '\u25cf ' + mmss(R.elapsed()) : (armingRec ? 'Starting\u2026' : 'Record');
+    if (overlay) {
+      var btn = overlay.querySelector('#stRecBtn');
+      if (btn) { btn.textContent = label; btn.classList.toggle('rec-on', on); }
+    }
+    if (promptWin && !promptWin.closed) {
+      var pr = promptWin.document.getElementById('pRec');
+      if (pr) { pr.className = 'rec' + (on ? ' on' : ''); pr.innerHTML = on ? '<i></i>REC ' + mmss(R.elapsed()) : ''; }
+    }
+    var card = document.getElementById('recCard');
+    if (card && !overlay) { card.innerHTML = recCardMarkup(); listMics(); }
+  }
+  function onRecorderEvent(evt, data) {
+    if (evt === 'start') {
+      recMessage = '';
+      showTake(null);
+      clearInterval(recTimer);
+      recTimer = setInterval(renderRecState, 1000);
+    } else if (evt === 'stop') {
+      clearInterval(recTimer); recTimer = null;
+      if (data) { showTake(data); }
+      else { showTake(null, 'That take was empty - nothing was saved.'); }
+    } else if (evt === 'error' || evt === 'warn') {
+      recMessage = data;
+      showTake(null, data);
+    }
+    renderRecState();
+  }
+  function recCardMarkup() {
+    var R = BCB.recorder;
+    if (!R) { return ''; }
+    var P = R.prefs;
+    var take = R.lastTake();
+    var m = R.pickMime();
+    var q = P.fps + '-' + P.bitrate;
+    var opts = [['30-6', '30 fps \u00b7 6 Mbps - smaller file'], ['30-10', '30 fps \u00b7 10 Mbps - YouTube 1080p'],
+      ['30-16', '30 fps \u00b7 16 Mbps - high'], ['60-20', '60 fps \u00b7 20 Mbps - smooth motion']];
+    if (!opts.some(function (o) { return o[0] === q; })) { opts.push([q, P.fps + ' fps \u00b7 ' + P.bitrate + ' Mbps']); }
+    var html = '<h3>Screen recording</h3>' +
+      '<p class="sub">The page records its own tab while you present and hands you the file when the episode ends ' +
+      'or you leave the stage. No second app.</p>';
+    if (!R.supported()) {
+      return html + '<div class="callout">This browser cannot record its own screen. Use Chrome or Edge on a desktop, ' +
+        'or point OBS at this window instead.</div>';
+    }
+    html +=
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recAuto"' + (P.autoRecord ? ' checked' : '') +
+        '><label for="recAuto" style="margin:0">Record automatically when I press Play</label></div>' +
+        '<div class="hint">The first Play opens the browser\u2019s share picker with this tab already selected. Choose it and the ' +
+        'take starts. The prompter window is a separate window, so it is never in the file. R starts or stops a take by hand.</div></div>' +
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recMic"' + (P.includeMic ? ' checked' : '') +
+        '><label for="recMic" style="margin:0">Record my microphone into the file</label></div></div>' +
+      '<div class="field"><label for="recMicDevice">Microphone</label><select id="recMicDevice"' + (P.includeMic ? '' : ' disabled') +
+        '><option value="">Default microphone</option></select></div>' +
+      '<div class="field"><label for="recQuality">Quality</label><select id="recQuality">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === q ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
+      '</select><div class="hint">' + (m.ext === 'mp4'
+        ? 'Saves as MP4 (H.264), which every editor and platform opens.'
+        : 'Saves as WebM. YouTube takes it directly; convert with HandBrake for other editors.') +
+        ' Ten minutes at 10 Mbps is about 750 MB.</div></div>' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem">The Studio Three take is cropped to the vertical frame on the way ' +
+      'through, so it comes out 9:16. The take lives in the browser\u2019s memory until you save it: reloading the page loses it. ' +
+      'Recording works from the local file and the GitHub Pages link, not inside an embedded preview.</p>';
+    if (recMessage) { html += '<p class="hint" style="color:var(--series-b)">' + esc(recMessage) + '</p>'; }
+    if (take) {
+      html += '<div class="callout" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<strong>Last take</strong><span>' + esc(takeSummary(take)) + '</span>' +
+        '<button class="btn btn-sm" data-rec="save">Save the file</button>' +
+        '<a class="btn btn-o btn-sm" href="' + take.url + '" download="' + esc(take.name) + '">Download</a>' +
+        '<button class="btn btn-o btn-sm" data-rec="clear">Discard</button></div>';
+    }
+    return html;
+  }
+  function listMics() {
+    var sel = document.getElementById('recMicDevice');
+    if (!sel || !BCB.recorder) { return; }
+    BCB.recorder.listMics().then(function (list) {
+      if (!list.length) { return; }
+      var cur = BCB.recorder.prefs.micDeviceId;
+      sel.innerHTML = '<option value="">Default microphone</option>' + list.map(function (d, i) {
+        return '<option value="' + esc(d.deviceId) + '"' + (d.deviceId === cur ? ' selected' : '') + '>' +
+          esc(d.label || 'Microphone ' + (i + 1)) + '</option>';
+      }).join('');
+    });
   }
 
   /* =====================================================================
@@ -780,6 +948,10 @@
         'font-size:12px;color:var(--dim);flex:none}' +
       '.bar strong{color:var(--ink);font-size:13px}' +
       '.bar .sp{margin-left:auto}' +
+      '.rec{display:none;color:#ff5a4e;font-weight:600;letter-spacing:.06em;font-size:12px}' +
+      '.rec.on{display:inline-flex;align-items:center;gap:6px}' +
+      '.rec i{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:pRecBlink 1s steps(2) infinite}' +
+      '@keyframes pRecBlink{50%{opacity:.25}}' +
       '.bar button{background:#16181b;color:var(--ink);border:1px solid var(--rule);border-radius:5px;' +
         'padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}' +
       '.bar button:hover{border-color:var(--dim)}' +
@@ -804,6 +976,7 @@
       '.foot .keys{margin-left:auto}' +
       '</style></head><body>' +
       '<div class="bar"><strong id="pBeat">-</strong><span id="pPos"></span>' +
+        '<span id="pRec" class="rec"></span>' +
         '<span class="sp"></span>' +
         '<button data-p="prev">&larr;</button>' +
         '<button data-p="play">Play</button>' +
@@ -882,6 +1055,7 @@
     d.getElementById('pPos').textContent = script ? (idx + 1) + ' / ' + script.beats.length : '';
     d.getElementById('pClock').textContent = mmss(remaining) + (playing ? '' : '  (paused)');
     d.querySelector('[data-p="play"]').textContent = playing ? 'Pause' : 'Play';
+    renderRecState();
     col.style.font = P.fontSize + 'px/' + P.lineHeight + ' system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
     col.style.maxWidth = P.width + 'em';
     if (!b) { col.innerHTML = ''; return; }
@@ -1034,6 +1208,8 @@
           '<div class="hint">Mirrored looks natural to you; unmirrored is what a viewer expects if there is text behind you.</div></div>' +
       '</div></div>' +
 
+      '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
+
       '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
       script.beats.map(function (b, i) {
@@ -1053,12 +1229,13 @@
       '<div class="card"><h3>Keys while presenting</h3>' +
       '<div class="cats">' +
       [['Space', 'play / pause'], ['&larr; &rarr;', 'previous / next beat'], ['&uarr; &darr;', 'prompter reading line'],
-       ['C', 'camera on / off'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
+       ['C', 'camera on / off'], ['R', 'start / stop a take'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
       .map(function (k) { return '<div class="cat"><span>' + k[0] + '</span><span class="who">' + k[1] + '</span></div>'; }).join('') +
       '</div></div>';
 
     mountCam();
     listCams();
+    listMics();
   }
 
   function field(label, key, val, min, max, step, hint) {
@@ -1093,6 +1270,12 @@
       }
       return;
     }
+    var recBtn = t.closest && t.closest('[data-rec]');
+    if (recBtn && ev.type === 'click' && BCB.recorder) {
+      if (recBtn.dataset.rec === 'save') { BCB.recorder.saveAs(); }
+      else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
+      return;
+    }
     if (t.dataset && t.dataset.pref) {
       var v = parseFloat(t.value);
       if (!isFinite(v)) { return; }
@@ -1111,6 +1294,18 @@
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }
     else if (t.id === 'camShape') { prefs.cam.shape = t.value; savePrefs(); applyCamStyle(); }
+    else if (t.id === 'recAuto') { BCB.recorder.prefs.autoRecord = t.checked; BCB.recorder.save(); }
+    else if (t.id === 'recMic') {
+      BCB.recorder.prefs.includeMic = t.checked; BCB.recorder.save();
+      var ms = document.getElementById('recMicDevice'); if (ms) { ms.disabled = !t.checked; }
+    }
+    else if (t.id === 'recMicDevice') { BCB.recorder.prefs.micDeviceId = t.value; BCB.recorder.save(); }
+    else if (t.id === 'recQuality') {
+      var qp = t.value.split('-');
+      BCB.recorder.prefs.fps = parseInt(qp[0], 10) || 30;
+      BCB.recorder.prefs.bitrate = parseInt(qp[1], 10) || 10;
+      BCB.recorder.save();
+    }
     else if (t.id === 'camDevice') {
       prefs.cam.deviceId = t.value; savePrefs();
       if (prefs.cam.on) { stopCam(); prefs.cam.on = true; startCam(); }
@@ -1126,6 +1321,15 @@
     document.addEventListener('click', onStudioEvent);
     document.addEventListener('input', onStudioEvent);
     document.addEventListener('change', onStudioEvent);
+    if (BCB.recorder) {
+      BCB.recorder.onChange(onRecorderEvent);
+      BCB.recorder.setNameSource(function () {
+        var L = BCB.app.getLast();
+        if (!L) { return ''; }
+        var slug = function (n) { return String(n).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+        return slug(L.sim.a.name) + '-vs-' + slug(L.sim.b.name);
+      });
+    }
     renderStudio();
   }
 
