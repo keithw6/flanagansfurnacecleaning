@@ -413,6 +413,7 @@
     var homeValue = 0, mortgage = 0, mortgagePaymentFixed = 0, owned = false;
     var bizFailed = false, bizFailedAge = null;
     var cumEarnings = 0, cumTax = 0, cumHours = 0, cumInvested = 0, cumEduSpend = 0, cumInterest = 0;
+    var cumInvestReturns = 0;
     var debtFreeAge = null, firstPositiveNetWorthAge = null, freedomAge = null, freedomSaleAge = null;
     var everBorrowed = false;
     var peakBizValue = 0;
@@ -658,10 +659,14 @@
         cash -= payDown; consumerDebt -= payDown;
       }
 
-      /* Compound. Mid-year convention on the year's contribution. */
+      /* Compound. Mid-year convention on the year's contribution. The
+         return credited this year is kept separately so the story can
+         say how much of the balance was earned rather than deposited. */
+      var investReturn = investments * ret + (contrib + pension) * ret / 2;
       investments = investments * (1 + ret) + (contrib + pension) * (1 + ret / 2);
       cash = cash * (1 + Math.min(infl, 0.03));
       cumInvested += contrib + pension;
+      cumInvestReturns += investReturn;
 
       /* ---------- 7. balance sheet ---------- */
       var homeEquity = owned ? Math.max(0, homeValue - mortgage) : 0;
@@ -725,6 +730,7 @@
         studentPayment: studentPayment, studentInterest: studentInterest,
         mortgagePayment: mortgagePayment,
         investable: investableRaw, contribution: contrib + pension,
+        investReturn: investReturn, cumInvestReturns: cumInvestReturns,
 
         investments: investments, cash: cash, registered: registered,
         homeValue: owned ? homeValue : 0, mortgage: mortgage, homeEquity: homeEquity,
@@ -768,6 +774,8 @@
         studentLivingDebt: studentLivingDebt,
         peakStudentDebt: Math.max.apply(null, rows.map(function (r) { return r.studentDebt; })),
         investments: last.investments,
+        invested: last.cumInvested,
+        investmentGrowth: last.cumInvestReturns,
         cash: last.cash,
         homeEquity: last.homeEquity,
         businessEquity: last.businessEquity,

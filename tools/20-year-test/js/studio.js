@@ -32,11 +32,27 @@
   var promptWin = null;
   var camStream = null;
   var overlay = null;
+  var bgLayer = null;
+  var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
+  var armingRec = false;
+  var recTimer = null;
+  var recMessage = '';
 
   var prefs = {
-    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '' },
+    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
     prompter: { fontSize: 34, lineHeight: 1.45, width: 26, readingLine: 18, mirror: false, speed: 1 },
-    autoAdvance: true
+    autoAdvance: true,
+    /* 'one'  full-bleed slides, camera floating in a corner
+       'two'  explainer column on the left, camera panel on the right
+       Studio One's markup and CSS are untouched by mode two; the split
+       layout is entirely additive, gated on a class. */
+    mode: 'one',
+    /* Studio Three only: the frame it composes for. */
+    vertical: { ratio: '9:16', safeGuides: true },
+    /* Studio Two framing. Defaults match a floating presenter card:
+       inset from the edge, rounded, outlined, around 60% of frame
+       height and vertically centred. */
+    split: { camHeight: 62, camWidth: 26, align: 'center' }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -46,6 +62,10 @@
       if (p.cam) { Object.assign(prefs.cam, p.cam); }
       if (p.prompter) { Object.assign(prefs.prompter, p.prompter); }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
+      if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
+      if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
+      if (p.split) { Object.assign(prefs.split, p.split); }
+      prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -82,10 +102,17 @@
       var cGap = c.a.totals.netWorth - c.b.totals.netWorth;
       var cWin = cGap >= 0 ? c.a.name : c.b.name;
       var rGap = Math.abs(L.sim.a.totals.netWorth - L.sim.b.totals.netWorth);
-      N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
-        ' instead of ' + N.say(rGap));
+      var rWin = L.scores.netWorthWinner;
+      if (Math.abs(cGap) < 1000) {
+        N.setScenarioNote('it\'s a dead heat');
+      } else if (rWin && cWin !== rWin) {
+        N.setScenarioNote('it flips. ' + cWin + ' comes out ahead, by ' + N.say(Math.abs(cGap)));
+      } else {
+        N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
+          ' instead of ' + N.say(rGap));
+      }
     }
-    script = N.episodeScript(L.sim, L.scores);
+    script = N.episodeScript(L.sim, L.scores, BCB.app.getState().scriptSeed || 0);
     if (idx >= script.beats.length) { idx = 0; }
     return script;
   }
@@ -124,6 +151,33 @@
     return d;
   }
 
+  /* Numbers marked data-count roll up from zero when the slide lands.
+     The final text is already in the element, so anything that skips
+     the tween (reduced motion, print) shows the right figure. */
+  var countRaf = 0;
+  function countUp(host) {
+    if (countRaf) { global.cancelAnimationFrame(countRaf); countRaf = 0; }
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var nodes = Array.prototype.slice.call(host.querySelectorAll('[data-count]'));
+    if (!nodes.length || reduce) { return; }
+    var items = nodes.map(function (n) { return { el: n, target: parseFloat(n.dataset.count) || 0, final: n.textContent, money: !!n.dataset.money }; });
+    /* Hold the final width while the shorter numbers roll through, so
+       the layout does not breathe in and out during the count. */
+    items.forEach(function (it) { it.el.style.minWidth = it.el.getBoundingClientRect().width + 'px'; });
+    var t0 = performance.now(), dur = 1300;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) {
+        if (k >= 1) { it.el.textContent = it.final; it.el.style.minWidth = ''; return; }
+        var v = it.target * e;
+        it.el.textContent = it.money ? money(v) : String(Math.round(v));
+      });
+      if (k < 1) { countRaf = global.requestAnimationFrame(frame); } else { countRaf = 0; }
+    }
+    countRaf = global.requestAnimationFrame(frame);
+  }
+
   function visualFor(b) {
     var L = BCB.app.getLast(), sim = L.sim, sc = L.scores, cfg = sim.cfg;
     var a = sim.a, bb = sim.b;
@@ -132,16 +186,46 @@
 
     if (b.kind.indexOf('chart:') === 0) {
       var key = b.kind.slice(6);
+      /* A 1180-wide frame shrinks every label once the column narrows, so
+         each layout gets proportions rather than a scaled-down copy. The
+         vertical frame is squarer again and needs the most room per label. */
+      var dims = prefs.mode === 'three' ? { w: 780, h: 620, gap: 44 }
+               : prefs.mode === 'two'   ? { w: 900, h: 520, gap: 40 }
+               :                          { w: 1180, h: 520, gap: 48 };
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        width: 1180, height: 520, endLabelGap: 48
+        width: dims.w, height: dims.h, endLabelGap: dims.gap,
+        reveal: b.reveal || null
       }));
       wrap.classList.add('wide');
       return wrap;
     }
 
     switch (b.kind) {
+      case 'brand':
+        var brand = document.createElement('div');
+        brand.className = 'st-brandcard';
+        brand.innerHTML =
+          '<div class="st-ladder">' +
+          ['Do', 'Lead', 'Build', 'Own', 'Invest'].map(function (step, i) {
+            return '<span class="st-rung' + (i === 4 ? ' last' : '') + '">' + step + '</span>';
+          }).join('<i class="st-arrow"></i>') +
+          '</div>' +
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span>' +
+          '<em>vs</em><span class="b">' + esc(bb.name) + '</span></div>';
+        wrap.appendChild(brand);
+        wrap.classList.add('wide');
+        return wrap;
+
+      case 'outro':
+        var outro = document.createElement('div');
+        outro.className = 'st-brandcard';
+        outro.innerHTML =
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>';
+        wrap.appendChild(outro);
+        return wrap;
+
       case 'title':
         wrap.appendChild(bigStat([
           { k: 'Starting age', v: String(cfg.startAge) },
@@ -224,7 +308,7 @@
               return '<div class="st-col-line"><span>' + esc(l[0]) + '</span><span>' + esc(l[1]) + '</span></div>';
             }).join('') +
             '<div class="st-col-total"><div class="k">Estimated net worth</div>' +
-            '<div class="v">' + money(t.netWorth) + '</div></div></div>';
+            '<div class="v" data-count="' + Math.round(t.netWorth) + '" data-money="1">' + money(t.netWorth) + '</div></div></div>';
         });
         wrap.appendChild(cols);
         wrap.classList.add('wide');
@@ -248,6 +332,50 @@
         ]));
         return wrap;
 
+      case 'invest': {
+        /* The rule, then what each of them actually put away. */
+        var inv = cfg.investing || {};
+        var rule = inv.mode === 'percent'
+          ? Math.round((inv.percent || 0) * 100) + '% of what\'s left'
+          : money((inv.fixedAmount || 0)) + ' a year';
+        var shareOf = function (res) {
+          var at = res.rows.reduce(function (t, r) { return t + Math.max(0, r.afterTax); }, 0);
+          return at > 0 ? Math.round(res.totals.invested / at * 100) : 0;
+        };
+        wrap.appendChild(bigStat([
+          { k: 'The rule', v: rule, n: 'after living costs, invested every year' },
+          { k: a.name + ' - put in', v: money(a.totals.invested), n: shareOf(a) + '% of take-home pay', side: 'a' },
+          { k: bb.name + ' - put in', v: money(bb.totals.invested), n: shareOf(bb) + '% of take-home pay', side: 'b' }
+        ]));
+        return wrap;
+      }
+
+      case 'compound': {
+        /* A dollar's journey, then the pile: what went in against what
+           the market added. Totals are the balance at the end. */
+        var r = cfg.investReturn, yrs = cfg.years;
+        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var grey = '#5f656d';
+        wrap.appendChild(bigStat([
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
+        ]));
+        var stack = C.stackChart({
+          columns: [a, bb].map(function (res, i) {
+            return { name: res.name, parts: [
+              { label: 'Put in', value: res.totals.invested, color: grey, ink: '#fff' },
+              { label: 'Growth', value: res.totals.investmentGrowth, color: i === 0 ? colA() : colB(), ink: '#fff' }
+            ] };
+          }),
+          totals: [a.totals.investments, bb.totals.investments],
+          width: 900, height: 150
+        });
+        wrap.appendChild(stack);
+        wrap.classList.add('wide');
+        wrap.classList.add('st-compound');
+        return wrap;
+      }
+
       case 'radar':
         wrap.appendChild(C.radarChart({
           axes: sc.a.lifestyle.rows.map(function (r, i) {
@@ -262,7 +390,7 @@
         s.className = 'st-scores';
         [[a, sc.a, 'a'], [bb, sc.b, 'b']].forEach(function (p) {
           s.innerHTML += '<div class="st-score ' + p[2] + '"><div class="who">' + esc(p[0].name) + '</div>' +
-            '<div class="n">' + p[1].score + '</div><div class="of">out of 100</div>' +
+            '<div class="n" data-count="' + p[1].score + '">' + p[1].score + '</div><div class="of">out of 100</div>' +
             '<div class="four">' +
             [['Career', p[1].four.career.score], ['Owner-op', p[1].four.ownerOperator.score],
              ['Business', p[1].four.businessOwner.score], ['Investor', p[1].four.investor.score]]
@@ -320,26 +448,52 @@
   function openPresentation() {
     if (!build()) { return; }
     if (overlay) { overlay.remove(); }
+    var three = prefs.mode === 'three';
     overlay = document.createElement('div');
-    overlay.className = 'st-stage';
-    overlay.innerHTML =
+    overlay.className = 'st-stage' +
+      (prefs.mode === 'two' ? ' st-two' : '') +
+      (three ? ' st-three ratio-' + prefs.vertical.ratio.replace(':', '-') : '');
+
+    var head =
       '<div class="st-top">' +
         '<div class="st-brand">Blue Collar Business<span>The ' + BCB.app.getLast().sim.cfg.years + '-Year Test</span></div>' +
         '<div class="st-meta"><span id="stCount"></span><span id="stClock"></span></div>' +
-      '</div>' +
+      '</div>';
+    var body =
       '<div class="st-body"><div class="st-kick" id="stKick"></div>' +
-      '<h1 id="stTitle"></h1><div id="stVis"></div></div>' +
-      '<div class="st-progress" id="stProg"></div>' +
+      '<h1 id="stTitle"></h1><div id="stVis"></div></div>';
+    var prog = '<div class="st-progress" id="stProg"></div>';
+    var camcol = '<div class="st-camcol" id="stCamCol"></div>';
+
+    /* Studio Three composes inside a fixed-ratio frame rather than the
+       whole window, because the deliverable is a 9:16 file - what is
+       outside the frame is not in the video. The frame is a wrapper, so
+       every id below stays where the rest of the code expects it. */
+    var inner = three
+      ? '<div class="st-frame">' + camcol + head + body + prog +
+          (prefs.vertical.safeGuides ? '<div class="st-safe" aria-hidden="true">' +
+            '<span class="s-right"></span><span class="s-bottom"></span>' +
+            '<em>platform UI sits here</em></div>' : '') +
+        '</div>'
+      : head + body + prog + (prefs.mode === 'two' ? camcol : '');
+
+    overlay.innerHTML = inner +
       '<div class="st-controls no-print" id="stCtl">' +
         '<button data-act="prev" title="Previous beat (left arrow)">&larr;</button>' +
         '<button data-act="play" title="Play or pause (space)">Play</button>' +
         '<button data-act="next" title="Next beat (right arrow)">&rarr;</button>' +
         '<button data-act="prompter" title="Open the prompter window">Prompter</button>' +
         '<button data-act="cam" title="Toggle the webcam (C)">Camera</button>' +
+        '<button data-act="rec" id="stRecBtn" title="Start or stop a take (R)">Record</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
-      '</div>';
+      '</div>' +
+      '<div class="st-take no-print" id="stTake" hidden></div>';
+    /* Background sits behind everything on the stage. */
+    bgLayer = BCB.media.createLayer();
+    overlay.insertBefore(bgLayer, overlay.firstChild);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
+    BCB.media.load().then(function () { paintBackground(); });
     overlay.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-act]');
       if (!b) { return; }
@@ -349,7 +503,13 @@
       else if (act === 'play') { toggle(); }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
+      else if (act === 'rec') { toggleRecording(); }
+      else if (act === 'save') { BCB.recorder.saveAs(); }
+      else if (act === 'dismiss') { showTake(null); }
       else if (act === 'exit') { closePresentation(); }
+      /* A focused button would pin the control pill on screen - and so
+         into the recording. Drop focus once the click is handled. */
+      if (b.blur) { b.blur(); }
     });
     document.addEventListener('keydown', onKey);
     /* Hide the controls while you are actually recording. */
@@ -362,17 +522,64 @@
     overlay.addEventListener('mousemove', poke);
     poke();
 
-    if (prefs.cam.on) { startCam(); }
+    if (prefs.mode === 'two') { applySplitVars(); }
+    /* The camera is never opened on page load, but it is remembered:
+       if it was on last time you presented, it comes back on now. */
+    if (prefs.cam.on || prefs.cam.wanted) { startCam(); }
     mountCam();
+    recDeclined = false;
     go(idx, true);
+    renderRecState();
+  }
+
+  function applySplitVars() {
+    if (!overlay) { return; }
+    overlay.style.setProperty('--split-cam-h', prefs.split.camHeight + '%');
+    overlay.style.setProperty('--split-cam-w', prefs.split.camWidth + 'vw');
+    overlay.classList.toggle('align-left', prefs.split.align === 'left');
   }
 
   function closePresentation() {
     stop();
+    /* Leaving the stage ends the take and lets go of the screen share,
+       so the browser's "sharing this tab" bar goes away with it. */
+    if (BCB.recorder) { BCB.recorder.disarm(); }
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
     document.body.classList.remove('st-on');
     mountCam();   /* put the camera tile back on the studio tab */
+  }
+
+  /* In the split layout the picture is content, not just a backdrop:
+     the brief for this mode is "text and images on the left". Beats that
+     carry their own visual keep it; the rest get the career photograph
+     as an inset card above the words. */
+  function insetFor(b) {
+    if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
+    if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
+    var sim = BCB.app.getLast().sim;
+    var asset = null;
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'still'); }
+    else {
+      var hs = sim.headStart;
+      var which = (b.id === 'headstart' && hs.leader)
+        ? (hs.leader === sim.a.name ? sim.a : sim.b)
+        : ((idx % 2 === 0) ? sim.a : sim.b);
+      asset = BCB.media.assetFor(which.career, 'still');
+    }
+    if (!asset) { return null; }
+    var fig = document.createElement('div');
+    fig.className = 'st-inset';
+    var img = document.createElement('img');
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.addEventListener('error', function () { fig.remove(); });
+    img.src = asset.src;
+    fig.appendChild(img);
+    return fig;
   }
 
   function renderStage() {
@@ -384,13 +591,55 @@
     overlay.querySelector('#stTitle').textContent = b.title;
     var host = overlay.querySelector('#stVis');
     host.innerHTML = '';
+    var inset = insetFor(b);
+    if (inset) { host.appendChild(inset); }
     host.appendChild(visualFor(b));
+    countUp(host);
     overlay.querySelector('#stCount').textContent = (idx + 1) + ' / ' + script.beats.length;
     overlay.querySelector('#stProg').innerHTML = script.beats.map(function (x, i) {
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
     }).join('');
     overlay.querySelector('[data-act="play"]').textContent = playing ? 'Pause' : 'Play';
+    /* The platform-UI guides are a framing aid, not part of the video:
+       visible while you are setting up, gone once you are rolling. Scoped
+       to Studio Three so the other two stages keep the exact class list
+       they had before this mode existed. */
+    if (prefs.mode === 'three') { overlay.classList.toggle('guides-on', !playing); }
+    paintBackground();
     tickClock();
+  }
+
+  /* Which career's imagery belongs behind this beat. Beats that are
+     about one side show that side; shared beats alternate so the
+     episode does not sit on one picture for seven minutes. */
+  function paintBackground() {
+    if (!bgLayer || !BCB.media.manifest) { return; }
+    var b = beat();
+    if (!b) { return; }
+    var L = BCB.app.getLast(), sim = L.sim;
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var asset = null;
+
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
+    if (!asset) {
+      /* Otherwise use whichever career the beat is really about, and
+         fall back to alternating between the two. */
+      var hs = sim.headStart;
+      var which = null;
+      if (b.id === 'headstart' && hs.leader) {
+        which = hs.leader === sim.a.name ? sim.a : sim.b;
+      } else {
+        which = (idx % 2 === 0) ? sim.a : sim.b;
+      }
+      asset = BCB.media.assetFor(which.career, idx % 3 === 0 ? 'clip' : 'still');
+      if (!asset) {
+        var other = which === sim.a ? sim.b : sim.a;
+        asset = BCB.media.assetFor(other.career, 'still');
+      }
+    }
+    BCB.media.setBackground(bgLayer, asset, BCB.media.intensityFor(b.kind), reduce);
   }
 
   function tickClock() {
@@ -425,12 +674,30 @@
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
         if (idx < script.beats.length - 1) { go(idx + 1); }
-        else { stop(); }
+        else { stop(); endTake(); }
       }
     }, 250);
   }
   function play() {
     if (!script) { return; }
+    var R = BCB.recorder;
+    /* Ask for the screen before the clock starts, so the share picker is
+       never the first two seconds of the take. If they cancel it, the
+       next Play runs without recording rather than nagging. */
+    if (overlay && R && R.supported() && R.prefs.autoRecord && !R.isRecording() && !recDeclined) {
+      if (armingRec) { return; }
+      armingRec = true;
+      var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+      R.start({ cropTo: frame }).then(function (ok) {
+        armingRec = false;
+        if (ok) { beginPlay(); }
+        else { recDeclined = true; }
+      });
+      return;
+    }
+    beginPlay();
+  }
+  function beginPlay() {
     playing = true;
     if (remaining <= 0) { remaining = beat().seconds; }
     restartTicker();
@@ -454,6 +721,7 @@
     else if (k === 'ArrowLeft' || k === 'PageUp') { ev.preventDefault(); go(idx - 1); }
     else if (k === 'Escape') { closePresentation(); }
     else if (k === 'c' || k === 'C') { toggleCam(); }
+    else if (k === 'r' || k === 'R') { toggleRecording(); }
     else if (k === 'f' || k === 'F') { toggleFullscreen(); }
     else if (k === 'ArrowUp') { ev.preventDefault(); nudgePrompter(-1); }
     else if (k === 'ArrowDown') { ev.preventDefault(); nudgePrompter(1); }
@@ -465,9 +733,142 @@
   }
 
   /* =====================================================================
+     RECORDING
+     The page records its own tab (recorder.js). Two rules keep the
+     indicator out of the file: nothing on the stage itself changes while
+     a take runs, and the REC clock lives in the control pill (which
+     hides itself) and in the prompter window (which is never captured).
+     ===================================================================== */
+  function toggleRecording() {
+    var R = BCB.recorder;
+    if (!R || !overlay) { return; }
+    if (R.isRecording()) { R.stop(); return; }
+    if (armingRec) { return; }
+    armingRec = true;
+    recDeclined = false;
+    var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+    R.start({ cropTo: frame }).then(function () { armingRec = false; });
+  }
+  function endTake() {
+    var R = BCB.recorder;
+    if (R && R.isRecording()) { R.stop(); }
+  }
+  function fmtBytes(n) {
+    if (n > 1e9) { return (n / 1e9).toFixed(2) + ' GB'; }
+    if (n > 1e6) { return Math.round(n / 1e6) + ' MB'; }
+    return Math.round(n / 1e3) + ' KB';
+  }
+  function takeSummary(t) {
+    return 'Take ' + t.take + ' \u00b7 ' + mmss(t.seconds) + ' \u00b7 ' + fmtBytes(t.bytes) + ' \u00b7 ' + t.name;
+  }
+  /* The toast above the control pill: a finished take, or why there is
+     no recording. Hidden while a take is running. */
+  function showTake(take, message) {
+    if (!overlay) { return; }
+    var el = overlay.querySelector('#stTake');
+    if (!el) { return; }
+    if (!take && !message) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = take
+      ? '<span>' + esc(takeSummary(take)) + '</span>' +
+        '<button data-act="save">Save the file</button><button data-act="dismiss" title="Hide">&times;</button>'
+      : '<span>' + esc(message) + '</span><button data-act="dismiss" title="Hide">&times;</button>';
+  }
+  function renderRecState() {
+    var R = BCB.recorder;
+    if (!R) { return; }
+    var on = R.isRecording();
+    var label = on ? '\u25cf ' + mmss(R.elapsed()) : (armingRec ? 'Starting\u2026' : 'Record');
+    if (overlay) {
+      var btn = overlay.querySelector('#stRecBtn');
+      if (btn) { btn.textContent = label; btn.classList.toggle('rec-on', on); }
+    }
+    if (promptWin && !promptWin.closed) {
+      var pr = promptWin.document.getElementById('pRec');
+      if (pr) { pr.className = 'rec' + (on ? ' on' : ''); pr.innerHTML = on ? '<i></i>REC ' + mmss(R.elapsed()) : ''; }
+    }
+    var card = document.getElementById('recCard');
+    if (card && !overlay) { card.innerHTML = recCardMarkup(); listMics(); }
+  }
+  function onRecorderEvent(evt, data) {
+    if (evt === 'start') {
+      recMessage = '';
+      showTake(null);
+      clearInterval(recTimer);
+      recTimer = setInterval(renderRecState, 1000);
+    } else if (evt === 'stop') {
+      clearInterval(recTimer); recTimer = null;
+      if (data) { showTake(data); }
+      else { showTake(null, 'That take was empty - nothing was saved.'); }
+    } else if (evt === 'error' || evt === 'warn') {
+      recMessage = data;
+      showTake(null, data);
+    }
+    renderRecState();
+  }
+  function recCardMarkup() {
+    var R = BCB.recorder;
+    if (!R) { return ''; }
+    var P = R.prefs;
+    var take = R.lastTake();
+    var m = R.pickMime();
+    var q = P.fps + '-' + P.bitrate;
+    var opts = [['30-6', '30 fps \u00b7 6 Mbps - smaller file'], ['30-10', '30 fps \u00b7 10 Mbps - YouTube 1080p'],
+      ['30-16', '30 fps \u00b7 16 Mbps - high'], ['60-20', '60 fps \u00b7 20 Mbps - smooth motion']];
+    if (!opts.some(function (o) { return o[0] === q; })) { opts.push([q, P.fps + ' fps \u00b7 ' + P.bitrate + ' Mbps']); }
+    var html = '<h3>Screen recording</h3>' +
+      '<p class="sub">The page records its own tab while you present and hands you the file when the episode ends ' +
+      'or you leave the stage. No second app.</p>';
+    if (!R.supported()) {
+      return html + '<div class="callout">This browser cannot record its own screen. Use Chrome or Edge on a desktop, ' +
+        'or point OBS at this window instead.</div>';
+    }
+    html +=
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recAuto"' + (P.autoRecord ? ' checked' : '') +
+        '><label for="recAuto" style="margin:0">Record automatically when I press Play</label></div>' +
+        '<div class="hint">The first Play opens the browser\u2019s share picker with this tab already selected. Choose it and the ' +
+        'take starts. The prompter window is a separate window, so it is never in the file. R starts or stops a take by hand.</div></div>' +
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recMic"' + (P.includeMic ? ' checked' : '') +
+        '><label for="recMic" style="margin:0">Record my microphone into the file</label></div></div>' +
+      '<div class="field"><label for="recMicDevice">Microphone</label><select id="recMicDevice"' + (P.includeMic ? '' : ' disabled') +
+        '><option value="">Default microphone</option></select></div>' +
+      '<div class="field"><label for="recQuality">Quality</label><select id="recQuality">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === q ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
+      '</select><div class="hint">' + (m.ext === 'mp4'
+        ? 'Saves as MP4 (H.264), which every editor and platform opens.'
+        : 'Saves as WebM. YouTube takes it directly; convert with HandBrake for other editors.') +
+        ' Ten minutes at 10 Mbps is about 750 MB.</div></div>' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem">The Studio Three take is cropped to the vertical frame on the way ' +
+      'through, so it comes out 9:16. The take lives in the browser\u2019s memory until you save it: reloading the page loses it. ' +
+      'Recording works from the local file and the GitHub Pages link, not inside an embedded preview.</p>';
+    if (recMessage) { html += '<p class="hint" style="color:var(--series-b)">' + esc(recMessage) + '</p>'; }
+    if (take) {
+      html += '<div class="callout" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<strong>Last take</strong><span>' + esc(takeSummary(take)) + '</span>' +
+        '<button class="btn btn-sm" data-rec="save">Save the file</button>' +
+        '<a class="btn btn-o btn-sm" href="' + take.url + '" download="' + esc(take.name) + '">Download</a>' +
+        '<button class="btn btn-o btn-sm" data-rec="clear">Discard</button></div>';
+    }
+    return html;
+  }
+  function listMics() {
+    var sel = document.getElementById('recMicDevice');
+    if (!sel || !BCB.recorder) { return; }
+    BCB.recorder.listMics().then(function (list) {
+      if (!list.length) { return; }
+      var cur = BCB.recorder.prefs.micDeviceId;
+      sel.innerHTML = '<option value="">Default microphone</option>' + list.map(function (d, i) {
+        return '<option value="' + esc(d.deviceId) + '"' + (d.deviceId === cur ? ' selected' : '') + '>' +
+          esc(d.label || 'Microphone ' + (i + 1)) + '</option>';
+      }).join('');
+    });
+  }
+
+  /* =====================================================================
      WEBCAM
      ===================================================================== */
   var camWrap = null;
+  var camPlaceholder = null;
   var camMessage = '';
   function camNode() {
     if (camWrap) { return camWrap; }
@@ -499,30 +900,111 @@
       w.style.left = ''; w.style.top = '';
     }
   }
+  /* A framed stand-in exactly where the real picture will sit, so the
+     layout can be judged - and rehearsed - before the camera is on. */
+  function placeholderNode() {
+    if (camPlaceholder) { return camPlaceholder; }
+    camPlaceholder = document.createElement('div');
+    camPlaceholder.className = 'st-cam st-cam-ghost';
+    camPlaceholder.innerHTML =
+      '<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="160" height="90" fill="none"></rect>' +
+      '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
+      '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
+      '</svg><span>Your camera \u00b7 press C to turn it on</span>';
+    return camPlaceholder;
+  }
   function mountCam() {
     var w = camNode();
     applyCamStyle();
-    if (!prefs.cam.on) { if (w.parentNode) { w.remove(); } return; }
-    var host = overlay || document.getElementById('camHost');
+    var ghost = placeholderNode();
+    if (ghost.parentNode) { ghost.remove(); }
+    if (!prefs.cam.on) {
+      if (w.parentNode) { w.remove(); }
+      /* Show the stand-in on the stage, and in the studio tab's tile. */
+      if (prefs.cam.placeholder) {
+        var col = overlay && overlay.querySelector('#stCamCol');
+        var gHost = col || overlay || document.getElementById('camHost');
+        if (gHost) {
+          gHost.appendChild(ghost);
+          ghost.className = 'st-cam st-cam-ghost' + (col ? ' in-col' : ' shape-' + prefs.cam.shape);
+          if (col) {
+            /* The column sizes it; clear anything the floating mode set. */
+            ghost.style.cssText = '';
+          } else if (overlay) {
+            ghost.style.position = 'fixed';
+            ghost.style.width = prefs.cam.size + 'vw';
+            ghost.style.right = '2.4vw'; ghost.style.bottom = '2.4vw';
+            ghost.style.left = ''; ghost.style.top = '';
+          } else {
+            ghost.style.position = 'relative';
+            ghost.style.width = '100%';
+            ghost.style.right = ghost.style.bottom = ghost.style.left = ghost.style.top = '';
+          }
+        }
+      }
+      return;
+    }
+    var col = overlay && overlay.querySelector('#stCamCol');
+    var host = col || overlay || document.getElementById('camHost');
     if (host && w.parentNode !== host) { host.appendChild(w); }
-    if (!overlay) { w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = ''; w.style.width = '100%'; }
-    else { w.style.position = 'fixed'; }
+    if (col) {
+      /* Filling the column is the whole point of this layout, so the
+         camera is not draggable here - the column places it. */
+      w.className = 'st-cam in-col' + (prefs.cam.mirror ? ' mirror' : '');
+      w.style.cssText = '';
+    } else if (!overlay) {
+      w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = '';
+      w.style.width = '100%';
+    } else {
+      w.style.position = 'fixed';
+    }
   }
   function setCamMessage(text) {
     camMessage = text;
     var note = document.getElementById('camNote');
     if (note) { note.textContent = text; }
   }
+  /* Why the camera did not start, in words that say what to do next.
+     The browser's own error names are precise and useless on their own. */
+  function camFailure(err) {
+    var name = (err && err.name) || '';
+    var embedded = false;
+    try { embedded = global.top !== global.self; } catch (e) { embedded = true; }
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      if (embedded) {
+        return 'This page is embedded inside another site, which blocks the camera. Open the GitHub Pages link ' +
+          'or the local file in its own browser tab.';
+      }
+      if (!global.isSecureContext) {
+        return 'The browser only allows the camera on an https address or a local file. This page is neither.';
+      }
+      return 'Camera blocked for this page. Click the camera icon at the right end of the address bar, allow it, ' +
+        'then press C again.';
+    }
+    if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') {
+      return 'The camera is busy in another app. Close the Windows camera settings preview, Zoom, Teams, OBS ' +
+        'or the Camera app, then press C again.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') {
+      return 'No camera found. Check it is plugged in, and that Windows privacy settings allow desktop apps ' +
+        'to use the camera.';
+    }
+    return 'The camera did not start (' + (name || 'unknown error') + '). Press C to try again.';
+  }
   function startCam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCamMessage('This browser will not give a page camera access here.');
-      prefs.cam.on = false; renderStudio(); return;
+      camFailed('This browser will not give a page camera access here. Use Chrome or Edge, from the local ' +
+        'file or the GitHub Pages link.');
+      return;
     }
     var constraints = { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
     if (prefs.cam.deviceId) { constraints.video.deviceId = { exact: prefs.cam.deviceId }; }
+    camFailed('');
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
       camStream = stream;
       prefs.cam.on = true;
+      prefs.cam.wanted = true;
       camNode().querySelector('video').srcObject = stream;
       mountCam();
       savePrefs();
@@ -530,16 +1012,34 @@
       listCams();
       renderStudio();
     }).catch(function (err) {
-      prefs.cam.on = false;
-      camMessage = err && err.name === 'NotAllowedError'
-        ? 'Camera blocked. Allow it for this page - or open the local copy of the file, since a page embedded in another site is usually refused the camera outright.'
-        : 'No camera available: ' + (err && err.name ? err.name : 'unknown error') + '.';
-      renderStudio();
+      /* A remembered camera that is no longer plugged in should not
+         stop the one that is: fall back to the default and try again. */
+      var missing = err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError');
+      if (missing && prefs.cam.deviceId) {
+        prefs.cam.deviceId = ''; savePrefs();
+        startCam();
+        return;
+      }
+      camFailed(camFailure(err));
     });
+  }
+  /* A failure has to be visible where you are: on the stage it goes on
+     the placeholder and the toast, on the tab it goes under the tile. */
+  function camFailed(text) {
+    prefs.cam.on = false;
+    camMessage = text;
+    var ghost = placeholderNode().querySelector('span');
+    if (ghost) {
+      ghost.textContent = text || 'Your camera \u00b7 press C to turn it on';
+      ghost.classList.toggle('err', !!text);
+    }
+    if (text && overlay) { showTake(null, text); }
+    if (!overlay) { renderStudio(); }
   }
   function stopCam() {
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     prefs.cam.on = false;
+    prefs.cam.wanted = false;
     if (camWrap && camWrap.parentNode) { camWrap.remove(); }
     camMessage = '';
     savePrefs();
@@ -579,6 +1079,10 @@
         'font-size:12px;color:var(--dim);flex:none}' +
       '.bar strong{color:var(--ink);font-size:13px}' +
       '.bar .sp{margin-left:auto}' +
+      '.rec{display:none;color:#ff5a4e;font-weight:600;letter-spacing:.06em;font-size:12px}' +
+      '.rec.on{display:inline-flex;align-items:center;gap:6px}' +
+      '.rec i{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:pRecBlink 1s steps(2) infinite}' +
+      '@keyframes pRecBlink{50%{opacity:.25}}' +
       '.bar button{background:#16181b;color:var(--ink);border:1px solid var(--rule);border-radius:5px;' +
         'padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}' +
       '.bar button:hover{border-color:var(--dim)}' +
@@ -603,6 +1107,7 @@
       '.foot .keys{margin-left:auto}' +
       '</style></head><body>' +
       '<div class="bar"><strong id="pBeat">-</strong><span id="pPos"></span>' +
+        '<span id="pRec" class="rec"></span>' +
         '<span class="sp"></span>' +
         '<button data-p="prev">&larr;</button>' +
         '<button data-p="play">Play</button>' +
@@ -681,6 +1186,7 @@
     d.getElementById('pPos').textContent = script ? (idx + 1) + ' / ' + script.beats.length : '';
     d.getElementById('pClock').textContent = mmss(remaining) + (playing ? '' : '  (paused)');
     d.querySelector('[data-p="play"]').textContent = playing ? 'Pause' : 'Play';
+    renderRecState();
     col.style.font = P.fontSize + 'px/' + P.lineHeight + ' system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
     col.style.maxWidth = P.width + 'em';
     if (!b) { col.innerHTML = ''; return; }
@@ -747,12 +1253,55 @@
         '<div class="tile"><div class="k">Comparison</div><div class="v" style="font-size:1.05rem">' +
           esc(BCB.app.getLast().sim.a.name) + ' vs ' + esc(BCB.app.getLast().sim.b.name) + '</div></div>' +
       '</div>' +
+      '<div class="st-modes">' +
+        [['one', 'Studio One - full frame',
+          'Slides fill the screen, camera floats in a corner. Best when the numbers are the story.'],
+         ['two', 'Studio Two - explainer and camera',
+          'Explainer column on the left for text and images, you on the right at full height. Best when you are the story.'],
+         ['three', 'Studio Three - vertical',
+          'You on top, explainer underneath, composed inside a 9:16 frame for Reels, TikTok and Shorts.']]
+        .map(function (m) {
+          return '<button class="st-mode' + (prefs.mode === m[0] ? ' on' : '') + '" data-mode="' + m[0] + '">' +
+            '<span class="k">' + esc(m[1]) + '</span><span class="d">' + esc(m[2]) + '</span>' +
+            '<span class="dia dia-' + m[0] + '" aria-hidden="true"></span></button>';
+        }).join('') +
+      '</div>' +
       '<div class="field-inline" style="flex-wrap:wrap;gap:8px">' +
         '<button class="btn" data-st="stage">Start presenting</button>' +
         '<button class="btn btn-o" data-st="prompter">Open prompter window</button>' +
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
       '<p class="hint" id="prompterNote" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>' +
+      (prefs.mode === 'two'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="sCamH">Camera height</label>' +
+          '<input type="number" id="sCamH" min="30" max="100" step="2" value="' + prefs.split.camHeight + '">' +
+          '<div class="hint">% of the frame. 100 fills the column edge to edge; ' +
+          'lower floats it as a card.</div></div>' +
+          '<div class="field"><label for="sCamW">Camera width</label>' +
+          '<input type="number" id="sCamW" min="14" max="45" step="1" value="' + prefs.split.camWidth + '">' +
+          '<div class="hint">% of the window width.</div></div>' +
+          '<div class="field"><label for="sAlign">Explainer text</label><select id="sAlign">' +
+            [['center', 'Centred'], ['left', 'Left-aligned']].map(function (o) {
+              return '<option value="' + o[0] + '"' + (prefs.split.align === o[0] ? ' selected' : '') +
+                '>' + o[1] + '</option>'; }).join('') +
+          '</select></div></div>'
+        : '') +
+      (prefs.mode === 'three'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="vRatio">Frame</label><select id="vRatio">' +
+            [['9:16', '9:16 - Reels, TikTok, Shorts'], ['4:5', '4:5 - Instagram feed'], ['1:1', '1:1 - square']]
+            .map(function (r) {
+              return '<option value="' + r[0] + '"' + (prefs.vertical.ratio === r[0] ? ' selected' : '') +
+                '>' + esc(r[1]) + '</option>'; }).join('') +
+          '</select><div class="hint">Everything outside the frame is not in the video. ' +
+          'Capture the frame, not the window.</div></div>' +
+          '<div class="field"><div class="field-inline" style="margin-top:22px">' +
+          '<input type="checkbox" id="vSafe"' + (prefs.vertical.safeGuides ? ' checked' : '') +
+          '><label for="vSafe" style="margin:0">Show where platform UI covers the frame</label></div>' +
+          '<div class="hint">Captions, buttons and the handle sit over the bottom and right edges. ' +
+          'The guides disappear once you press play.</div></div></div>'
+        : '') +
       '</div>' +
 
       '<div class="callout"><strong>Setting it up on one wide screen.</strong> Put the slide window on the half ' +
@@ -782,10 +1331,15 @@
           ['rounded', 'circle', 'square'].map(function (s) {
             return '<option value="' + s + '"' + (cam.shape === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
         '</select></div>' +
+        '<div class="field"><div class="field-inline"><input type="checkbox" id="camGhost"' + (cam.placeholder ? ' checked' : '') +
+          '><label for="camGhost" style="margin:0">Show a placeholder when the camera is off</label></div>' +
+          '<div class="hint">Marks exactly where the picture will sit, so you can rehearse the layout.</div></div>' +
         '<div class="field"><div class="field-inline"><input type="checkbox" id="camMirror"' + (cam.mirror ? ' checked' : '') +
           '><label for="camMirror" style="margin:0">Mirror the picture</label></div>' +
           '<div class="hint">Mirrored looks natural to you; unmirrored is what a viewer expects if there is text behind you.</div></div>' +
       '</div></div>' +
+
+      '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
 
       '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
@@ -797,19 +1351,22 @@
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
           '<div class="hint">One line per sentence. Blank lines are ignored.</div></details>';
       }).join('') +
-      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px">Regenerate from the numbers</button>' +
-      '<span class="hint" style="margin-left:10px;color:var(--muted)">Discards your edits.</span>' +
+      '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
+      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
+      '<span class="hint" style="margin-left:10px;color:var(--muted)">Both discard your edits. Reshuffle keeps the facts and ' +
+      'rewrites every sentence; hit it until it sounds like you.</span>' +
       '</div>' +
 
       '<div class="card"><h3>Keys while presenting</h3>' +
       '<div class="cats">' +
       [['Space', 'play / pause'], ['&larr; &rarr;', 'previous / next beat'], ['&uarr; &darr;', 'prompter reading line'],
-       ['C', 'camera on / off'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
+       ['C', 'camera on / off'], ['R', 'start / stop a take'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
       .map(function (k) { return '<div class="cat"><span>' + k[0] + '</span><span class="who">' + k[1] + '</span></div>'; }).join('') +
       '</div></div>';
 
     mountCam();
     listCams();
+    listMics();
   }
 
   function field(label, key, val, min, max, step, hint) {
@@ -821,13 +1378,33 @@
 
   function onStudioEvent(ev) {
     var t = ev.target;
+    var modeBtn = t.closest && t.closest('[data-mode]');
+    if (modeBtn && ev.type === 'click') {
+      prefs.mode = modeBtn.dataset.mode;
+      savePrefs();
+      renderStudio();
+      return;
+    }
     var btn = t.closest && t.closest('[data-st]');
     if (btn && ev.type === 'click') {
       var act = btn.dataset.st;
       if (act === 'stage') { openPresentation(); }
+      else if (btn.dataset.mode) { /* handled below */ }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
       else if (act === 'regen') { script = null; build(); renderStudio(); renderPrompter(); }
+      else if (act === 'reshuffle') {
+        var st = BCB.app.getState();
+        st.scriptSeed = (st.scriptSeed || 0) + 1;
+        script = null; build(); renderStudio(); renderPrompter();
+        BCB.app.recompute(true);   /* the YouTube tab shares the seed */
+      }
+      return;
+    }
+    var recBtn = t.closest && t.closest('[data-rec]');
+    if (recBtn && ev.type === 'click' && BCB.recorder) {
+      if (recBtn.dataset.rec === 'save') { BCB.recorder.saveAs(); }
+      else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
       return;
     }
     if (t.dataset && t.dataset.pref) {
@@ -838,10 +1415,28 @@
       savePrefs();
       return;
     }
-    if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
+    if (t.id === 'sCamH') { prefs.split.camHeight = parseFloat(t.value) || 62; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sCamW') { prefs.split.camWidth = parseFloat(t.value) || 26; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sAlign') { prefs.split.align = t.value; savePrefs(); applySplitVars(); }
+    else if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
+    else if (t.id === 'vSafe') { prefs.vertical.safeGuides = t.checked; savePrefs(); }
+    else if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
+    else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }
     else if (t.id === 'camShape') { prefs.cam.shape = t.value; savePrefs(); applyCamStyle(); }
+    else if (t.id === 'recAuto') { BCB.recorder.prefs.autoRecord = t.checked; BCB.recorder.save(); }
+    else if (t.id === 'recMic') {
+      BCB.recorder.prefs.includeMic = t.checked; BCB.recorder.save();
+      var ms = document.getElementById('recMicDevice'); if (ms) { ms.disabled = !t.checked; }
+    }
+    else if (t.id === 'recMicDevice') { BCB.recorder.prefs.micDeviceId = t.value; BCB.recorder.save(); }
+    else if (t.id === 'recQuality') {
+      var qp = t.value.split('-');
+      BCB.recorder.prefs.fps = parseInt(qp[0], 10) || 30;
+      BCB.recorder.prefs.bitrate = parseInt(qp[1], 10) || 10;
+      BCB.recorder.save();
+    }
     else if (t.id === 'camDevice') {
       prefs.cam.deviceId = t.value; savePrefs();
       if (prefs.cam.on) { stopCam(); prefs.cam.on = true; startCam(); }
@@ -857,6 +1452,15 @@
     document.addEventListener('click', onStudioEvent);
     document.addEventListener('input', onStudioEvent);
     document.addEventListener('change', onStudioEvent);
+    if (BCB.recorder) {
+      BCB.recorder.onChange(onRecorderEvent);
+      BCB.recorder.setNameSource(function () {
+        var L = BCB.app.getLast();
+        if (!L) { return ''; }
+        var slug = function (n) { return String(n).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+        return slug(L.sim.a.name) + '-vs-' + slug(L.sim.b.name);
+      });
+    }
     renderStudio();
   }
 

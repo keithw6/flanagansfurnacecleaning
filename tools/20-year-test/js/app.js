@@ -308,9 +308,26 @@
       (f.hint ? '<div class="hint">' + esc(f.hint) + '</div>' : '') + '</div>';
   }
 
+  var LOCATION_PATHS = { country: 1, region: 1, currency: 1 };
   function renderGlobalForm() {
+    var loc = GLOBAL_FIELDS.filter(function (f) { return LOCATION_PATHS[f.path]; });
+    var rest = GLOBAL_FIELDS.filter(function (f) { return !LOCATION_PATHS[f.path]; });
+    var jur = D.TAX[state.country] || {};
+    var regionCount = jur.regions ? Object.keys(jur.regions).length : 0;
+    var notice = state.country === 'CA'
+      ? ''
+      : '<div class="callout warn" style="margin-top:12px"><strong>Presets are Alberta figures.</strong> ' +
+        'Switching the country changes the tax brackets and the currency label, not the wages, tuition or ' +
+        'business numbers in the career presets. Those are typical Canadian ranges - for a US comparison, ' +
+        'type in local figures for anything that matters. Dental school and law school in particular ' +
+        'cost far more in the US than the presets assume.</div>';
+    document.getElementById('locationForm').innerHTML =
+      '<div class="grid3">' + loc.map(function (f) { return fieldHtml('global', f); }).join('') + '</div>' +
+      '<p class="hint" style="margin-top:6px;color:var(--muted)">' + esc(jur.label || state.country) + ' - ' +
+      regionCount + ' ' + (state.country === 'CA' ? 'provinces and territories' : 'states and DC') +
+      ', simplified brackets indexed to inflation. Not tax advice.</p>' + notice;
     document.getElementById('globalForm').innerHTML =
-      GLOBAL_FIELDS.map(function (f) { return fieldHtml('global', f); }).join('');
+      rest.map(function (f) { return fieldHtml('global', f); }).join('');
   }
 
   /* The stage editor: income really does change by career stage, and it
@@ -381,6 +398,14 @@
         (neg ? '-' : '') + money(Math.abs(v)) + '</span></div>';
     }
     var lastRow = res.rows[res.rows.length - 1];
+    /* The column has to add up as printed. Home and business equity are
+       already net of the mortgage and the business loan, so the only debt
+       subtracted here is what is NOT inside an equity line. The rest is
+       shown for information, under the equity it is netted against. */
+    var personalDebt = lastRow.studentDebt + lastRow.consumerDebt;
+    function sub(label, v) {
+      return '<div class="nw-line nw-sub"><span>' + esc(label) + '</span><span class="v">' + money(v) + '</span></div>';
+    }
     return '<div class="nw-col ' + cls + '">' +
       '<div class="nw-name">' + esc(res.name) + '</div>' +
       '<div class="nw-stage">Ends as: ' + esc(lastRow.stage) + '</div>' +
@@ -391,11 +416,14 @@
       line('Investments', t.investments) +
       line('Cash', t.cash) +
       line('Home equity', t.homeEquity) +
+      (lastRow.mortgage > 0 ? sub('home value ' + money(lastRow.homeValue) + ', mortgage still owing', lastRow.mortgage) : '') +
       line('Business equity', t.businessEquity) +
-      line('Debt outstanding', t.debt, true) +
+      (lastRow.businessDebt > 0 ? sub('business value ' + money(lastRow.businessValue) + ', loan still owing', lastRow.businessDebt) : '') +
+      line('Education and consumer debt', personalDebt, true) +
       '<div class="nw-total"><div class="lbl">Estimated net worth</div>' +
       '<div class="amt">' + money(t.netWorth) + '</div>' +
-      '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div></div>' +
+      '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div>' +
+      '<div class="real">Total debt carried: ' + money(t.debt) + '</div></div>' +
       '</div>';
   }
 
@@ -855,7 +883,10 @@
   function renderYouTube() {
     var y = last.youtube;
     var h = '<div class="card prose"><h2>Episode pack</h2>' +
-      '<p class="sub">Written from this comparison. Edit freely - it is a starting point, not a script.</p>';
+      '<p class="sub">Written from this comparison. Edit freely - it is a starting point, not a script.</p>' +
+      '<p class="no-print"><button class="btn btn-o btn-sm" data-reshuffle="1">Reshuffle the wording</button>' +
+      '<span class="hint" style="margin-left:10px;color:var(--muted)">Same facts, different sentences. ' +
+      'Hit it until it sounds like you.</span></p>';
     h += '<div class="copybox"><h4>Title options</h4><ul>' +
       y.titles.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
     h += '<div class="copybox"><h4>Thumbnail text</h4>' +
@@ -1180,7 +1211,7 @@
       last = {
         sim: sim, scores: scores,
         analysis: N.analysis(sim, scores),
-        youtube: N.youtube(sim, scores)
+        youtube: N.youtube(sim, scores, state.scriptSeed || 0)
       };
       scenarioCache = E.runAllScenarios(state);
       renderResults();
@@ -1247,8 +1278,13 @@
   }
 
   function onClick(ev) {
-    var t = ev.target.closest('[data-matchup],[data-scen],[data-addstage],[data-delstage],.tab');
+    var t = ev.target.closest('[data-matchup],[data-scen],[data-addstage],[data-delstage],[data-reshuffle],.tab');
     if (!t) { return; }
+    if (t.dataset.reshuffle) {
+      state.scriptSeed = (state.scriptSeed || 0) + 1;
+      recompute(true);
+      return;
+    }
     if (t.classList.contains('tab')) {
       document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-selected', String(x === t)); });
       document.querySelectorAll('.panel').forEach(function (p) {

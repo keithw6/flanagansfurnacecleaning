@@ -218,6 +218,8 @@ main { padding: 22px 0 80px; }
 .nw-line:last-of-type { border-bottom: 0; }
 .nw-line .v { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
 .nw-line .v.neg { color: var(--critical); }
+.nw-line.nw-sub { font-size: .78rem; color: var(--faint); padding: 2px 0 6px 14px; border-bottom: 0; }
+.nw-line.nw-sub .v { font-weight: 400; color: var(--faint); }
 .nw-total { margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--line); }
 .nw-total .lbl { font-family: var(--h); text-transform: uppercase; font-size: .74rem;
   letter-spacing: .1em; color: var(--muted); }
@@ -279,6 +281,49 @@ main { padding: 22px 0 80px; }
 .bcb-chart .track { fill: var(--surface-3); }
 .bcb-chart .stack-label { font-family: var(--b); font-size: 10.5px; font-weight: 600; }
 .bcb-chart .stack-total { font-family: var(--h); font-size: 14px; fill: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---- motion ----
+   Every chart draws itself on when it appears: lines travel left to
+   right, bars grow, the radar blooms, labels arrive last. All of it is
+   CSS with fill-mode both, so wherever animation is off (print, reduced
+   motion) the chart simply sits in its finished state. The stage slows
+   the draw so the line moves while you talk about it. */
+.bcb-chart { --draw: 1.5s; --step: .45s; }
+.st-stage .bcb-chart { --draw: 2.4s; --step: .7s; }
+.bcb-chart .series-line { stroke-dasharray: 1; animation: bcbDraw var(--draw) cubic-bezier(.45,0,.2,1) both;
+  animation-delay: calc(var(--i, 0) * var(--step)); }
+.bcb-chart .series-static { animation: none; stroke-dasharray: none; }
+.bcb-chart .series-area { animation: bcbFade .8s ease-out both; animation-delay: calc(var(--draw) * .6 + var(--i, 0) * var(--step)); }
+.bcb-chart .end-dot, .bcb-chart .end-label { animation: bcbPop .45s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(var(--draw) * .92 + var(--i, 0) * var(--step)); transform-box: fill-box; transform-origin: center; }
+.bcb-chart .end-halo { opacity: 0; }
+.st-stage .bcb-chart .end-halo { animation: bcbHalo 2.2s ease-out infinite; transform-box: fill-box; transform-origin: center;
+  animation-delay: calc(var(--draw) + var(--i, 0) * var(--step)); }
+.bcb-chart .marker-line, .bcb-chart .marker-label { animation: bcbFade .6s ease-out both; animation-delay: .25s; }
+.bcb-chart .bar { transform-box: fill-box; transform-origin: 50% 100%; animation: bcbGrowY .8s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .07s); }
+.bcb-chart .radar-shape { transform-box: view-box; animation: bcbBloom .9s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * .35s); }
+.bcb-chart .radar-dot { transform-box: fill-box; transform-origin: center; animation: bcbPop .4s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(.6s + var(--i, 0) * .05s); }
+.bcb-chart .score-fill, .bcb-chart .stack-part { transform-box: fill-box; transform-origin: 0 50%;
+  animation: bcbGrowX .9s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * .09s); }
+.bcb-chart .bar-value, .bcb-chart .stack-label, .bcb-chart .stack-total { animation: bcbFade .5s ease-out both;
+  animation-delay: calc(.5s + var(--i, 0) * .09s); }
+@keyframes bcbDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes bcbFade { from { opacity: 0; } }
+@keyframes bcbPop { from { opacity: 0; transform: scale(.4); } }
+@keyframes bcbGrowY { from { transform: scaleY(0); } }
+@keyframes bcbGrowX { from { transform: scaleX(0); } }
+@keyframes bcbBloom { from { opacity: 0; transform: scale(.15); } }
+@keyframes bcbHalo { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(3.2); } }
+/* Big numbers on the stage count up; the CSS just keeps them from
+   jumping in width while they do. */
+.st-stage [data-count] { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .bcb-chart *, .st-stage .bcb-chart .end-halo { animation: none !important; }
+}
+@media print { .bcb-chart * { animation: none !important; } }
 
 /* ---------- tables ---------- */
 .tscroll { overflow-x: auto; }
@@ -446,6 +491,14 @@ body.st-on { overflow: hidden; }
 .st-stage .bcb-chart .end-name { font-size: 20px; }
 .st-stage .bcb-chart .end-value { fill: #c9ccd1; font-size: 16px; }
 .st-stage .bcb-chart .marker-label { fill: #7c8088; font-size: 13px; }
+.st-stage .bcb-chart .bar-label { fill: #c9ccd1; font-size: 17px; }
+.st-stage .bcb-chart .stack-total { fill: #fff; font-size: 19px; }
+.st-stage .bcb-chart .stack-label { font-size: 14px; }
+/* The compounding slide: two big numbers, then the put-in / growth bars
+   at their natural height rather than letterboxed to the chart height. */
+.st-stage .st-compound { display: flex; flex-direction: column; gap: 3vh; align-items: center; }
+.st-stage .st-compound .bcb-chart { height: auto; width: 100%; max-width: 980px; max-height: 26vh; }
+.st-stage.st-two .st-compound .bcb-chart, .st-stage.st-three .st-compound .bcb-chart { max-width: none; }
 
 .st-hero { text-align: center; }
 .st-hero-kick { font-family: var(--h); text-transform: uppercase; letter-spacing: .18em;
@@ -524,10 +577,406 @@ body.st-on { overflow: hidden; }
 .st-stage.idle .st-controls { opacity: 0; pointer-events: none; }
 .st-stage:focus-within .st-controls { opacity: 1; pointer-events: auto; }
 
+/* Recording: the REC clock sits in the pill, which hides itself when
+   the mouse rests, so it stays out of the file. The take toast appears
+   only once a take has ended. */
+.st-controls button.rec-on { color: #ff5a4e; }
+.st-controls button.rec-on::before { content: ""; display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; background: #ff3b30; margin-right: 7px; vertical-align: 1px;
+  animation: stRecBlink 1s steps(2) infinite; }
+@keyframes stRecBlink { 50% { opacity: .25; } }
+.st-take { position: fixed; left: 50%; bottom: calc(3vh + 52px); transform: translateX(-50%);
+  display: flex; gap: 12px; align-items: center; z-index: 95; max-width: min(92vw, 720px);
+  background: rgba(18,20,23,.94); border: 1px solid #2b2f35; border-radius: 10px; padding: 8px 8px 8px 14px;
+  font-size: .82rem; color: #d6d8dc; }
+.st-take[hidden] { display: none; }
+.st-take span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-take button { background: #24272b; border: 0; color: #fff; font: inherit; font-family: var(--h);
+  text-transform: uppercase; font-size: .74rem; letter-spacing: .06em; padding: 6px 12px; border-radius: 16px;
+  cursor: pointer; flex: none; }
+.st-take button:hover { background: #33373d; }
+
 @media (prefers-reduced-motion: reduce) {
   .st-progress i.now::after, .st-controls { transition: none; }
+  .st-controls button.rec-on::before { animation: none; }
 }
 @media print { .st-stage, .st-cam { display: none !important; } }
+
+/* =====================================================================
+   STAGE BACKGROUND
+   A photograph behind white type is a contrast problem, not a
+   decoration. Every picture carries a scrim, and how strong it is
+   allowed to be is set per beat in media.js - a chart gets almost
+   none, a title card gets the most.
+
+   With no library present this is still a designed ground rather than
+   flat black: a slow off-centre glow in the two series hues, a faint
+   rule grid, and film grain. It should read as deliberate at zero
+   assets, because that is how most people will first see it.
+   ===================================================================== */
+.st-bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+.st-bg::before {
+  /* The procedural ground. Two soft pools of brand colour, well off
+     centre so the composition is not symmetrical. */
+  content: ""; position: absolute; inset: -20%;
+  background:
+    radial-gradient(48% 42% at 18% 22%, rgba(42,120,214,.20), transparent 68%),
+    radial-gradient(44% 40% at 84% 78%, rgba(235,104,52,.16), transparent 66%),
+    radial-gradient(70% 60% at 50% 50%, #14161a 0%, #0b0c0d 70%);
+  animation: st-drift 46s ease-in-out infinite alternate;
+}
+.st-bg::after {
+  /* Faint rule grid - a nod to a takeoff sheet, not a tech dashboard. */
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(75% 65% at 50% 45%, #000 30%, transparent 100%);
+}
+@keyframes st-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1.04); }
+  to   { transform: translate3d(1.5%, 1.5%, 0) scale(1.10); }
+}
+
+.st-bg-art { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; }
+.st-bg-art img, .st-bg-art video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-bg-art.kenburns img { animation: st-kenburns 34s ease-in-out infinite alternate; }
+@keyframes st-kenburns {
+  from { transform: scale(1.02) translate3d(0, 0, 0); }
+  to   { transform: scale(1.13) translate3d(-1.6%, -1.2%, 0); }
+}
+
+/* The scrim is what keeps the type legible. Heavier at the bottom,
+   where the value lines and the progress bar sit. */
+.st-bg-scrim { position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(8,9,10,.72) 0%, rgba(8,9,10,.52) 34%, rgba(8,9,10,.74) 78%, rgba(8,9,10,.92) 100%),
+    radial-gradient(78% 70% at 50% 42%, transparent 0%, rgba(8,9,10,.55) 100%);
+}
+.st-bg.bare .st-bg-scrim { background: radial-gradient(80% 72% at 50% 45%, transparent 0%, rgba(8,9,10,.5) 100%); }
+.st-bg-grain { position: absolute; inset: 0; opacity: .055; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* Everything on the stage sits above the background - but name the
+   in-flow children explicitly. A blanket `> *:not(.st-bg)` also hits
+   the fixed-position control pill and the camera, and `position:
+   relative` there stretches the pill across the whole stage. */
+.st-stage > .st-top,
+.st-stage > .st-body,
+.st-stage > .st-progress { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-bg::before, .st-bg-art.kenburns img { animation: none; }
+  .st-bg-art { transition: none; }
+}
+
+/* ---------- the camera stand-in ---------- */
+.st-cam-ghost { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: rgba(20,22,26,.55); color: #6d737b;
+  border: 1.5px dashed rgba(255,255,255,.20); box-shadow: none; cursor: default; }
+.st-cam-ghost svg { width: 42%; height: auto; display: block; }
+.st-cam-ghost span { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
+  font-size: .62rem; color: #7f858d; line-height: 1; text-align: center; padding: 0 8%; }
+.st-cam-ghost span.err { text-transform: none; letter-spacing: 0; font-family: var(--b); font-size: .72rem;
+  line-height: 1.35; color: #ffb3aa; }
+.st-cam-ghost.shape-circle { aspect-ratio: 1 / 1; border-radius: 50%; }
+.st-cam-ghost.shape-square { aspect-ratio: 16 / 9; border-radius: 3px; }
+.st-cam-ghost.shape-rounded { aspect-ratio: 16 / 9; border-radius: 14px; }
+.st-camhost .st-cam-ghost { position: relative; }
+
+/* ---------- intro and outro cards ---------- */
+.st-brandcard { text-align: center; display: flex; flex-direction: column; align-items: center;
+  gap: clamp(14px, 3vh, 34px); }
+.st-brandmark { font-family: var(--h); text-transform: uppercase; color: #fff;
+  font-size: clamp(1.6rem, 4.4vw, 3.4rem); line-height: 1.04; letter-spacing: .01em; text-wrap: balance; }
+.st-outro-sub { font-family: var(--h); text-transform: uppercase; letter-spacing: .2em;
+  font-size: clamp(.7rem, 1.2vw, .95rem); color: var(--series-b); }
+
+/* The progression, as an actual ladder - it is the channel's thesis,
+   so it earns being drawn rather than described. */
+.st-ladder { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(6px, 1.2vw, 14px); }
+.st-rung { font-family: var(--h); text-transform: uppercase; letter-spacing: .1em;
+  font-size: clamp(.7rem, 1.5vw, 1.15rem); color: #8b9099;
+  border: 1px solid #33373d; border-radius: 3px; padding: 7px clamp(8px, 1.4vw, 18px); }
+.st-rung.last { color: #0b0c0d; background: var(--series-b); border-color: var(--series-b); font-weight: 600; }
+.st-arrow { width: clamp(10px, 1.6vw, 20px); height: 1px; background: #43484f; flex: none; }
+
+.st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
+  font-size: clamp(1.2rem, 3.4vw, 2.6rem); line-height: 1; }
+.st-vs .a { color: var(--series-a); }
+.st-vs .b { color: var(--series-b); }
+.st-vs em { font-style: normal; color: #6d737b; font-size: .5em; letter-spacing: .18em; }
+
+/* =====================================================================
+   STUDIO TWO - explainer column left, camera column right
+   Additive: everything below is gated on .st-two, so Studio One's
+   layout is reached by none of it.
+   ===================================================================== */
+.st-stage.st-two {
+  display: grid;
+  grid-template-columns: 1fr calc(var(--split-cam-w, 26vw) + 5vw);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "top cam" "body cam" "prog cam";
+  column-gap: clamp(16px, 2.4vw, 40px);
+  padding: 2.2vh 2.4vw;
+}
+.st-stage.st-two > .st-top      { grid-area: top; }
+.st-stage.st-two > .st-body     { grid-area: body; }
+.st-stage.st-two > .st-progress { grid-area: prog; }
+.st-stage.st-two > .st-camcol   { grid-area: cam; position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center; min-height: 0; }
+
+/* The explainer column: left-aligned, because a column of centred text
+   beside a talking head reads as a title card rather than an explainer. */
+/* align-items must be stretch, not flex-start: an SVG with width="100%"
+   and no height attribute has no intrinsic size, so a flex-start column
+   collapses to the SVG default of 300x150 and the chart renders as a
+   thumbnail. text-align carries the left alignment instead. */
+.st-stage.st-two .st-body { align-items: stretch; text-align: center; justify-content: center;
+  gap: clamp(10px, 1.8vh, 24px); }
+.st-stage.st-two.align-left .st-body { text-align: left; }
+.st-stage.st-two h1 { font-size: clamp(1.5rem, 3.4vw, 3rem); text-wrap: balance; }
+.st-stage.st-two.chart h1 { font-size: clamp(1.15rem, 2.2vw, 1.9rem); }
+.st-stage.st-two .st-visual { max-width: 100%; align-items: stretch; }
+.st-stage.st-two .st-visual > * { width: 100%; }
+.st-stage.st-two .st-visual.wide { max-width: 100%; }
+.st-stage.st-two .bcb-chart { height: auto; width: 100%; max-height: 46vh; }
+.st-stage.st-two .bcb-radar { max-width: 100%; height: auto; max-height: 46vh; }
+/* A flex row of four stats wraps to three-plus-one in a column this
+   narrow, which leaves an orphan and a hole. A two-up grid is stable at
+   any count, and the figures step down so they stop competing with the
+   headline number above them. */
+/* Centred, the two stat columns drift to opposite ends of the panel and
+   stop reading as one block. Cap the width and centre it. */
+.st-stage.st-two .st-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.6vh, 20px) clamp(20px, 3vw, 48px); justify-content: center;
+  max-width: 34em; margin: 0 auto; }
+.st-stage.st-two.align-left .st-stats { max-width: none; margin: 0; }
+.st-stage.st-two .st-stat { text-align: center; }
+.st-stage.st-two.align-left .st-stats { justify-content: start; }
+.st-stage.st-two.align-left .st-stat { text-align: left; }
+.st-stage.st-two .st-stat .v { font-size: clamp(1.05rem, 2.1vw, 1.85rem); }
+.st-stage.st-two .st-stat .k { font-size: clamp(.56rem, .8vw, .7rem); margin-bottom: 3px; }
+/* The visual is a stack here, so it needs its own rhythm - without a gap
+   the hero's sub-line runs straight into the first stat label. */
+.st-stage.st-two .st-visual { gap: clamp(14px, 2.4vh, 30px); }
+.st-stage.st-two .st-hero { display: flex; flex-direction: column; gap: 4px; }
+.st-stage.st-two .st-hero, .st-stage.st-two .st-brandcard { text-align: center; align-items: center; }
+.st-stage.st-two.align-left .st-hero,
+.st-stage.st-two.align-left .st-brandcard { text-align: left; align-items: flex-start; }
+.st-stage.st-two .st-hero-sub { margin: 2px auto 0; max-width: 34ch;
+  font-size: clamp(.85rem, 1.25vw, 1.1rem); }
+.st-stage.st-two.align-left .st-hero-sub { margin-left: 0; }
+.st-stage.st-two .st-hero-num { font-size: clamp(2rem, 5.4vw, 4.6rem); }
+.st-stage.st-two .st-ladder { justify-content: center; }
+.st-stage.st-two.align-left .st-ladder { justify-content: flex-start; }
+.st-stage.st-two .st-vs { justify-content: center; }
+.st-stage.st-two.align-left .st-vs { justify-content: flex-start; }
+.st-stage.st-two .st-cats { grid-template-columns: 1fr; }
+.st-stage.st-two .st-cols, .st-stage.st-two .st-scores { gap: clamp(10px, 1.6vw, 22px); }
+
+/* The picture as content rather than backdrop. */
+.st-inset { width: 100%; max-height: 26vh; border-radius: 10px; overflow: hidden;
+  border: 1px solid #2b2f35; flex: none; line-height: 0; }
+.st-inset img { width: 100%; height: 100%; max-height: 26vh; object-fit: cover; display: block; }
+
+/* The camera column. object-fit: cover crops a 16:9 webcam to this tall
+   frame, which is the framing a presenter column wants anyway. */
+.st-cam.in-col, .st-cam-ghost.in-col {
+  position: relative; width: 100%; height: 100%; aspect-ratio: auto;
+  border-radius: 16px; overflow: hidden; cursor: default;
+  box-shadow: 0 18px 50px rgba(0,0,0,.5);
+}
+/* Studio Two: a floating presenter card. Inset from the edge, rounded,
+   with a light outline that separates it from the ground behind. */
+.st-stage.st-two .st-cam.in-col,
+.st-stage.st-two .st-cam-ghost.in-col {
+  width: var(--split-cam-w, 26vw);
+  height: var(--split-cam-h, 62%);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,.30), 0 24px 60px rgba(0,0,0,.55);
+}
+/* The camera side sits on its own slightly darker ground, which is what
+   separates the two panels when the picture behind is quiet. */
+.st-stage.st-two > .st-camcol::before { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(6,7,8,.28), rgba(6,7,8,.5)); }
+.st-stage.st-two > .st-camcol > * { position: relative; z-index: 1; }
+.st-cam.in-col video { width: 100%; height: 100%; object-fit: cover; }
+.st-cam-ghost.in-col { background: rgba(20,22,26,.6); border: 1.5px dashed rgba(255,255,255,.20);
+  box-shadow: none; }
+.st-cam-ghost.in-col svg { width: 34%; }
+
+/* In the split layout the background sits further back - the columns
+   carry the composition, so a strong picture behind them only muddies
+   the text. */
+.st-stage.st-two .st-bg-scrim {
+  background:
+    linear-gradient(to bottom, rgba(8,9,10,.82) 0%, rgba(8,9,10,.7) 40%, rgba(8,9,10,.86) 100%),
+    radial-gradient(70% 66% at 40% 45%, transparent 0%, rgba(8,9,10,.6) 100%);
+}
+
+@media (max-width: 900px) {
+  .st-stage.st-two { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: "top" "body" "cam" "prog"; row-gap: 12px; }
+  .st-stage.st-two > .st-camcol { max-height: 30vh; }
+}
+
+/* ---------- the mode picker on the studio tab ---------- */
+.st-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 760px) { .st-modes { grid-template-columns: 1fr; } }
+.st-mode { text-align: left; background: var(--surface-1); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px; cursor: pointer; font: inherit; color: var(--text);
+  display: flex; flex-direction: column; gap: 5px; }
+.st-mode:hover { border-color: var(--muted); }
+.st-mode.on { border-color: var(--series-b); box-shadow: inset 0 0 0 1px var(--series-b); }
+.st-mode .k { font-family: var(--h); text-transform: uppercase; letter-spacing: .04em;
+  font-size: .92rem; color: var(--ink); }
+.st-mode .d { font-size: .82rem; color: var(--muted); }
+/* A small diagram of each layout, because two sentences do not show a
+   layout as fast as a picture of it does. */
+.st-mode .dia { display: block; height: 54px; margin-top: 6px; border-radius: 5px;
+  border: 1px solid var(--line); background: var(--surface-2); position: relative; }
+.st-mode .dia::before, .st-mode .dia::after { content: ""; position: absolute; border-radius: 2px; }
+.dia-one::before { inset: 8px 8px 14px 8px; background: var(--line); }
+.dia-one::after  { right: 11px; bottom: 9px; width: 26%; height: 34%; background: var(--series-b); }
+.dia-two::before { left: 8px; top: 8px; bottom: 8px; width: 58%; background: var(--line); }
+.dia-two::after  { right: 8px; top: 8px; bottom: 8px; width: 32%; background: var(--series-b); }
+
+/* =====================================================================
+   STUDIO THREE - vertical, camera above, explainer below
+   For Reels, TikTok, Shorts and the Instagram feed. Composes inside a
+   fixed-ratio frame rather than the window, because the deliverable is
+   a 9:16 file and anything outside the frame is not in the video.
+
+   Type is sized in vh throughout: the frame's height is the viewport's,
+   so vh is stable here while vw is not - the frame's width depends on
+   the ratio, not the window.
+
+   Additive: every rule is gated on .st-three, so Studios One and Two
+   are reached by none of it.
+   ===================================================================== */
+.st-stage.st-three { display: grid; place-items: center; padding: 0;
+  background: #050506; }
+.st-stage.st-three .st-frame {
+  position: relative; z-index: 1;
+  height: 100vh; aspect-ratio: 9 / 16; max-width: 100vw;
+  display: grid; grid-template-rows: auto 1fr auto;
+  background: #0b0c0d; overflow: hidden;
+  box-shadow: 0 0 0 1px #24272b, 0 30px 80px rgba(0,0,0,.6);
+}
+.st-stage.st-three.ratio-4-5 .st-frame { aspect-ratio: 4 / 5; }
+.st-stage.st-three.ratio-1-1 .st-frame { aspect-ratio: 1 / 1; }
+
+/* Camera on top. object-fit: cover crops the webcam to this band, which
+   is the framing a vertical talking head wants anyway. */
+.st-stage.st-three .st-camcol { grid-row: 1; height: 40vh; position: relative;
+  display: flex; align-items: stretch; }
+.st-stage.st-three.ratio-4-5 .st-camcol { height: 34vh; }
+.st-stage.st-three.ratio-1-1 .st-camcol { height: 30vh; }
+.st-stage.st-three .st-cam.in-col,
+.st-stage.st-three .st-cam-ghost.in-col { border-radius: 0; box-shadow: none; }
+
+/* The brand bar rides over the top of the camera rather than taking a
+   row of its own - vertical frames have no height to spare. */
+.st-stage.st-three .st-top { position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+  padding: 1.6vh 3.4%; align-items: center;
+  background: linear-gradient(to bottom, rgba(6,7,8,.72), transparent); }
+.st-stage.st-three .st-brand { font-size: 1.5vh; }
+.st-stage.st-three .st-brand span { font-size: .95vh; margin-top: 2px; }
+.st-stage.st-three .st-meta { font-size: 1.25vh; gap: 1.4vh; }
+
+/* The explainer half. */
+/* Padded clear of the platform's UI: ~17% up from the bottom for the
+   caption block, ~15% in from the right for the button rail. The camera
+   still runs edge to edge above - a face behind a button is fine, an
+   axis label behind one is not. */
+.st-stage.st-three .st-body { grid-row: 2; padding: 2.2vh 14% 18vh 5.6%;
+  align-items: stretch; text-align: left; justify-content: flex-start;
+  gap: 1.2vh; min-height: 0; overflow: hidden; }
+.st-stage.st-three.ratio-1-1 .st-body { padding-bottom: 6vh; }
+.st-stage.st-three .st-kick { font-size: 1.35vh; letter-spacing: .16em; }
+.st-stage.st-three h1 { font-size: 3.9vh; line-height: 1.02; }
+.st-stage.st-three.chart h1 { font-size: 3vh; }
+.st-stage.st-three .st-visual { max-width: 100%; align-items: stretch; flex: 1;
+  justify-content: flex-start; gap: 1.6vh; min-height: 0; }
+.st-stage.st-three .st-visual > * { width: 100%; }
+.st-stage.st-three .bcb-chart { height: auto; width: 100%; max-height: 25vh; max-width: none; }
+.st-stage.st-three .bcb-radar { max-width: 100%; max-height: 24vh; }
+
+.st-stage.st-three .st-hero { display: flex; flex-direction: column; gap: .6vh; text-align: left; }
+.st-stage.st-three .st-hero-num { font-size: 7vh; line-height: .95; }
+.st-stage.st-three .st-hero-sub { font-size: 1.7vh; margin: 0; max-width: none; }
+.st-stage.st-three .st-hero-kick { font-size: 1.3vh; }
+.st-stage.st-three .st-stats { display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1.6vh 5%; justify-content: start; }
+.st-stage.st-three .st-stat { text-align: left; }
+.st-stage.st-three .st-stat .k { font-size: 1.05vh; letter-spacing: .1em; margin-bottom: .4vh; }
+.st-stage.st-three .st-stat .v { font-size: 3.1vh; }
+.st-stage.st-three .st-stat .n { font-size: 1.15vh; }
+
+.st-stage.st-three .st-cols { grid-template-columns: 1fr 1fr; gap: 4%; }
+.st-stage.st-three .st-col-name { font-size: 1.9vh; }
+.st-stage.st-three .st-col-line { font-size: 1.35vh; padding: .5vh 0; }
+.st-stage.st-three .st-col-total .k { font-size: 1vh; }
+.st-stage.st-three .st-col-total .v { font-size: 3vh; }
+.st-stage.st-three .st-scores { grid-template-columns: 1fr 1fr; gap: 4%; }
+.st-stage.st-three .st-score .n { font-size: 6vh; }
+.st-stage.st-three .st-score .who { font-size: 1.7vh; }
+.st-stage.st-three .st-score .four { grid-template-columns: repeat(2, 1fr); gap: .7vh; }
+.st-stage.st-three .st-score .four strong { font-size: 1.8vh; }
+.st-stage.st-three .st-score .four span { font-size: .95vh; }
+.st-stage.st-three .st-cats { grid-template-columns: 1fr; gap: .3vh; }
+.st-stage.st-three .st-cat { font-size: 1.4vh; padding: .7vh 0; }
+.st-stage.st-three .st-scen-row { font-size: 1.6vh; padding: 1vh 0; }
+.st-stage.st-three .st-brandmark { font-size: 3.6vh; }
+.st-stage.st-three .st-ladder { gap: .6vh; }
+.st-stage.st-three .st-rung { font-size: 1.2vh; padding: .7vh 1.4vh; }
+.st-stage.st-three .st-vs { font-size: 2.8vh; gap: 1.6vh; }
+.st-stage.st-three .st-inset { max-height: 11vh; }
+.st-stage.st-three .st-inset img { max-height: 11vh; }
+
+.st-stage.st-three .st-progress { grid-row: 3; height: .5vh; margin: 0 0 1.4vh; padding: 0 5.6%;
+  position: absolute; left: 0; right: 0; bottom: 0; }
+
+/* Where the platform's own UI covers the frame. A framing aid, not part
+   of the video, so it only shows while paused. */
+.st-safe { position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  opacity: 0; transition: opacity .25s; }
+.st-stage.guides-on .st-safe { opacity: 1; }
+.st-safe .s-right { position: absolute; top: 0; bottom: 0; right: 0; width: 15%;
+  border-left: 1px dashed rgba(235,104,52,.5); background: rgba(235,104,52,.07); }
+.st-safe .s-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 17%;
+  border-top: 1px dashed rgba(235,104,52,.5); background: rgba(235,104,52,.07); }
+.st-safe em { position: absolute; right: 16%; bottom: 18%; transform: translateY(-6px);
+  font-style: normal; font-family: var(--h); text-transform: uppercase; letter-spacing: .12em;
+  font-size: 1.05vh; color: var(--series-b); background: rgba(6,7,8,.8); padding: .3vh .8vh;
+  border-radius: 3px; }
+
+/* The background belongs to the frame, not the window. */
+.st-stage.st-three > .st-bg { display: none; }
+.st-stage.st-three .st-frame::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(60% 32% at 24% 62%, rgba(42,120,214,.18), transparent 70%),
+    radial-gradient(56% 30% at 82% 88%, rgba(235,104,52,.14), transparent 68%),
+    linear-gradient(to bottom, #14161a 0%, #0b0c0d 100%); }
+/* Must exclude the overlaid children: this rule and the .st-top rule
+   above have the same specificity, so this one wins by coming later and
+   silently reverted the brand bar to relative - which dropped it to the
+   bottom of the grid. Same class of collision as the control pill in
+   Studio One. */
+.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe) { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) { .st-safe { transition: none; } }
+
+/* Diagram for the third mode card. */
+.dia-three::before { left: 8px; right: 8px; top: 8px; height: 42%; background: var(--series-b); }
+.dia-three::after  { left: 8px; right: 8px; bottom: 8px; height: 42%; background: var(--line); }
+.st-modes { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1000px) { .st-modes { grid-template-columns: 1fr; } }
 
 </style>
 <header class="hdr no-print">
@@ -558,6 +1007,12 @@ body.st-on { overflow: hidden; }
     <p class="sub">One click loads both careers with typical figures. Then change everything - the presets are
       starting estimates, not facts, and the tags beside each field say which is which.</p>
     <div id="matchups" class="cats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Where</h2>
+    <p class="sub">Country sets the tax brackets and the currency. Canada and the United States, every province and state.</p>
+    <div id="locationForm"></div>
   </div>
 
   <div class="card">
@@ -738,19 +1193,63 @@ body.st-on { overflow: hidden; }
       },
       corporate: { smallBusiness: 0.21, threshold: Infinity, general: 0.21 },
       dividendFactor: 0.80,
+      /* All fifty states plus DC. Single filer, approximate 2025
+         brackets, simplified: no local income taxes (NYC, Philadelphia
+         and the Ohio municipalities are the ones that bite), no
+         state-specific credits beyond a standard deduction or personal
+         exemption. Nine states levy no tax on wages. Verify locally. */
       regions: {
-        TX: { label: 'Texas (no income tax)',      credit: 0,     brackets: [[Infinity, 0]] },
-        FL: { label: 'Florida (no income tax)',    credit: 0,     brackets: [[Infinity, 0]] },
-        WA: { label: 'Washington (no income tax)', credit: 0,     brackets: [[Infinity, 0]] },
-        NV: { label: 'Nevada (no income tax)',     credit: 0,     brackets: [[Infinity, 0]] },
-        CA: { label: 'California',                 credit: 5540,  brackets: [[10756,0.01],[25499,0.02],[40245,0.04],[55866,0.06],[70606,0.08],[360659,0.093],[432787,0.103],[721314,0.113],[Infinity,0.123]] },
-        NY: { label: 'New York',                   credit: 8000,  brackets: [[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[Infinity,0.103]] },
-        IL: { label: 'Illinois',                   credit: 2850,  brackets: [[Infinity, 0.0495]] },
-        PA: { label: 'Pennsylvania',               credit: 0,     brackets: [[Infinity, 0.0307]] },
-        OH: { label: 'Ohio',                       credit: 26050, brackets: [[100000,0.0275],[Infinity,0.035]] },
-        GA: { label: 'Georgia',                    credit: 12000, brackets: [[Infinity, 0.0539]] },
-        AZ: { label: 'Arizona',                    credit: 14600, brackets: [[Infinity, 0.025]] },
-        NC: { label: 'North Carolina',             credit: 12750, brackets: [[Infinity, 0.0425]] }
+        AL: { label: 'Alabama',        credit: 3000,  brackets: [[500,0.02],[3000,0.04],[Infinity,0.05]] },
+        AK: { label: 'Alaska (no income tax)',        credit: 0, brackets: [[Infinity, 0]] },
+        AZ: { label: 'Arizona',        credit: 14600, brackets: [[Infinity, 0.025]] },
+        AR: { label: 'Arkansas',       credit: 2340,  brackets: [[5300,0],[10600,0.02],[15100,0.03],[25000,0.034],[Infinity,0.039]] },
+        CA: { label: 'California',     credit: 5540,  brackets: [[10756,0.01],[25499,0.02],[40245,0.04],[55866,0.06],[70606,0.08],[360659,0.093],[432787,0.103],[721314,0.113],[Infinity,0.123]] },
+        CO: { label: 'Colorado',       credit: 14600, brackets: [[Infinity, 0.044]] },
+        CT: { label: 'Connecticut',    credit: 15000, brackets: [[10000,0.02],[50000,0.045],[100000,0.055],[200000,0.06],[250000,0.065],[500000,0.069],[Infinity,0.0699]] },
+        DE: { label: 'Delaware',       credit: 3250,  brackets: [[2000,0],[5000,0.022],[10000,0.039],[20000,0.048],[25000,0.052],[60000,0.0555],[Infinity,0.066]] },
+        DC: { label: 'District of Columbia', credit: 14600, brackets: [[10000,0.04],[40000,0.06],[60000,0.065],[250000,0.085],[500000,0.0925],[1000000,0.0975],[Infinity,0.1075]] },
+        FL: { label: 'Florida (no income tax)',       credit: 0, brackets: [[Infinity, 0]] },
+        GA: { label: 'Georgia',        credit: 12000, brackets: [[Infinity, 0.0539]] },
+        HI: { label: 'Hawaii',         credit: 2200,  brackets: [[2400,0.014],[4800,0.032],[9600,0.055],[14400,0.064],[19200,0.068],[24000,0.072],[36000,0.076],[48000,0.079],[150000,0.0825],[175000,0.09],[200000,0.10],[Infinity,0.11]] },
+        ID: { label: 'Idaho',          credit: 14600, brackets: [[Infinity, 0.05695]] },
+        IL: { label: 'Illinois',       credit: 2850,  brackets: [[Infinity, 0.0495]] },
+        IN: { label: 'Indiana',        credit: 1000,  brackets: [[Infinity, 0.03]] },
+        IA: { label: 'Iowa',           credit: 14600, brackets: [[Infinity, 0.038]] },
+        KS: { label: 'Kansas',         credit: 3605,  brackets: [[23000,0.052],[Infinity,0.0558]] },
+        KY: { label: 'Kentucky',       credit: 3160,  brackets: [[Infinity, 0.04]] },
+        LA: { label: 'Louisiana',      credit: 12500, brackets: [[Infinity, 0.03]] },
+        ME: { label: 'Maine',          credit: 14600, brackets: [[26050,0.058],[61600,0.0675],[Infinity,0.0715]] },
+        MD: { label: 'Maryland',       credit: 2700,  brackets: [[1000,0.02],[2000,0.03],[3000,0.04],[100000,0.0475],[125000,0.05],[150000,0.0525],[250000,0.055],[Infinity,0.0575]] },
+        MA: { label: 'Massachusetts',  credit: 4400,  brackets: [[1083150,0.05],[Infinity,0.09]] },
+        MI: { label: 'Michigan',       credit: 5600,  brackets: [[Infinity, 0.0425]] },
+        MN: { label: 'Minnesota',      credit: 14575, brackets: [[32570,0.0535],[106990,0.068],[198630,0.0785],[Infinity,0.0985]] },
+        MS: { label: 'Mississippi',    credit: 0,     brackets: [[10000,0],[Infinity,0.044]] },
+        MO: { label: 'Missouri',       credit: 14600, brackets: [[1273,0],[2546,0.02],[3819,0.025],[5092,0.03],[6365,0.035],[7638,0.04],[8911,0.045],[Infinity,0.047]] },
+        MT: { label: 'Montana',        credit: 14600, brackets: [[20500,0.047],[Infinity,0.059]] },
+        NE: { label: 'Nebraska',       credit: 7900,  brackets: [[3700,0.0246],[22170,0.0351],[35730,0.0501],[Infinity,0.052]] },
+        NV: { label: 'Nevada (no income tax)',        credit: 0, brackets: [[Infinity, 0]] },
+        NH: { label: 'New Hampshire (no wage tax)',   credit: 0, brackets: [[Infinity, 0]] },
+        NJ: { label: 'New Jersey',     credit: 1000,  brackets: [[20000,0.014],[35000,0.0175],[40000,0.035],[75000,0.05525],[500000,0.0637],[1000000,0.0897],[Infinity,0.1075]] },
+        NM: { label: 'New Mexico',     credit: 14600, brackets: [[5500,0.015],[16500,0.032],[33500,0.043],[66500,0.047],[210000,0.049],[Infinity,0.059]] },
+        NY: { label: 'New York',       credit: 8000,  brackets: [[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[Infinity,0.103]] },
+        NC: { label: 'North Carolina', credit: 12750, brackets: [[Infinity, 0.0425]] },
+        ND: { label: 'North Dakota',   credit: 0,     brackets: [[47150,0],[225975,0.0195],[Infinity,0.025]] },
+        OH: { label: 'Ohio',           credit: 26050, brackets: [[100000,0.0275],[Infinity,0.035]] },
+        OK: { label: 'Oklahoma',       credit: 6350,  brackets: [[1000,0.0025],[2500,0.0075],[3750,0.0175],[4900,0.0275],[7200,0.0375],[Infinity,0.0475]] },
+        OR: { label: 'Oregon',         credit: 2745,  brackets: [[4400,0.0475],[11050,0.0675],[125000,0.0875],[Infinity,0.099]] },
+        PA: { label: 'Pennsylvania',   credit: 0,     brackets: [[Infinity, 0.0307]] },
+        RI: { label: 'Rhode Island',   credit: 10550, brackets: [[79900,0.0375],[181650,0.0475],[Infinity,0.0599]] },
+        SC: { label: 'South Carolina', credit: 0,     brackets: [[3560,0],[17830,0.03],[Infinity,0.062]] },
+        SD: { label: 'South Dakota (no income tax)',  credit: 0, brackets: [[Infinity, 0]] },
+        TN: { label: 'Tennessee (no income tax)',     credit: 0, brackets: [[Infinity, 0]] },
+        TX: { label: 'Texas (no income tax)',         credit: 0, brackets: [[Infinity, 0]] },
+        UT: { label: 'Utah',           credit: 0,     brackets: [[Infinity, 0.0455]] },
+        VT: { label: 'Vermont',        credit: 7400,  brackets: [[47900,0.0335],[116000,0.066],[242000,0.076],[Infinity,0.0875]] },
+        VA: { label: 'Virginia',       credit: 8500,  brackets: [[3000,0.02],[5000,0.03],[17000,0.05],[Infinity,0.0575]] },
+        WA: { label: 'Washington (no income tax)',    credit: 0, brackets: [[Infinity, 0]] },
+        WV: { label: 'West Virginia',  credit: 2000,  brackets: [[10000,0.0236],[25000,0.0315],[40000,0.0354],[60000,0.0472],[Infinity,0.0512]] },
+        WI: { label: 'Wisconsin',      credit: 13230, brackets: [[14320,0.035],[28640,0.044],[315310,0.053],[Infinity,0.0765]] },
+        WY: { label: 'Wyoming (no income tax)',       credit: 0, brackets: [[Infinity, 0]] }
       }
     },
     FLAT: {
@@ -2047,6 +2546,7 @@ body.st-on { overflow: hidden; }
     var homeValue = 0, mortgage = 0, mortgagePaymentFixed = 0, owned = false;
     var bizFailed = false, bizFailedAge = null;
     var cumEarnings = 0, cumTax = 0, cumHours = 0, cumInvested = 0, cumEduSpend = 0, cumInterest = 0;
+    var cumInvestReturns = 0;
     var debtFreeAge = null, firstPositiveNetWorthAge = null, freedomAge = null, freedomSaleAge = null;
     var everBorrowed = false;
     var peakBizValue = 0;
@@ -2292,10 +2792,14 @@ body.st-on { overflow: hidden; }
         cash -= payDown; consumerDebt -= payDown;
       }
 
-      /* Compound. Mid-year convention on the year's contribution. */
+      /* Compound. Mid-year convention on the year's contribution. The
+         return credited this year is kept separately so the story can
+         say how much of the balance was earned rather than deposited. */
+      var investReturn = investments * ret + (contrib + pension) * ret / 2;
       investments = investments * (1 + ret) + (contrib + pension) * (1 + ret / 2);
       cash = cash * (1 + Math.min(infl, 0.03));
       cumInvested += contrib + pension;
+      cumInvestReturns += investReturn;
 
       /* ---------- 7. balance sheet ---------- */
       var homeEquity = owned ? Math.max(0, homeValue - mortgage) : 0;
@@ -2359,6 +2863,7 @@ body.st-on { overflow: hidden; }
         studentPayment: studentPayment, studentInterest: studentInterest,
         mortgagePayment: mortgagePayment,
         investable: investableRaw, contribution: contrib + pension,
+        investReturn: investReturn, cumInvestReturns: cumInvestReturns,
 
         investments: investments, cash: cash, registered: registered,
         homeValue: owned ? homeValue : 0, mortgage: mortgage, homeEquity: homeEquity,
@@ -2402,6 +2907,8 @@ body.st-on { overflow: hidden; }
         studentLivingDebt: studentLivingDebt,
         peakStudentDebt: Math.max.apply(null, rows.map(function (r) { return r.studentDebt; })),
         investments: last.investments,
+        invested: last.cumInvested,
+        investmentGrowth: last.cumInvestReturns,
         cash: last.cash,
         homeEquity: last.homeEquity,
         businessEquity: last.businessEquity,
@@ -3106,9 +3613,15 @@ body.st-on { overflow: hidden; }
       svg.appendChild(el('text', { x: pad.left + iw / 2, y: h - 4, class: 'axis-title', 'text-anchor': 'middle' }, opts.xTitle));
     }
 
+    /* A reveal shows the story up to one age and animates only the
+       stretch since the last slide, so a chart can be walked through in
+       stages without the frame or the scales jumping between them. */
+    var rv = opts.reveal || null;
+
     /* Marker lines - business start, the crossover, whatever matters. */
     (opts.markers || []).forEach(function (mk, mi) {
       if (mk.x < xMin || mk.x > xMax) { return; }
+      if (rv && mk.x > rv.to) { return; }
       svg.appendChild(el('line', { x1: X(mk.x), x2: X(mk.x), y1: pad.top, y2: pad.top + ih, class: 'marker-line' }));
       /* Stack the captions on separate rows. Two markers a few years
          apart otherwise print straight over each other. */
@@ -3118,32 +3631,54 @@ body.st-on { overflow: hidden; }
       }, mk.label));
     });
 
+    var lastEnds = [];
     series.forEach(function (s, si) {
-      var d = s.points.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      var pts = rv ? s.points.filter(function (p) { return p.x <= rv.to; }) : s.points;
+      if (!pts.length) { return; }
+      var seg = function (list) {
+        return list.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      };
+      /* --i staggers the second series behind the first; pathLength=1
+         lets the CSS draw-on run in path units whatever the length. */
+      var stagger = '--i:' + si;
       if (opts.area) {
         svg.appendChild(el('path', {
-          d: d + ' L' + X(s.points[s.points.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(s.points[0].x) + ' ' + Y(ys.lo) + ' Z',
-          fill: s.color, opacity: 0.10, stroke: 'none'
+          d: seg(pts) + ' L' + X(pts[pts.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(pts[0].x) + ' ' + Y(ys.lo) + ' Z',
+          fill: s.color, opacity: 0.10, stroke: 'none', class: 'series-area', style: stagger
         }));
       }
-      svg.appendChild(el('path', { d: d, fill: 'none', stroke: s.color, 'stroke-width': 2.5,
-        'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'series-line' }));
+      /* Already-told years sit still; only the new stretch draws on. */
+      var k = -1;
+      if (rv && rv.from != null) {
+        for (var pi = 0; pi < pts.length; pi++) { if (pts[pi].x <= rv.from) { k = pi; } }
+      }
+      var lineAttrs = { fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      if (k > 0) {
+        svg.appendChild(el('path', Object.assign({ d: seg(pts.slice(0, k + 1)), class: 'series-line series-static' }, lineAttrs)));
+      }
+      var live = k > 0 ? pts.slice(k) : pts;
+      if (live.length > 1) {
+        svg.appendChild(el('path', Object.assign({ d: seg(live), class: 'series-line', pathLength: 1, style: stagger }, lineAttrs)));
+      }
 
       /* Direct label at the end of the line: identity without a
          legend lookup, which is what makes it readable on video. */
-      var lastPt = s.points[s.points.length - 1];
+      var lastPt = pts[pts.length - 1];
+      lastEnds[si] = lastPt;
       var ly = Y(lastPt.y);
       /* Each end label is two lines - a name and a value - so they need a
          full label's height between them, not a few pixels. */
       var gap = opts.endLabelGap || 32;
-      if (si === 1 && series[0].points.length) {
-        var other = Y(series[0].points[series[0].points.length - 1].y);
+      if (si === 1 && lastEnds[0]) {
+        var other = Y(lastEnds[0].y);
         if (Math.abs(ly - other) < gap) { ly = other + (ly >= other ? gap : -gap); }
       }
       ly = Math.max(pad.top + 12, Math.min(pad.top + ih - 6, ly));
       svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
-        stroke: 'var(--surface-1)', 'stroke-width': 2 }));
-      var g = el('g', { class: 'end-label' });
+        class: 'end-halo', style: stagger }));
+      svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
+        stroke: 'var(--surface-1)', 'stroke-width': 2, class: 'end-dot', style: stagger }));
+      var g = el('g', { class: 'end-label', style: stagger });
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly - 2, class: 'end-name', fill: s.color }, s.name));
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly + 12, class: 'end-value' }, fmt(lastPt.y)));
       svg.appendChild(g);
@@ -3232,7 +3767,8 @@ body.st-on { overflow: hidden; }
         /* 2px surface gap between the pair, per the mark spec. */
         var x = cx + side * 1 + (side < 0 ? -barW : 0);
         var y = Math.min(Y(v), Y(0)), bh = Math.abs(Y(v) - Y(0));
-        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4 });
+        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4,
+          class: 'bar', style: '--i:' + i });
         r.appendChild(el('title', null, c.label + ': ' + fmt(v)));
         svg.appendChild(r);
       });
@@ -3273,10 +3809,12 @@ body.st-on { overflow: hidden; }
     [['a', opts.colorA], ['b', opts.colorB]].forEach(function (pair) {
       var key = pair[0], colour = pair[1];
       var d = axes.map(function (ax, i) { var p = pt(i, ax[key]); return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ') + ' Z';
-      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+        class: 'radar-shape', style: '--i:' + (key === 'a' ? 0 : 1) + ';transform-origin:' + cx + 'px ' + cy + 'px' }));
       axes.forEach(function (ax, i) {
         var p = pt(i, ax[key]);
-        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5 });
+        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5,
+          class: 'radar-dot', style: '--i:' + (i + (key === 'a' ? 0 : n)) });
         c.appendChild(el('title', null, ax.label + ': ' + ax[key] + '/10'));
         svg.appendChild(c);
       });
@@ -3299,11 +3837,13 @@ body.st-on { overflow: hidden; }
       var y = 8 + i * rowH;
       svg.appendChild(el('text', { x: 0, y: y + 15, class: 'bar-label' }, r.label));
       svg.appendChild(el('rect', { x: labelW, y: y + 3, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA }));
+      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA,
+        class: 'score-fill', style: '--i:' + i }));
       svg.appendChild(el('rect', { x: labelW, y: y + 16, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB }));
-      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA }, r.a));
-      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB }, r.b));
+      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB,
+        class: 'score-fill', style: '--i:' + i }));
+      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA, style: '--i:' + i }, r.a));
+      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB, style: '--i:' + i }, r.b));
     });
     return svg;
   }
@@ -3323,20 +3863,21 @@ body.st-on { overflow: hidden; }
     cols.forEach(function (c, ci) {
       var y = 14 + ci * (barH + gap);
       svg.appendChild(el('text', { x: 0, y: y + barH / 2 + 5, class: 'bar-label' }, c.name));
-      var x = left;
+      var x = left, pi = 0;
       c.parts.forEach(function (p) {
         if (p.value <= 0) { return; }
         var pw = p.value / maxTotal * trackW;
-        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3 });
+        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3,
+          class: 'stack-part', style: '--i:' + (pi + ci * 4) });
         r.appendChild(el('title', null, p.label + ': ' + fmtMoney(p.value)));
         svg.appendChild(r);
         if (pw > 54) {
           svg.appendChild(el('text', { x: x + pw / 2 - 1, y: y + barH / 2 + 4, class: 'stack-label',
-            fill: p.ink || '#fff', 'text-anchor': 'middle' }, fmtMoney(p.value)));
+            fill: p.ink || '#fff', 'text-anchor': 'middle', style: '--i:' + (pi + ci * 4) }, fmtMoney(p.value)));
         }
-        x += pw;
+        x += pw; pi++;
       });
-      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total' }, fmtMoney(opts.totals[ci])));
+      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total', style: '--i:' + (pi + ci * 4) }, fmtMoney(opts.totals[ci])));
     });
     return svg;
   }
@@ -3623,7 +4164,8 @@ body.st-on { overflow: hidden; }
   /* ---------------------------------------------------------------
      YOUTUBE PACK (spec s.25)
      --------------------------------------------------------------- */
-  function youtube(sim, scores) {
+  function youtube(sim, scores, seed) {
+    var pk = makePicker(seed || 0, 'yt');
     var a = sim.a, b = sim.b, cfg = sim.cfg;
     var A = a.name, B = b.name;
     var endAge = cfg.startAge + cfg.years;
@@ -3649,15 +4191,38 @@ body.st-on { overflow: hidden; }
       'RICHER AT ' + endAge
     ];
 
+    var peakDebt = say(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt));
+    var waitedWins = winner === hs.laggard;
     var hook = hs.years > 0
-      ? 'One of them starts earning at ' + cfg.startAge + '. The other spends ' + hs.years +
-        ' years in school first and comes out owing ' + moneyShort(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt)) +
-        '. But ' + (winner === hs.laggard ? 'the one who waited ends up ahead anyway' :
-        'twenty years later the one who waited is still behind') + '. So which decision actually paid? ' +
-        "We're running both of them through the Blue Collar Business " + cfg.years + '-Year Test.'
-      : 'Two people, same age, same starting line - one stays an employee, one builds a business. ' +
-        cfg.years + ' years later the gap between them is ' + moneyShort(gap) +
-        ". We're running both through the Blue Collar Business " + cfg.years + '-Year Test.';
+      ? pk(
+          'One of them starts earning at ' + cfg.startAge + '. The other spends ' + hs.years +
+            ' years in school first and comes out owing ' + peakDebt + '. ' +
+            (waitedWins ? 'And the one who waited ends up ahead anyway.' : 'And ' + cfg.years + ' years later, the one who waited is still behind.') +
+            ' So which choice actually paid? We\'re running both of them through the Blue Collar Business ' +
+            cfg.years + '-Year Test.',
+          'Here\'s a question I get asked a lot. Is it smarter to spend ' + hs.years +
+            ' years in school and come out as ' + hs.laggard + '? Or start earning at ' + cfg.startAge +
+            ' as ' + hs.leader + '? Everyone has an opinion. Almost nobody has done the math. ' +
+            'So I did the math. ' + cfg.years + ' years. Both careers. Everything counted.',
+          hs.leader + ' and ' + hs.laggard + ' both start at ' + cfg.startAge +
+            '. One of them is earning by next week. The other is ' + hs.years + ' years and ' + peakDebt +
+            ' of debt away from a first real paycheque. ' +
+            (waitedWins ? 'And the one who waited still wins. Or do they?' : 'And here\'s the thing. The head start never gets caught.') +
+            ' Let\'s run it.',
+          'I want to show you something that changed how I think about careers. Not salaries. Anyone can look up a salary. ' +
+            'What a career actually leaves you with after ' + cfg.years + ' years. Today it\'s ' + A + ' against ' + B +
+            '. And I think the answer is going to surprise some of you.'
+        )
+      : pk(
+          'Two people. Same age. Same starting line. One stays an employee, one builds a business. ' +
+            cfg.years + ' years later, the gap between them is ' + say(gap) +
+            '. We\'re running both through the Blue Collar Business ' + cfg.years + '-Year Test.',
+          'Same trade. Same start date. Same wages for the first few years. The only difference is that one of them ' +
+            'starts a company and the other one doesn\'t. ' + cfg.years + ' years on, they\'re ' + say(gap) +
+            ' apart. Let me show you where that gap comes from.',
+          'What\'s a business actually worth to the person who builds it? Not in theory. In dollars, after ' +
+            cfg.years + ' years, against the exact same career as an employee. That\'s today\'s test.'
+        );
 
     var findings = [];
     if (hs.years > 0) {
@@ -3696,22 +4261,62 @@ body.st-on { overflow: hidden; }
     findings.push('Education costs ' + moneyShort(a.totals.educationTotalCost) + ' against ' +
       moneyShort(b.totals.educationTotalCost) + ' once you count the interest.');
 
-    var verdict = winner + ' comes out ahead on this one - ' + moneyShort(wRes.totals.netWorth) + ' against ' +
-      moneyShort(lRes.totals.netWorth) + ' after ' + cfg.years + ' years. But read why before you take that as advice. ' +
-      (hs.years > 0 && winner === hs.leader
-        ? hs.leader + ' did not win on income - ' + (a.totals.careerEarnings > b.totals.careerEarnings ? A : B) +
-          ' out-earned them. They won on time: ' + hs.years + ' extra years of earning, no education debt, and ' +
-          'a business built while the other one was still in school. '
-        : winner + ' won on income and kept enough of it to matter. ') +
-      'Change the assumptions and you change the answer. ' + flipCondition(winner, loser, wRes, lRes) + ' ' +
-      'The point of the ' + cfg.years + '-Year Test is not to crown a trade. It is to show that the decision is ' +
-      'never just what the job pays - it is what you earn, what it cost to get in, what you kept, how many hours ' +
-      'it took, and whether you finished with an asset or just a good income. Learn the trade, build the business, ' +
-      'own the asset.';
+    var earnedMore = a.totals.careerEarnings > b.totals.careerEarnings ? A : B;
+    var wonOnTime = hs.years > 0 && winner === hs.leader;
+    var verdict = !winner
+      ? pk('This one is a draw. ' + say(a.totals.netWorth) + ' against ' + say(b.totals.netWorth) + ' after ' + cfg.years + ' years, which is the same number for our purposes. ',
+           'Dead heat. ' + A + ' and ' + B + ' land within a rounding error of each other. ') +
+        pk('Which means the money is not the deciding factor here. The hours, the stress, and whether you own anything at the end are. ',
+           'So the decision is not about the total. It comes down to the life around it: the hours, the wear, and what you own when you stop. ') +
+        flipCondition(A, B, a, b) + ' ' +
+        pk('Learn the trade. Build the business. Own the asset.',
+           'The ladder is the same either way. Learn the trade, build the business, own the asset.')
+      : pk(
+        winner + ' comes out ahead on this one. ' + say(wRes.totals.netWorth) + ' against ' +
+          say(lRes.totals.netWorth) + ' after ' + cfg.years + ' years. But hear the why before you take that as advice. ',
+        'So. ' + winner + ' wins. ' + say(wRes.totals.netWorth) + ' to ' + say(lRes.totals.netWorth) +
+          '. Before anyone runs off and quits their job, let me tell you why. The why matters more than the number. ',
+        'The scoreboard says ' + winner + ', by about ' + say(gap) + '. That\'s the headline. ' +
+          'Here\'s the part the headline leaves out. '
+      ) +
+      (wonOnTime
+        ? pk(
+            hs.leader + ' did not win on income. ' + earnedMore + ' out-earned them. ' + hs.leader + ' won on time. ' + hs.years +
+              ' extra years of earning. No student debt. And a business built while the other one was still in school. ',
+            hs.leader + ' never had the bigger paycheque. ' + earnedMore + ' earned more, and it wasn\'t close. ' +
+              'What ' + hs.leader + ' had was ' + hs.years + ' years. ' + hs.years + ' years of wages. No student loan. ' +
+              'And a business already running by the time the other one graduated. ',
+            'This wasn\'t a salary win. It was a calendar win. ' + hs.leader + ' started ' + hs.years + ' years earlier. ' +
+              'In this model, that head start is worth more than ' + earnedMore + '\'s higher pay ever catches up to. '
+          )
+        : pk(
+            winner + ' won on income and kept enough of it to matter. ',
+            winner + ' simply earned more and hung on to enough of it. Sometimes it really is that straightforward. ',
+            'This one, ' + winner + ' earned the win the boring way - more money in, enough of it kept. '
+          )) +
+      pk(
+        'Change the assumptions and you change the answer. ',
+        'And I want to be honest with you. Move a couple of the inputs and this flips. ',
+        'Now. None of this is carved in stone. '
+      ) +
+      flipCondition(winner, loser, wRes, lRes) + ' ' +
+      pk(
+        'The point of the ' + cfg.years + '-Year Test is not to crown a trade. It\'s to show that the decision is ' +
+          'never just what the job pays. It\'s what you earn, what it cost to get in, what you kept, how many hours ' +
+          'it took, and whether you finish with an asset or just a good income. Learn the trade. Build the business. Own the asset.',
+        'I don\'t run these to crown a winner. I run them because "what does it pay" is the wrong question, and almost everyone ' +
+          'asks it. The right questions are: what did it cost to get in? What did you keep? What did it take out of your week? ' +
+          'And do you own anything at the end? Learn the trade. Build the business. Own the asset.',
+        'That\'s the whole idea behind this channel. A job is what you do. A business is what you build. An asset is what ' +
+          'you own when you stop. Pick the career that gets you to the third one. Learn the trade, build the business, own the asset.'
+      );
 
+    var names = [A, B];
     return {
-      titles: titles, thumbnails: thumbs, hook: hook,
-      findings: findings.slice(0, 10), verdict: verdict
+      titles: titles, thumbnails: thumbs,
+      hook: humanise(hook, names),
+      findings: findings.slice(0, 10).map(function (f) { return humanise(f, names); }),
+      verdict: humanise(verdict, names)
     };
   }
 
@@ -3724,12 +4329,12 @@ body.st-on { overflow: hidden; }
     if (!lRes.isOwner) {
       bits.push('If ' + loser + ' builds a business instead of staying employed, this flips.');
     } else if (lRes.totals.businessEquity < wRes.totals.businessEquity) {
-      bits.push('If ' + loser + " grows the business harder - or buys a second location instead of one - the gap closes fast.");
+      bits.push('If ' + loser + ' grows the business harder, or opens a second location, the gap closes fast.');
     } else {
       bits.push('If ' + loser + ' can get the business off their own back so it keeps earning without them, this flips.');
     }
     if (wRes.isOwner) {
-      bits.push('If ' + winner + "'s business never gets past being a one-truck operation, it flips harder the other way.");
+      bits.push('If ' + winner + "'s business never grows past a one-person operation, it flips harder the other way.");
     } else {
       bits.push('And if ' + winner + ' never gets the raises this assumes, it narrows just as quickly.');
     }
@@ -3762,6 +4367,61 @@ body.st-on { overflow: hidden; }
 
 
   /* ---------------------------------------------------------------
+     WORDING VARIANTS
+     Every line of the script has two to four genuinely different
+     phrasings - different rhythm and structure, not swapped synonyms.
+     A seeded pick keeps a comparison stable across reloads, and
+     "reshuffle" bumps the seed so the whole episode re-rolls. The
+     point is that no two episodes open the same way, and none of them
+     read like a form letter.
+     --------------------------------------------------------------- */
+  function hash(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  /* People say "the plumber", not "Plumber". Career names arrive as
+     labels - "Plumber", "Accountant (CPA)", "Plumber (employee)" - and
+     in spoken prose they need an article, lower case, and the bracket
+     turned into words. Done once here, on the finished sentence, so the
+     seventy lines that mention a name do not each have to remember. */
+  function spokenForm(name) {
+    var m = name.match(/^(.*?)\s*\((.*?)\)\s*$/);
+    var base = m ? m[1] : name;
+    var tag = m ? m[2].toLowerCase() : '';
+    /* Keep initialisms; lower-case ordinary words. */
+    var words = base.split(' ').map(function (w) {
+      return /^[A-Z]{2,}$/.test(w.replace(/[^A-Za-z]/g, '')) ? w : w.toLowerCase();
+    }).join(' ');
+    if (tag === 'employee' || tag === 'owner') { return 'the ' + words + ' as an ' + tag; }
+    return 'the ' + words;
+  }
+  function humanise(text, names) {
+    if (!text) { return text; }
+    names.forEach(function (n) {
+      if (!n) { return; }
+      var spoken = spokenForm(n);
+      var Spoken = spoken.charAt(0).toUpperCase() + spoken.slice(1);
+      var escd = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      /* Sentence start gets a capital; anywhere else, lower case.
+         A trailing possessive rides along either way. */
+      text = text.replace(new RegExp('(^|[.!?]\\s+|:\\s+)' + escd + '(?!\\w)', 'g'), function (_, pre) { return pre + Spoken; });
+      text = text.replace(new RegExp('(^|[^\\w])' + escd + '(?!\\w)', 'g'), function (_, pre) { return pre + spoken; });
+    });
+    return text;
+  }
+
+  function makePicker(seed, scope) {
+    var n = 0;
+    return function pick() {
+      var opts = Array.prototype.slice.call(arguments);
+      if (opts.length === 1 && Array.isArray(opts[0])) { opts = opts[0]; }
+      var i = hash(scope + '|' + seed + '|' + (n++)) % opts.length;
+      return opts[i];
+    };
+  }
+
+  /* ---------------------------------------------------------------
      EPISODE SCRIPT
      The comparison, broken into beats you can narrate one at a time.
      Numbers are rounded to something a person can actually say out
@@ -3783,150 +4443,467 @@ body.st-on { overflow: hidden; }
     return Math.max(8, Math.round(words / 2.58) + 2);
   }
 
-  function episodeScript(sim, scores) {
+  /* Break a paragraph into prompter lines, one sentence each, so the
+     live-line highlight has something to follow. */
+  function sentences(text) {
+    var parts = String(text || '').replace(/([.!?])\s+(?=["$A-Z0-9])/g, '$1\n').split('\n')
+      .map(function (l) { return l.trim(); }).filter(Boolean);
+    /* A two-word sentence ("So.") is a pause, not a line: it rides with
+       the sentence after it, and a line stays under about fourteen words
+       so it fits the prompter column in one or two rows. */
+    var out = [];
+    parts.forEach(function (p) {
+      var last = out[out.length - 1];
+      var words = function (t) { return t.split(/\s+/).length; };
+      if (last && (words(last) < 5 || (words(p) < 5 && words(last) + words(p) <= 14))) { out[out.length - 1] = last + ' ' + p; }
+      else { out.push(p); }
+    });
+    return out;
+  }
+
+  function episodeScript(sim, scores, seed) {
+    var pk = makePicker(seed || 0, 'ep');
     var a = sim.a, b = sim.b, cfg = sim.cfg;
     var A = a.name, B = b.name;
     var endAge = cfg.startAge + cfg.years;
     var hs = sim.headStart;
-    var yt = youtube(sim, scores);
+    var yt = youtube(sim, scores, seed);
     var winner = scores.netWorthWinner;
-    var loser = winner === A ? B : A;
-    var wRes = winner === A ? a : b;
-    var lRes = winner === A ? b : a;
     var gap = Math.abs(a.totals.netWorth - b.totals.netWorth);
     var earnMore = a.totals.careerEarnings > b.totals.careerEarnings ? a : b;
+    var earnGap = Math.abs(a.totals.careerEarnings - b.totals.careerEarnings);
     var depA = scores.a.ownerDependency, depB = scores.b.ownerDependency;
+    var peakDebt = Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt);
+    var where = cfg.country === 'US' ? 'state' : (cfg.country === 'CA' ? 'province' : 'place');
+    var years = cfg.years;
+    /* Hours are easier to feel per week than per career. */
+    function perWeek(res) { return Math.round(res.totals.hours / (years * 50)); }
+    function thousands(res) { return Math.round(res.totals.hours / 1000) + ' thousand'; }
 
     var beats = [];
-    function beat(id, kind, title, kicker, lines) {
-      beats.push({ id: id, kind: kind, title: title, kicker: kicker, lines: lines,
-                   seconds: beatSeconds(lines) });
+    var names = [A, B];
+    function beat(id, kind, title, kicker, lines, extra) {
+      lines = [].concat.apply([], lines.filter(Boolean).map(function (l) { return Array.isArray(l) ? l : [l]; }))
+        .map(function (l) { return humanise(l, names); });
+      beats.push(Object.assign({ id: id, kind: kind, title: title, kicker: kicker, lines: lines, seconds: beatSeconds(lines) }, extra || {}));
+    }
+    function rowAt(res, age) {
+      var hit = null;
+      res.rows.forEach(function (r) { if (r.age <= age) { hit = r; } });
+      return hit || res.rows[0];
+    }
+    function schoolEnds(res) {
+      for (var i = 0; i < res.rows.length; i++) { if (!res.rows[i].inSchool) { return res.rows[i].age; } }
+      return null;
+    }
+    /* One career's pay over a stretch of years, said the way a person
+       would: what it was, what it became, and what happened in between. */
+    function payStory(res, from, to) {
+      var r0 = rowAt(res, from), r1 = rowAt(res, to);
+      var ends = schoolEnds(res);
+      var startedBiz = res.milestones.businessStartAge && res.milestones.businessStartAge > from && res.milestones.businessStartAge <= to;
+      /* An apprentice is "in school" on the schedule and on a full wage
+         at the same time. That is a different story from a student. */
+      var paidTraining = r0.inSchool && r0.personalIncome >= 30000;
+      if (paidTraining && r1.inSchool) {
+        return pk(res.name + ' is learning on the job. Paid from day one: ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  'For ' + res.name + ', training is a paycheque. ' + say(r0.personalIncome) + ' in year one, ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  res.name + ' earns while learning. ' + say(r0.personalIncome) + ' to start, ' + say(r1.personalIncome) + ' by ' + to + '.');
+      }
+      if (paidTraining && !r1.inSchool) {
+        return pk(res.name + ' is paid right through training, and finishes it at ' + ends + '. By ' + to + ', ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' earns all the way through the apprenticeship, from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year by ' + to + '. Fully qualified at ' + ends + '.',
+                  'No unpaid years for ' + res.name + '. ' + say(r0.personalIncome) + ' as a first-year, ' + say(r1.personalIncome) + ' by ' + to + ', qualified at ' + ends + '.');
+      }
+      if (r0.inSchool && r1.inSchool) {
+        return pk(res.name + ' is in school this whole stretch, earning about ' + say(r1.personalIncome) + ' a year on the side.',
+                  'For ' + res.name + ', these are school years. Part-time money, roughly ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' is still studying. Call it ' + say(r1.personalIncome) + ' a year from part-time work.');
+      }
+      if (r0.inSchool && !r1.inSchool) {
+        return pk(res.name + ' finishes school at ' + ends + ' and is earning ' + say(r1.personalIncome) + ' by ' + to + '.',
+                  'At ' + ends + ', ' + res.name + ' is done with school. By ' + to + ' the pay is ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ' gets out of school at ' + ends + '. First real paycheques. ' + say(r1.personalIncome) + ' a year by ' + to + '.');
+      }
+      if (startedBiz) {
+        return pk(res.name + ' goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year. The business starts at ' + res.milestones.businessStartAge + ', and you can see it in the line.',
+                  'This is where ' + res.name + ' starts the business, at ' + res.milestones.businessStartAge + '. Pay goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year.',
+                  res.name + ': ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' at ' + to + '. The bend in the line is the business opening at ' + res.milestones.businessStartAge + '.');
+      }
+      return pk(res.name + ' goes from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + ' a year.',
+                res.name + ': ' + say(r0.personalIncome) + ' at ' + from + ', ' + say(r1.personalIncome) + ' by ' + to + '.',
+                'For ' + res.name + ', pay climbs from ' + say(r0.personalIncome) + ' to ' + say(r1.personalIncome) + '.');
+    }
+    function peakPay(res) {
+      var best = res.rows[0];
+      res.rows.forEach(function (r) { if (r.personalIncome > best.personalIncome) { best = r; } });
+      return best;
     }
 
-    beat('open', 'title', A + ' vs ' + B,
-      'The ' + cfg.years + '-Year Test',
-      [yt.hook,
-       'Same starting age. Same city. Same assumptions about tax, inflation and returns.',
-       'The only thing that changes is the career decision.']);
+    /* ---- intro: who we are, who is on the block ---- */
+    beat('brand', 'brand', 'Blue Collar Business',
+      'Learn the trade. Build the business. Own the asset.',
+      [pk('Welcome to Blue Collar Business.',
+          'Hey. Welcome back to Blue Collar Business.',
+          'This is Blue Collar Business. If you\'re new here, here\'s the whole idea in one breath.'),
+       pk('This channel runs on one idea. A trade isn\'t the ceiling. It\'s the front door. You learn the trade, you build a business on it, and one day you own something that pays you whether you show up or not.',
+          'Everything here comes back to one thing. A trade is a starting line, not a finish line. Learn it. Build a business on it. End up owning something that earns while you sleep.',
+          'Simple ladder. Learn the trade. Build the business. Own the asset. Most people stop on the first rung and never find out what the other two pay.'),
+       pk('And the way we test that is the ' + years + '-Year Test. Two careers. Same starting age. Side by side for ' + years + ' years. And we count everything, not just the paycheque. What it cost to get in, what you kept, how many hours it took, and whether you end up owning anything.',
+          'To check it, we run the ' + years + '-Year Test. Take two careers, start them at the same age, and follow both for ' + years + ' years. Not just the pay. The debt, the tax, the hours, and whether there\'s a business at the end.',
+          'So we built a test. Two careers. Same age. ' + years + ' years. And we don\'t stop at salary, because salary is honestly the least interesting number in here. We count the debt, the tax, the hours, and what you actually own at the end.'),
+       pk('Today: ' + A + ' against ' + B + '.',
+          'Today it\'s ' + A + ' versus ' + B + '. Let\'s go.',
+          'On the block today, ' + A + ' and ' + B + '.')]);
 
-    beat('setup', 'setup', 'The setup', 'What we are holding constant',
-      ['Both of them start at ' + cfg.startAge + '. We run it for ' + cfg.years + ' years, to age ' + endAge + '.',
-       'Same province, same tax model, same inflation, same investment return, same house.',
-       'That is deliberate. If I let the house or the market differ between them, I would be measuring something other than the career.']);
+    /* ---- the hook ---- */
+    beat('open', 'title', A + ' vs ' + B, 'The ' + years + '-Year Test',
+      [sentences(yt.hook),
+       pk('Same starting age. Same town. Same tax, same inflation, same market.',
+          'Same age, same town, same tax rules, same boring market returns. I\'ve held all of that still on purpose.',
+          'Everything that isn\'t the career is identical. Same age. Same town. Same tax. Same luck.'),
+       pk('The only thing that changes is the career.',
+          'One thing changes. The career. That\'s it.',
+          'So whatever gap shows up at the end, the career did that.')]);
 
+    /* ---- what we hold constant ---- */
+    beat('setup', 'setup', 'The setup', 'What we\'re holding constant',
+      [pk('Both of them start at ' + cfg.startAge + '. We follow them for ' + years + ' years, to age ' + endAge + '.',
+          'Two people, both ' + cfg.startAge + ' years old. We follow them to ' + endAge + '.',
+          'Start at ' + cfg.startAge + '. Finish at ' + endAge + '. ' + years + ' years, start to finish.'),
+       pk('Same ' + where + ', same tax, same inflation, same investment returns. And the same house.',
+          'They live in the same ' + where + '. They pay the same tax. Their investments grow at the same rate. And, this matters, they buy the same house.',
+          'Same tax. Same inflation. Same returns. Same house. I\'m not testing luck, I\'m testing the career.'),
+       pk('That\'s on purpose. If I let the house or the market differ, I\'d be measuring something other than the career.',
+          'If I let any of that move, I\'d be comparing two lives, not two careers. So it all stays put.',
+          'The moment one of them gets a cheaper house or a luckier decade, the comparison is worthless. So they don\'t.')]);
+
+    /* ---- head start ---- */
     if (hs.years > 0) {
       beat('headstart', 'headstart', 'The head start', hs.leader + ' banks ' + say(hs.total),
-        ['Here is the part almost nobody puts a number on.',
-         hs.leader + ' is earning a full wage for ' + hs.years + ' years before ' + hs.laggard + ' earns a professional income at all.',
-         'In that window ' + hs.leader + ' takes home about ' + say(hs.incomeEarned) + ' and has roughly ' + say(hs.investmentsAccumulated) + ' banked and invested.',
+        [pk('Here\'s the part almost nobody puts a number on.',
+            'This is the slide I built the whole test around.',
+            'Okay. This is the one people underestimate.'),
+         pk(hs.leader + ' is earning a full wage for ' + hs.years + ' years before ' + hs.laggard + ' earns a real paycheque.',
+            'For ' + hs.years + ' straight years, ' + hs.leader + ' is getting paid and ' + hs.laggard + ' is paying tuition.',
+            'While ' + hs.laggard + ' is in class, ' + hs.leader + ' is on the clock. For ' + hs.years + ' years.'),
+         pk('In that window, ' + hs.leader + ' takes home about ' + say(hs.incomeEarned) + '. And roughly ' + say(hs.investmentsAccumulated) + ' of it is saved and invested.',
+            'Add it up and ' + hs.leader + ' earns around ' + say(hs.incomeEarned) + ' in that time. Something like ' + say(hs.investmentsAccumulated) + ' of that is actually sitting in the bank.',
+            say(hs.incomeEarned) + ' earned. ' + say(hs.investmentsAccumulated) + ' kept and invested. All before the other one has a job.'),
          hs.debtAvoided > 1000
-           ? 'And they avoid about ' + say(hs.debtAvoided) + ' of education debt that the other one is carrying.'
-           : 'And they do it without borrowing to get there.',
-         'Call it ' + say(hs.total) + ' of head start before the other career even starts.']);
+           ? pk('And no student loan. ' + hs.laggard + ' is carrying about ' + say(hs.debtAvoided) + ' that ' + hs.leader + ' never borrowed.',
+                'Meanwhile ' + hs.laggard + ' owes roughly ' + say(hs.debtAvoided) + '. ' + hs.leader + ' owes nothing.',
+                'Oh, and there\'s no loan. ' + hs.laggard + ' is ' + say(hs.debtAvoided) + ' in the hole by comparison.')
+           : pk('And they do it without borrowing to get there.', 'No debt to get there, either.'),
+         pk('Call it ' + say(hs.total) + ' of head start before the other career even begins.',
+            'All in, that\'s about ' + say(hs.total) + ' of head start. Before the race even starts.',
+            'Put a number on it: ' + say(hs.total) + '. That\'s the gap on day one of ' + hs.laggard + '\'s career.')]);
     }
 
+    /* ---- education ---- */
     beat('education', 'education', 'What the education cost', 'Including the interest',
-      ['Education is not just tuition. It is tuition, plus the years you were not earning, plus the interest on what you borrowed.',
-       'All in, that is ' + say(a.totals.educationTotalCost) + ' for ' + A + ' and ' + say(b.totals.educationTotalCost) + ' for ' + B + '.',
-       (Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt) > 5000
-         ? 'Peak debt hits ' + say(Math.max(a.totals.peakStudentDebt, b.totals.peakStudentDebt)) + '. That balance is growing the whole time it is waiting to be paid.'
-         : 'Neither of them takes on serious debt to get qualified.')]);
+      [pk('Education isn\'t just tuition. It\'s tuition, plus the years you weren\'t earning, plus the interest on what you borrowed.',
+          'People think school costs whatever the tuition is. It doesn\'t. The real price tag has three parts. Tuition. The years you weren\'t earning. And the interest.',
+          'Tuition is the sticker price. The real price is tuition, plus lost years, plus interest. And it\'s a lot bigger.'),
+       pk('All in, that\'s ' + say(a.totals.educationTotalCost) + ' for ' + A + ' and ' + say(b.totals.educationTotalCost) + ' for ' + B + '.',
+          'For ' + A + ', the whole thing comes to about ' + say(a.totals.educationTotalCost) + '. For ' + B + ', ' + say(b.totals.educationTotalCost) + '.',
+          say(a.totals.educationTotalCost) + ' versus ' + say(b.totals.educationTotalCost) + '. ' + A + ' first, ' + B + ' second.'),
+       peakDebt > 5000
+         ? pk('The debt peaks at ' + say(peakDebt) + '. And it\'s growing the whole time it\'s waiting to be paid.',
+              'At the worst point the loan is ' + say(peakDebt) + '. And it\'s charging interest while they\'re still in class.',
+              'The loan tops out at ' + say(peakDebt) + '. Interest doesn\'t wait for graduation.')
+         : pk('Neither of them borrows much to get qualified.', 'No real debt on either side here. Rarer than it should be.')]);
 
-    beat('earnings', 'chart:personalIncome', 'What they actually earn', 'Year by year',
-      ['Now watch the income.',
-       earnMore.name + ' out-earns the other one over the ' + cfg.years + ' years, by about ' +
-         say(Math.abs(a.totals.careerEarnings - b.totals.careerEarnings)) + ' in gross pay.',
-       'Hold on to that, because gross pay is the number everybody quotes and it is not the number that decides this.']);
+    /* ---- earnings, told in stages ----
+       The same chart three times, each slide drawing on the next
+       stretch of years, so the pay is a story with a shape rather than
+       one line that appears finished. */
+    var S = cfg.startAge;
+    var stops = years > 12 ? [S + 5, S + 10] : [S + Math.round(years / 2)];
+    var stageNames = years > 12
+      ? [['The first five years', 'Ages ' + S + ' to ' + (S + 5)], ['Years six to ten', 'Ages ' + (S + 5) + ' to ' + (S + 10)]]
+      : [['The first half', 'Ages ' + S + ' to ' + stops[0]]];
+    var prev = null;
+    stops.forEach(function (to, si) {
+      var from = prev == null ? S : prev;
+      beat('earnings' + (si + 1), 'chart:personalIncome', stageNames[si][0], stageNames[si][1],
+        [si === 0
+          ? pk('Let\'s take the pay in pieces, because the shape matters as much as the total.',
+               'Now the paycheque. I want to show you how it builds, not just where it ends up.',
+               'Here\'s the income, and we\'ll walk it in stages. Watch the shape.')
+          : pk('Next stretch.', 'Now the next ' + (to - from) + ' years.', 'Keep watching the lines.'),
+         payStory(a, from, to),
+         payStory(b, from, to),
+         si === 0
+           ? pk('Early on, the gap is mostly about who is working at all.',
+                'This first stretch is not about talent. It\'s about who has a job.',
+                'Nothing clever yet. One of them is earning and one of them is getting ready to.')
+           : pk('This is where the careers start to look like themselves.',
+                'By now, each of them is doing the job they trained for. The lines start to tell the truth.',
+                'These are the years where the choice starts to pay off, one way or the other.')],
+        { reveal: { from: from, to: to } });
+      prev = to;
+    });
+    var pkA = peakPay(a), pkB = peakPay(b);
+    beat('earnings', 'chart:personalIncome', 'What they actually earn', 'The full ' + years + ' years',
+      [pk('And here\'s the whole run.', 'Now the full picture.', 'Let the lines finish.'),
+       pk(A + ' peaks at ' + say(pkA.personalIncome) + ' a year, at age ' + pkA.age + '. ' + B + ' peaks at ' + say(pkB.personalIncome) + ', at ' + pkB.age + '.',
+          'Best year for ' + A + ': ' + say(pkA.personalIncome) + ', at ' + pkA.age + '. Best year for ' + B + ': ' + say(pkB.personalIncome) + ', at ' + pkB.age + '.',
+          'Top pay is ' + say(pkA.personalIncome) + ' for ' + A + ' and ' + say(pkB.personalIncome) + ' for ' + B + '.'),
+       pk(earnMore.name + ' out-earns the other one over the ' + years + ' years. By about ' + say(earnGap) + ', before tax.',
+          'Over ' + years + ' years, ' + earnMore.name + ' earns more. Roughly ' + say(earnGap) + ' more, before tax.',
+          earnMore.name + ' wins on pay. And not by a little. ' + say(earnGap) + ' over the period.'),
+       pk('Hold on to that number. It\'s the one everybody quotes, and it\'s not the one that decides this.',
+          'Remember that number. Everyone leads with it. It turns out not to be the one that matters.',
+          'That\'s the number in the job ad. Let\'s see how much of it survives contact with real life.')],
+      { reveal: { from: prev, to: S + years } });
+
+    /* ---- investing: the habit, then what compounding did with it ---- */
+    var inv = cfg.investing || {};
+    var ruleText = inv.mode === 'percent'
+      ? Math.round((inv.percent || 0) * 100) + ' percent of whatever is left'
+      : say(inv.fixedAmount || 0) + ' a year';
+    var retPct = (cfg.investReturn * 100).toFixed(1).replace(/\.0$/, '');
+    var dollarFull = Math.pow(1 + cfg.investReturn, years);
+    var halfYears = years - Math.round(years / 2);
+    var dollarHalf = Math.pow(1 + cfg.investReturn, halfYears);
+    var growA = a.totals.investmentGrowth, growB = b.totals.investmentGrowth;
+    var bigGrow = growA >= growB ? a : b;
+    beat('invest', 'invest', 'The investing habit', 'Pay yourself first',
+      [pk('Now, the part of this that people skip. Investing.',
+          'Here\'s the quiet part of the model. It matters more than almost anything on the pay slide.',
+          'Let\'s talk about the boring habit that ends up doing most of the work.'),
+       pk('Both of them follow the same rule. Pay the bills, and ' + ruleText + ' gets invested. Not spent. Invested.',
+          'Same rule for both. After living costs, ' + ruleText + ' goes into investments. Every single year.',
+          'The rule is simple. Cover the bills, and ' + ruleText + ' gets put away. Every year, no exceptions.'),
+       pk('Over the ' + years + ' years, ' + A + ' puts in about ' + say(a.totals.invested) + '. ' + B + ' puts in about ' + say(b.totals.invested) + '.',
+          'That adds up to ' + say(a.totals.invested) + ' from ' + A + ' and ' + say(b.totals.invested) + ' from ' + B + '.',
+          A + ' saves ' + say(a.totals.invested) + ' over the run. ' + B + ', ' + say(b.totals.invested) + '.'),
+       pk('That\'s money they never see. It goes out the day it comes in. Which is exactly why it works.',
+          'Nobody misses money they never had in their chequing account. That\'s the whole trick.',
+          'It\'s not a lot at a time. It\'s the every-year part that matters.')]);
+
+    beat('compound', 'compound', 'Money that makes money', 'Compound growth at ' + retPct + '%',
+      [pk('Here\'s why. The returns get reinvested, so next year you earn returns on the returns. Slowly at first. Then not slowly.',
+          'This is compound growth. Your money earns money, and then that money earns money. It feels like nothing for years. Then it doesn\'t.',
+          'Compounding is boring for a decade and then it isn\'t. The growth starts growing.'),
+       pk('At ' + retPct + ' percent a year, a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
+          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent it\'s ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
+          'A dollar at ' + S + ' becomes ' + '$' + dollarFull.toFixed(2) + '. A dollar at ' + (S + Math.round(years / 2)) + ' becomes ' + '$' + dollarHalf.toFixed(2) + '. Half the time, ' + Math.round((dollarHalf - 1) / (dollarFull - 1) * 100) + ' percent of the growth. Time is the ingredient.'),
+       pk('So look at the pile. ' + A + ' put in ' + say(a.totals.invested) + ' and the market added ' + say(growA) + '. ' + B + ' put in ' + say(b.totals.invested) + ' and the market added ' + say(growB) + '.',
+          'The grey part is what they put in. The coloured part is what it earned on its own. ' + say(growA) + ' for ' + A + '. ' + say(growB) + ' for ' + B + '.',
+          'What went in, and what it grew. ' + A + ': ' + say(a.totals.invested) + ' in, ' + say(growA) + ' of growth. ' + B + ': ' + say(b.totals.invested) + ' in, ' + say(growB) + ' of growth.'),
+       pk('That ' + say(bigGrow.totals.investmentGrowth) + ' is money ' + bigGrow.name + ' never worked an hour for.',
+          'Nobody worked for that ' + say(bigGrow.totals.investmentGrowth) + '. It showed up because the money was left alone.',
+          'That growth is the closest thing to free money in this whole test. And it only shows up if you start.')]);
 
     beat('investments', 'chart:investments', 'The bank balance', 'Cash and investments only',
-      ['This is just cash and investments. No house, no business.',
+      [pk('This is just cash and investments. No house. No business.',
+          'Strip out the house and the business and this is what\'s left. Money in accounts.',
+          'This is the money you could actually spend on a Tuesday. Nothing you\'d have to sell first.'),
        sim.crossoverInvestments
-         ? 'They cross over at age ' + sim.crossoverInvestments.age + '. That is the moment the higher income finally overtakes the earlier start.'
-         : 'They never cross over. The earlier start compounds faster than the higher income can catch it.',
-       'The gap you see early on is the head start doing its work in a brokerage account.']);
+         ? pk('They cross at age ' + sim.crossoverInvestments.age + '. That\'s the moment the bigger paycheque finally catches the earlier start.',
+              'Watch age ' + sim.crossoverInvestments.age + '. That\'s where the higher income finally overtakes the head start.',
+              'The lines cross at ' + sim.crossoverInvestments.age + '. Before that, the head start is winning. After it, the income is.')
+         : pk('They never cross. The early money grows faster than the late money arrives.',
+              'And they don\'t cross. Not in ' + years + ' years. The early money keeps growing faster than the bigger paycheque can catch it.',
+              'No crossover. The head start just keeps pulling away.'),
+       pk('That early gap is the head start, sitting in an index fund, doing what money does when you leave it alone.',
+          'That early gap? That\'s the head start, invested, quietly growing on its own.',
+          'Early on, that\'s not skill or effort. It\'s just time. Money that got a ' + (hs.years || 'few') + '-year start on the other money.')]);
 
+    /* ---- business ---- */
     beat('business', 'business', 'The business', 'Where the real money is made',
       [(a.isOwner || b.isOwner)
-        ? 'This is where a career comparison usually stops, and it should not.'
-        : 'Neither of these two builds a business, which is worth saying out loud.',
-       a.isOwner ? A + ' starts a business at ' + a.milestones.businessStartAge + '.' : A + ' stays an employee the whole way.',
-       b.isOwner ? B + ' starts one at ' + b.milestones.businessStartAge + '.' : B + ' stays an employee the whole way.',
+        ? pk('This is where a career comparison usually stops. It shouldn\'t.',
+             'Most career comparisons end right before this slide. That\'s a bit like reviewing a restaurant from the parking lot.',
+             'Here\'s the part every salary comparison leaves out.')
+        : pk('Neither of these two builds a business. Worth saying out loud.',
+             'Nobody starts a company in this one. Keep that in mind, because it changes everything when someone does.'),
+       a.isOwner
+         ? pk(A + ' starts a business at ' + a.milestones.businessStartAge + '.', 'At ' + a.milestones.businessStartAge + ', ' + A + ' goes out on their own.', A + ' opens the doors at ' + a.milestones.businessStartAge + '.')
+         : pk(A + ' stays an employee the whole way.', A + ' never leaves the paycheque.'),
+       b.isOwner
+         ? pk(B + ' starts one at ' + b.milestones.businessStartAge + '.', B + ' does the same at ' + b.milestones.businessStartAge + '.', 'For ' + B + ', it\'s age ' + b.milestones.businessStartAge + '.')
+         : pk(B + ' stays an employee the whole way.', B + ' works for someone else, start to finish.'),
        (a.totals.businessEquity > 0 || b.totals.businessEquity > 0)
-         ? 'By the end, that is ' + say(a.totals.businessEquity) + ' of business equity for ' + A + ' and ' + say(b.totals.businessEquity) + ' for ' + B + '.'
-         : 'So there is no business equity on either side of this one.']);
+         ? pk('By the end, the business itself is worth about ' + say(a.totals.businessEquity) + ' to ' + A + ' and ' + say(b.totals.businessEquity) + ' to ' + B + '. That\'s after what\'s still owed on it.',
+              'At the finish line, what the business is worth, minus what\'s owed on it, comes to ' + say(a.totals.businessEquity) + ' for ' + A + ' and ' + say(b.totals.businessEquity) + ' for ' + B + '.',
+              'What the business is worth at ' + endAge + ': ' + say(a.totals.businessEquity) + ' and ' + say(b.totals.businessEquity) + '. That\'s money an employee simply doesn\'t have.')
+         : pk('So there\'s no business value on either side of this one.', 'Zero business value, both sides. Which is the point.')]);
 
+    /* ---- dependency ---- */
     if (depA.applicable || depB.applicable) {
       var stuck = (depA.applicable && depA.stepBackBlocked) ? A : ((depB.applicable && depB.stepBackBlocked) ? B : null);
       beat('dependency', 'dependency', 'Owner dependency', 'Can it run without you?',
-        ['But not all businesses are the same asset, and this is the score I care most about.',
-         'Ten means the company keeps producing when the owner stops. One means it stops dead.',
+        [pk('But not every business is the same kind of thing to own. This is the score I care about most.',
+            'Now. Two businesses can be worth the same on paper and be completely different things to own. This score is how I tell them apart.',
+            'This is my favourite number in the whole test, and almost nobody tracks it.'),
+         pk('It\'s out of ten. Ten means the company keeps earning when the owner stops. One means it stops dead.',
+            'Out of ten. Ten, the business runs without you. One, the business is you. Take a week off and the revenue takes a week off too.',
+            'Simple scale. Ten: you could disappear for a month. One: if you stop, the money stops.'),
          (depA.applicable && depB.applicable)
-           ? A + ' scores ' + depA.score + ' out of ten. ' + B + ' scores ' + depB.score + '.'
+           ? pk(A + ' scores ' + depA.score + '. ' + B + ' scores ' + depB.score + '.',
+                A + ': ' + depA.score + '. ' + B + ': ' + depB.score + '.',
+                'It\'s ' + depA.score + ' for ' + A + ' and ' + depB.score + ' for ' + B + '.')
            : (depA.applicable ? A + ' scores ' + depA.score + ' out of ten.' : B + ' scores ' + depB.score + ' out of ten.'),
          stuck
-           ? stuck + ' literally cannot step back. The moment they hand the work to employees, what is left will not cover the bank and a liveable draw.'
-           : 'That difference is the difference between owning an asset and owning a job.',
-         'A business that only works while you are in it is a job with extra paperwork.']);
+           ? pk(stuck + ' can\'t step back. Hand the work to staff, and what\'s left won\'t cover the loan and a living wage.',
+                'And here\'s the trap. ' + stuck + ' can\'t get out. Hand the work to employees and the numbers stop working. The bank doesn\'t get paid, and neither do they.',
+                stuck + ' is stuck in it. The business only makes money while they personally do the work. Try to step back and it falls over.')
+           : pk('That difference is the difference between owning an asset and owning a job.',
+                'That gap is what separates a business you can sell from a job you happen to own.'),
+         pk('A business that only works while you\'re in it is a job with extra paperwork.',
+            'If it only runs while you\'re there, you didn\'t build a business. You built a job with a payroll.',
+            'Owning a job is fine. Just don\'t mistake it for owning an asset.')]);
     }
 
+    /* ---- net worth chart ---- */
     beat('networth', 'chart:netWorth', 'Net worth over time', 'Everything owned, less everything owed',
-      ['Put all of it together and this is the shape of the two lives.',
+      [pk('Put it all together and this is the shape of the two lives.',
+          'Add it all up. House, business, investments, minus every debt. This is what you get.',
+          'This is everything. Every asset, every debt, both careers, ' + years + ' years.'),
        sim.crossoverNetWorth
-         ? (sim.crossoverNetWorth.passer + ' passes ' + sim.crossoverNetWorth.passed + ' at age ' + sim.crossoverNetWorth.age +
-            (sim.crossoverNetWorthProjected ? ', which is past the end of our window, so treat that as a projection.' : '.'))
-         : 'They never cross. On these assumptions the gap never closes.',
-       'Notice where each line bends. Those bends are decisions, not luck.']);
+         ? pk(sim.crossoverNetWorth.passer + ' passes ' + sim.crossoverNetWorth.passed + ' at age ' + sim.crossoverNetWorth.age + (sim.crossoverNetWorthProjected ? '. That\'s past the end of our window, so treat it as a projection.' : '.'),
+              'The lines cross at ' + sim.crossoverNetWorth.age + '. That\'s ' + sim.crossoverNetWorth.passer + ' going past ' + sim.crossoverNetWorth.passed + (sim.crossoverNetWorthProjected ? '. That\'s outside the ' + years + ' years, so it\'s a projection, not a result.' : '.'))
+         : pk('They never cross. On these numbers, the gap never closes.',
+              'And no, they don\'t cross. Not by ' + endAge + '. Not after it either, on these numbers.',
+              'No crossover. I ran it out to 75 to check. The gap holds.'),
+       pk('Look at where each line bends. Those bends are decisions, not luck.',
+          'Look at the kinks in the lines. Every one of those is a decision. A business started. A loan paid off. A house bought.',
+          'See the bends? That\'s not the market. That\'s a choice somebody made.')]);
 
-    beat('wealth', 'columns', 'Wealth at year ' + cfg.years, 'Age ' + endAge,
-      ['So here is the scoreboard at ' + endAge + '.',
-       A + ' finishes at ' + say(a.totals.netWorth) + '. ' + B + ' finishes at ' + say(b.totals.netWorth) + '.',
-       (winner ? winner + ' is ahead by about ' + say(gap) + '.' : 'They finish level.'),
+    /* ---- wealth columns ---- */
+    beat('wealth', 'columns', 'Wealth at year ' + years, 'Age ' + endAge,
+      [pk('So here\'s the scoreboard at ' + endAge + '.',
+          'Final numbers. Age ' + endAge + '.',
+          'Right. ' + years + ' years in, here\'s where they stand.'),
+       pk(A + ' finishes at ' + say(a.totals.netWorth) + '. ' + B + ' finishes at ' + say(b.totals.netWorth) + '.',
+          say(a.totals.netWorth) + ' for ' + A + '. ' + say(b.totals.netWorth) + ' for ' + B + '.',
+          A + ': ' + say(a.totals.netWorth) + '. ' + B + ': ' + say(b.totals.netWorth) + '.'),
+       winner
+         ? pk(winner + ' is ahead by about ' + say(gap) + '.', 'That\'s ' + winner + ' up by ' + say(gap) + '.', say(gap) + ' between them. ' + winner + ' on top.')
+         : 'They finish level.',
        (winner && earnMore.name !== winner)
-         ? 'And read that against the income slide, because ' + earnMore.name + ' earned more and still finished behind.'
-         : 'Which is roughly what the income slide told us it would be.']);
+         ? pk('Now go back to the pay chart. ' + earnMore.name + ' earned more and still finished behind.',
+              'Go back to the pay chart for a second. ' + earnMore.name + ' earned more. ' + earnMore.name + ' finished behind. Sit with that.',
+              'So the bigger paycheque lost. ' + earnMore.name + ' out-earned ' + winner + ' and still ended up with less.')
+         : pk('Which is roughly what the pay chart said would happen.', 'No surprise there. The pay chart called it.')]);
 
+    /* ---- hours ---- */
     beat('hours', 'hours', 'What it cost in hours', 'The number nobody counts',
-      ['Money is only half of it. Here is the time.',
-       A + ' works about ' + Math.round(a.totals.hours / 1000) + ' thousand hours over the period. ' + B + ' works about ' + Math.round(b.totals.hours / 1000) + ' thousand.',
-       'Per hour on the clock, that is ' + say(a.totals.wealthPerHour) + ' of net worth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
-       'That is a very different way to rank two careers, and I think it is a fairer one.']);
+      [pk('Money is only half of it. Here\'s the time.',
+          'Okay. Now the cost nobody puts on a spreadsheet. Hours. We put it on a spreadsheet.',
+          'Let\'s talk about the price you pay in time, because it\'s not the same for both.'),
+       pk(A + ' works about ' + thousands(a) + ' hours over the ' + years + ' years. ' + B + ' works about ' + thousands(b) + '.',
+          thousands(a) + ' hours for ' + A + '. ' + thousands(b) + ' for ' + B + '.',
+          'Over ' + years + ' years, ' + A + ' puts in roughly ' + thousands(a) + ' hours. ' + B + ', about ' + thousands(b) + '.'),
+       pk('That\'s about ' + perWeek(a) + ' hours a week for ' + A + ' and ' + perWeek(b) + ' for ' + B + '. Every week. For ' + years + ' years.',
+          'Per week, that\'s roughly ' + perWeek(a) + ' hours for ' + A + ' against ' + perWeek(b) + ' for ' + B + '.',
+          'Call it ' + perWeek(a) + ' hours a week versus ' + perWeek(b) + '. That difference is your evenings.'),
+       pk('Divide the net worth by the hours, and every hour worked built ' + say(a.totals.wealthPerHour) + ' of wealth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
+          'So per hour on the clock, that\'s ' + say(a.totals.wealthPerHour) + ' of net worth for ' + A + ' and ' + say(b.totals.wealthPerHour) + ' for ' + B + '.',
+          'Wealth per hour worked: ' + say(a.totals.wealthPerHour) + ' for ' + A + '. ' + say(b.totals.wealthPerHour) + ' for ' + B + '.'),
+       pk('That\'s a very different way to rank two careers. I think it\'s a fairer one.',
+          'I\'d argue that\'s the fairest single number in the whole test.',
+          'If you only remember one number from this video, make it that one.')]);
 
+    /* ---- lifestyle ---- */
     beat('lifestyle', 'radar', 'The life around the money', 'Eight components, out of ten',
-      ['Hours, vacation, stress, physical wear, flexibility, security, family time.',
-       'Further out is better on every axis, including physical demands, where ten means the work is easy on your body.',
-       'Neither shape is better. They are different trades, and you have to know which one you can live inside for twenty years.']);
+      [pk('Hours, vacation, stress, wear and tear on your body, flexibility, security, family time.',
+          'This is the stuff that doesn\'t show up in a bank balance. Hours. Holidays. Stress. Your back. Your evenings.',
+          'Eight things that decide whether you actually like your life. None of them are money.'),
+       pk('Further out is better on every line. Including the physical one, where ten means the work is easy on your body.',
+          'Bigger shape, better life. That includes the physical line. A ten there means your knees still work at ' + endAge + '.',
+          'Read it as: more area, better life. Even the physical one. A ten means the job goes easy on you.'),
+       pk('Neither shape is better. They\'re different trades, and you have to know which one you can live inside for ' + years + ' years.',
+          'There\'s no winner on this slide. There\'s the shape you could live in for two decades and the shape you couldn\'t.',
+          'I\'m not calling this one. Look at the two shapes and ask which set of trade-offs you\'d actually accept.')]);
 
+    /* ---- freedom ---- */
     beat('freedom', 'freedom', 'When they get free', 'Selling the business, drawing at ' + Math.round(cfg.safeWithdrawal * 100) + '%',
-      ['Financial independence. Sell the business, live off the proceeds.',
-       (a.milestones.financialFreedomAgeWithSale ? A + ' gets there around ' + a.milestones.financialFreedomAgeWithSale + '.' : A + ' does not get there on these numbers.'),
-       (b.milestones.financialFreedomAgeWithSale ? B + ' gets there around ' + b.milestones.financialFreedomAgeWithSale + '.' : B + ' does not get there on these numbers.'),
-       'Keeping the business instead of selling it pushes that later, because only the profit that survives you stepping away is income you can count on.']);
+      [pk('Financial freedom. The age where they could sell the business, invest the money, and live on what it earns.',
+          'When can each of them stop, if they want to? Sell the business, invest the money, live on the returns.',
+          'The "I could stop tomorrow" age. Cash out the business, and how soon does the money cover the bills on its own?'),
+       a.milestones.financialFreedomAgeWithSale
+         ? pk(A + ' gets there around ' + a.milestones.financialFreedomAgeWithSale + '.', 'For ' + A + ', roughly age ' + a.milestones.financialFreedomAgeWithSale + '.')
+         : A + ' doesn\'t get there on these numbers.',
+       b.milestones.financialFreedomAgeWithSale
+         ? pk(B + ' gets there around ' + b.milestones.financialFreedomAgeWithSale + '.', B + ', about ' + b.milestones.financialFreedomAgeWithSale + '.')
+         : B + ' doesn\'t get there on these numbers.',
+       pk('Keep the business instead of selling it, and that date moves later. Only the profit that keeps coming without you counts as income you can rely on.',
+          'If they keep the business, it\'s later. Because only the part of the profit that doesn\'t need them in the building actually counts.',
+          'Hold on to the business and the date slides out. Profit that needs you on site isn\'t retirement income. It\'s a job.')]);
 
+    /* ---- scores ---- */
     beat('scores', 'scores', 'The Blue Collar Business score', 'Out of one hundred',
-      ['We score both of them out of a hundred. Financial outcome is the biggest single weight, but it is only a quarter of it.',
-       A + ' comes out at ' + scores.a.score + '. ' + B + ' at ' + scores.b.score + '.',
-       'And underneath that are the four that matter to this channel. Career, owner-operator, business owner, investor.',
-       'That is the whole progression. Do the work, lead the work, own the work, own the asset.']);
+      [pk('We score both of them out of a hundred. Money is the biggest single piece, but it\'s only a quarter of it.',
+          'Everything rolls up into one score out of a hundred. Money is the biggest piece, and it\'s still only twenty-five points.',
+          'One number, out of a hundred. And before anyone says it: yes, money counts. It\'s a quarter of the score. Not all of it.'),
+       pk(A + ' comes out at ' + scores.a.score + '. ' + B + ' at ' + scores.b.score + '.',
+          scores.a.score + ' for ' + A + '. ' + scores.b.score + ' for ' + B + '.',
+          A + ' scores ' + scores.a.score + '. ' + B + ' scores ' + scores.b.score + '.'),
+       pk('Underneath that are the four scores this channel is really about. As an employee. As an owner-operator. As a business owner. As an investor.',
+          'Under the hood are four smaller scores. How you do as an employee, as an owner-operator, as a business owner, and as an investor.',
+          'The four numbers beneath it are the ones I actually care about. Employee. Owner-operator. Business owner. Investor.'),
+       pk('That\'s the whole ladder. Do the work. Lead the work. Own the work. Then own the thing that does the work.',
+          'That\'s the ladder. Do it, lead it, own it, then own the thing that does it without you.',
+          'Same ladder every time. Do, lead, own, invest.')]);
 
+    /* ---- categories ---- */
     beat('categories', 'categories', 'Winner by category', 'Because one number hides the trade',
-      ['One number always hides something, so here it is broken apart.',
-       'Income, lifestyle, debt, entrepreneurship, scalability, time freedom, net worth.',
-       'Almost nobody wins all of them, and the ones you lose are the ones you have to be honest with yourself about.']);
+      [pk('One number always hides something. So here it is, pulled apart.',
+          'A single score always buries the trade-offs. So let\'s pull it apart.',
+          'I don\'t trust one number, and neither should you. Here\'s the breakdown.'),
+       pk('Income, lifestyle, debt, starting a business, growing it, time freedom, net worth.',
+          'Best pay. Best lifestyle. Least debt. Best to start a business in. Easiest to grow. Most free time. Highest net worth.',
+          'Pay, lifestyle, debt, business potential, growth, time, net worth. Who wins each one.'),
+       pk('Nobody wins all of them. And the ones you\'d lose are the ones you have to be honest with yourself about.',
+          'Nobody sweeps this. Nobody ever sweeps this. The categories you\'d lose are exactly the ones to be honest about before you commit.',
+          'Notice it\'s split. It\'s always split. The question is which losses you can live with.')]);
 
-    beat('scenarios', 'scenarios', 'If I am wrong', 'Conservative, realistic, aggressive',
-      ['Now let me argue against myself.',
-       'Conservative assumes slower raises, weaker markets, a business that grows but never takes off.',
-       'On conservative, ' + (scenarioLead(sim, scores) || 'the answer gets a lot closer') + '.',
-       'I quote the realistic number. But the conservative number is the one I would plan around.']);
+    /* ---- scenarios ---- */
+    beat('scenarios', 'scenarios', 'If I\'m wrong', 'Conservative, realistic, aggressive',
+      [pk('Now let me argue against myself.',
+          'Okay. Let me try to break my own result before the comments do.',
+          'Here\'s where I stress-test this. I\'d rather do it than have you do it for me.'),
+       pk('The conservative case means smaller raises, a weaker market, and a business that grows but never takes off.',
+          'Conservative means everything goes a bit worse. Smaller raises. A weaker decade in the market. A business that stays small.',
+          'The cautious version. Raises are smaller, the market underperforms, and the business is fine but never really takes off.'),
+       pk('On the cautious numbers, ' + (scenarioLead() || 'the answer gets a lot closer') + '.',
+          'Run it that way and ' + (scenarioLead() || 'it tightens up a lot') + '.',
+          'And on those numbers, ' + (scenarioLead() || 'the gap narrows') + '.'),
+       pk('I quote the realistic number. The conservative number is the one I\'d plan around.',
+          'I\'ll say the realistic figure out loud. I\'d plan my life around the cautious one.',
+          'The headline is the realistic case. If it were my money, I\'d budget on the cautious case.')]);
 
-    beat('verdict', 'verdict', 'The ' + cfg.years + '-year verdict', winner || 'Too close to call',
-      [yt.verdict]);
+    /* ---- verdict ---- */
+    beat('verdict', 'verdict', 'The ' + years + '-year verdict', winner || 'Too close to call', [sentences(yt.verdict)]);
+
+    /* ---- outro ---- */
+    beat('outro', 'outro', 'Run your own numbers', '',
+      [pk('Here\'s what I\'d take away from this one.',
+          'So what do you do with this?',
+          'Let me leave you with the thing that actually matters here.'),
+       pk('The job you pick matters. What you do with it after year five matters more. And almost nobody runs those numbers before they commit twenty years to an answer.',
+          'The career matters less than what you do with it once you\'re in. That second part is where all the money is. It\'s also the part nobody models.',
+          'Picking the job is maybe a third of it. What you build on top of the job is the rest. Almost nobody does that math before they commit.'),
+       pk('So run yours. Put in what they actually pay where you live. Put in the business you\'d actually start. See if the answer holds.',
+          'So go run your own. Real local wages. The business you\'d actually open. See if the answer survives.',
+          'Do it with your own numbers. Your town\'s wages, your tuition, the business you\'d really start. Then see what twenty years looks like. It\'s usually not what you expected.'),
+       pk('If you want the next one, subscribe. We run a different pair every episode, and the ones that surprise me go out first.',
+          'Subscribe if you want the next matchup. Different pair every time, and I always lead with the ones that surprised me.',
+          'There\'s a new pair every episode. Hit subscribe and I\'ll show you the ones that didn\'t go the way I expected.'),
+       pk('Learn the trade. Build the business. Own the asset. See you next time.',
+          'Learn the trade, build the business, own the asset. See you in the next one.',
+          'Learn the trade. Build the business. Own the asset. That\'s it. See you next time.')]);
 
     return {
       beats: beats,
       totalSeconds: beats.reduce(function (t, x) { return t + x.seconds; }, 0),
       titles: yt.titles,
-      thumbnails: yt.thumbnails
+      thumbnails: yt.thumbnails,
+      seed: seed || 0
     };
   }
 
@@ -3941,6 +4918,191 @@ body.st-on { overflow: hidden; }
     analysis: analysis, youtube: youtube, executiveSummary: executiveSummary,
     episodeScript: episodeScript, setScenarioNote: setScenarioNote,
     money: money, moneyShort: moneyShort, say: say
+  };
+
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>window.BCB_MEDIA_MANIFEST = {"_readme":["Media library for the 20-Year Test. Keys match the career ids in js/presets.js,","plus the _brand block used by the intro, outro and title cards.","","A value is EITHER a path relative to tools/20-year-test/media/ OR an absolute URL.","These ship as URLs on the generator's CDN so the library works immediately. To make","it work offline, download each file into media/stills/ and replace the URL with the","filename - nothing else changes.","","Anything null falls back to the procedural background, so a half-filled library is","never a broken page.","","still : a 16:9 photograph used as a slide background, heavily scrimmed","clip  : a short silent loop used the same way, for beats that want motion","","All stills below are AI-generated (Higgsfield soul_2, 2k, 16:9). They are","illustrative backdrops, not photographs of real people or real businesses."],"_brand":{"label":"Blue Collar Business","intro":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125150_056965b0-0910-4fda-8ae0-0ed5c4c2dad7.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130251_e896d0af-b084-4b07-a226-e26686c7a202.mp4","credit":"AI-generated"},"outro":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_a254dacc-d201-48d6-97c6-f782a535a770.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130705_8f00e962-ee19-49aa-9de8-9a22b985038d.mp4","credit":"AI-generated"},"title":{"still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_f4db3c82-753a-4e92-a9e0-333cf3e6bf7e.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130704_ecba94d3-9443-4c8a-8b9d-f5cfad11ed2b.mp4","credit":"AI-generated"}},"careers":{"plumber":{"label":"Plumber","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_c949ce05-104f-4278-94c8-08a1ac24a736.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130309_10622682-7803-4335-a801-2a91274eb5e4.mp4","credit":"AI-generated"},"electrician":{"label":"Electrician","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_9e5fde75-bb0f-43d8-986d-108e3129d631.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130309_b4758333-b502-49ec-ad5e-dcdf21a2645d.mp4","credit":"AI-generated"},"hvac":{"label":"HVAC Technician","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_215af654-715c-4ba4-9d42-28a66da1e4f0.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130251_7cbdf4d6-707f-4b00-96ea-7760ea993baf.mp4","credit":"AI-generated"},"welder":{"label":"Welder","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_c0f1fd22-52e7-4eec-aecd-20b707644e16.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130251_f9dc4d58-9b57-40ca-82db-2bd6939f80a1.mp4","credit":"AI-generated"},"hdmechanic":{"label":"Heavy-Duty Mechanic","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_eb6e35ae-8cbb-4446-89a3-a7b83a377bc8.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130310_3e502ff6-2e14-4baf-8286-3868518201d9.mp4","credit":"AI-generated"},"trucker":{"label":"Owner-Operator Trucker","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_fc035be6-d10e-4ad3-88e0-42bd58372bea.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130309_859d985a-bc9a-426a-8cff-c12c52dbb0d7.mp4","credit":"AI-generated"},"dentist":{"label":"Dentist","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_8e1ec3dc-1e1f-442d-a6c8-831c6188ed79.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130251_b17e7dfe-eb83-4a71-8357-bc02958818be.mp4","credit":"AI-generated"},"pharmacist":{"label":"Pharmacist","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_8b581bcf-d8ae-49a5-b229-d1bd5626653e.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_fb74f27a-892f-455f-b9a4-89630f3dc0ff.mp4","credit":"AI-generated"},"lawyer":{"label":"Lawyer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_7a4acb63-e70b-49f3-b19a-57b4288b7419.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_56dacbdc-ff39-4d0f-b69d-a763e449196a.mp4","credit":"AI-generated"},"accountant":{"label":"Accountant (CPA)","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_ac28d7fb-efdb-4ea7-9b80-230e43ba6592.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_d14830d5-6e8e-4621-9942-48c1df51c7cd.mp4","credit":"AI-generated"},"engineer":{"label":"Professional Engineer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_5a56f0a8-4407-414c-9352-0c9d8ca41e47.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_02f861dc-ce72-483f-917a-927f8b73bf85.mp4","credit":"AI-generated"},"softwareengineer":{"label":"Software Engineer","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125327_4126ae71-770f-4f0b-b714-b5243acf9620.png","clip":null,"credit":"AI-generated"},"teacher":{"label":"Teacher","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_e43fd47e-4281-49f8-b518-e0ef5a6cc2a8.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_5dcc1186-bb20-4e83-987c-4156e678132b.mp4","credit":"AI-generated"},"nurse":{"label":"Registered Nurse","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_492563c0-a363-487a-be5c-d8743ff51931.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_b854a194-ac5e-4b94-8167-ec07ab5bdecd.mp4","credit":"AI-generated"},"executive":{"label":"Corporate Executive","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_a7dd340a-f10f-4020-9d39-ebfa65af12e6.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130515_82861e24-23de-4694-8bb9-fef152c91d6e.mp4","credit":"AI-generated"},"generic":{"label":"Custom career","still":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_85cb444a-f3df-46ef-811e-bd6923cc630a.png","clip":"https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130705_a914000f-0485-4d81-9d28-a29028f4e6c9.mp4","credit":"AI-generated"}}};</script>
+<script>
+/* =====================================================================
+   Blue Collar Business - The 20-Year Test
+   media.js : the slide background layer
+
+   Two jobs:
+
+   1. Resolve imagery for whichever careers are being compared, from
+      media/manifest.json. Anything missing falls back to a procedural
+      background, so a half-filled library is never a broken page - and
+      an empty library still looks deliberate rather than unfinished.
+
+   2. Keep the text readable on top of it. That is the whole discipline
+      here: a photograph behind white type is a contrast problem, not a
+      decoration. Every background carries a scrim, and how strong the
+      picture is allowed to be depends on what the slide has to show -
+      a chart gets almost none, a title card gets the most.
+   ===================================================================== */
+(function (global) {
+  'use strict';
+
+  var BCB = global.BCB = global.BCB || {};
+  var manifest = null;
+  var loading = null;
+  var BASE = 'media/';
+
+  /* How much photograph each kind of slide can carry before it starts
+     competing with what the viewer is meant to read. */
+  var INTENSITY = {
+    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
+    headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
+    dependency: 0.24, hours: 0.24, freedom: 0.24,
+    columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12, compound: 0.12, invest: 0.24,
+    radar: 0.1
+  };
+  function intensityFor(kind) {
+    if (kind.indexOf('chart:') === 0) { return 0.08; }
+    return INTENSITY[kind] == null ? 0.2 : INTENSITY[kind];
+  }
+
+  function load() {
+    if (manifest) { return Promise.resolve(manifest); }
+    if (loading) { return loading; }
+    /* A bundler can inline the library so no request is needed at all. */
+    if (global.BCB_MEDIA_MANIFEST) {
+      manifest = global.BCB_MEDIA_MANIFEST;
+      return Promise.resolve(manifest);
+    }
+    /* fetch() from a file:// page is refused, and the refusal is logged
+       as a console error before any catch can run. Do not ask. */
+    if (global.location && global.location.protocol === 'file:') {
+      manifest = emptyManifest();
+      return Promise.resolve(manifest);
+    }
+    loading = fetch(BASE + 'manifest.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { manifest = j || emptyManifest(); return manifest; })
+      .catch(function () {
+        /* Opening the file straight off disk blocks fetch in some
+           browsers. Not an error - just means no library. */
+        manifest = emptyManifest();
+        return manifest;
+      });
+    return loading;
+  }
+  function emptyManifest() { return { _brand: {}, careers: {} }; }
+
+  /* Career id from a career object. Presets keep their id only in the
+     CAREERS map, so match on name and fall back to a slug. */
+  function idFor(career) {
+    var C = BCB.data.CAREERS;
+    for (var k in C) {
+      if (C.hasOwnProperty(k) && C[k].name === career.name) { return k; }
+    }
+    return String(career.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+
+  function assetFor(careerOrKey, prefer) {
+    if (!manifest) { return null; }
+    var entry;
+    if (typeof careerOrKey === 'string') {
+      entry = (manifest._brand && manifest._brand[careerOrKey]) || null;
+    } else {
+      entry = manifest.careers && manifest.careers[idFor(careerOrKey)];
+    }
+    if (!entry) { return null; }
+    var clip = entry.clip, still = entry.still;
+    if (prefer === 'clip' && clip) { return { kind: 'clip', src: resolve(clip) }; }
+    if (still) { return { kind: 'still', src: resolve(still) }; }
+    if (clip) { return { kind: 'clip', src: resolve(clip) }; }
+    return null;
+  }
+
+  /* A manifest entry is either a file in media/ or an absolute URL.
+     Hosting the assets remotely gets a library working immediately;
+     downloading them into media/ later makes it work offline, and the
+     only change is the manifest value. */
+  function resolve(v) {
+    return /^(https?:)?\/\//.test(v) ? v : BASE + v;
+  }
+
+  /* ---------------------------------------------------------------
+     THE BACKGROUND ELEMENT
+     One node, reused across beats: swapping the source beats
+     rebuilding, and it lets the crossfade actually cross-fade.
+     --------------------------------------------------------------- */
+  function createLayer() {
+    var el = document.createElement('div');
+    el.className = 'st-bg';
+    el.innerHTML =
+      '<div class="st-bg-art" data-slot="a"></div>' +
+      '<div class="st-bg-art" data-slot="b"></div>' +
+      '<div class="st-bg-scrim"></div>' +
+      '<div class="st-bg-grain"></div>';
+    el.__slot = 'a';
+    return el;
+  }
+
+  /* Swap in a new background. Returns quietly when there is nothing to
+     show, leaving the procedural ground in place. */
+  function setBackground(layer, asset, intensity, reduceMotion) {
+    if (!layer) { return; }
+    var next = layer.__slot === 'a' ? 'b' : 'a';
+    var incoming = layer.querySelector('[data-slot="' + next + '"]');
+    var outgoing = layer.querySelector('[data-slot="' + layer.__slot + '"]');
+
+    if (!asset) {
+      /* No asset for this beat: fade the picture out and let the
+         procedural background carry it. */
+      incoming.style.opacity = 0;
+      outgoing.style.opacity = 0;
+      layer.classList.add('bare');
+      return;
+    }
+    layer.classList.remove('bare');
+    incoming.innerHTML = '';
+
+    /* An asset that fails to arrive - an expired link, no network, a
+       blocked host - must not leave the heavy photo scrim sitting over
+       nothing. That reads as a broken, muddy slide; falling back to the
+       designed ground reads as intentional. */
+    function failed() {
+      incoming.style.opacity = 0;
+      outgoing.style.opacity = 0;
+      layer.classList.add('bare');
+    }
+
+    if (asset.kind === 'clip') {
+      var v = document.createElement('video');
+      v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = true;
+      v.setAttribute('aria-hidden', 'true');
+      v.addEventListener('error', failed);
+      v.src = asset.src;
+      var p = v.play();
+      if (p && p.catch) { p.catch(function () { /* autoplay refusal is not a failure */ }); }
+      incoming.appendChild(v);
+      incoming.classList.remove('kenburns');
+    } else {
+      var img = document.createElement('img');
+      img.alt = '';
+      img.setAttribute('aria-hidden', 'true');
+      img.addEventListener('error', failed);
+      img.src = asset.src;
+      incoming.appendChild(img);
+      incoming.classList.toggle('kenburns', !reduceMotion);
+    }
+    incoming.style.opacity = intensity;
+    outgoing.style.opacity = 0;
+    layer.__slot = next;
+  }
+
+  BCB.media = {
+    load: load,
+    assetFor: assetFor,
+    idFor: idFor,
+    intensityFor: intensityFor,
+    createLayer: createLayer,
+    setBackground: setBackground,
+    get manifest() { return manifest; }
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -4257,9 +5419,26 @@ body.st-on { overflow: hidden; }
       (f.hint ? '<div class="hint">' + esc(f.hint) + '</div>' : '') + '</div>';
   }
 
+  var LOCATION_PATHS = { country: 1, region: 1, currency: 1 };
   function renderGlobalForm() {
+    var loc = GLOBAL_FIELDS.filter(function (f) { return LOCATION_PATHS[f.path]; });
+    var rest = GLOBAL_FIELDS.filter(function (f) { return !LOCATION_PATHS[f.path]; });
+    var jur = D.TAX[state.country] || {};
+    var regionCount = jur.regions ? Object.keys(jur.regions).length : 0;
+    var notice = state.country === 'CA'
+      ? ''
+      : '<div class="callout warn" style="margin-top:12px"><strong>Presets are Alberta figures.</strong> ' +
+        'Switching the country changes the tax brackets and the currency label, not the wages, tuition or ' +
+        'business numbers in the career presets. Those are typical Canadian ranges - for a US comparison, ' +
+        'type in local figures for anything that matters. Dental school and law school in particular ' +
+        'cost far more in the US than the presets assume.</div>';
+    document.getElementById('locationForm').innerHTML =
+      '<div class="grid3">' + loc.map(function (f) { return fieldHtml('global', f); }).join('') + '</div>' +
+      '<p class="hint" style="margin-top:6px;color:var(--muted)">' + esc(jur.label || state.country) + ' - ' +
+      regionCount + ' ' + (state.country === 'CA' ? 'provinces and territories' : 'states and DC') +
+      ', simplified brackets indexed to inflation. Not tax advice.</p>' + notice;
     document.getElementById('globalForm').innerHTML =
-      GLOBAL_FIELDS.map(function (f) { return fieldHtml('global', f); }).join('');
+      rest.map(function (f) { return fieldHtml('global', f); }).join('');
   }
 
   /* The stage editor: income really does change by career stage, and it
@@ -4330,6 +5509,14 @@ body.st-on { overflow: hidden; }
         (neg ? '-' : '') + money(Math.abs(v)) + '</span></div>';
     }
     var lastRow = res.rows[res.rows.length - 1];
+    /* The column has to add up as printed. Home and business equity are
+       already net of the mortgage and the business loan, so the only debt
+       subtracted here is what is NOT inside an equity line. The rest is
+       shown for information, under the equity it is netted against. */
+    var personalDebt = lastRow.studentDebt + lastRow.consumerDebt;
+    function sub(label, v) {
+      return '<div class="nw-line nw-sub"><span>' + esc(label) + '</span><span class="v">' + money(v) + '</span></div>';
+    }
     return '<div class="nw-col ' + cls + '">' +
       '<div class="nw-name">' + esc(res.name) + '</div>' +
       '<div class="nw-stage">Ends as: ' + esc(lastRow.stage) + '</div>' +
@@ -4340,11 +5527,14 @@ body.st-on { overflow: hidden; }
       line('Investments', t.investments) +
       line('Cash', t.cash) +
       line('Home equity', t.homeEquity) +
+      (lastRow.mortgage > 0 ? sub('home value ' + money(lastRow.homeValue) + ', mortgage still owing', lastRow.mortgage) : '') +
       line('Business equity', t.businessEquity) +
-      line('Debt outstanding', t.debt, true) +
+      (lastRow.businessDebt > 0 ? sub('business value ' + money(lastRow.businessValue) + ', loan still owing', lastRow.businessDebt) : '') +
+      line('Education and consumer debt', personalDebt, true) +
       '<div class="nw-total"><div class="lbl">Estimated net worth</div>' +
       '<div class="amt">' + money(t.netWorth) + '</div>' +
-      '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div></div>' +
+      '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div>' +
+      '<div class="real">Total debt carried: ' + money(t.debt) + '</div></div>' +
       '</div>';
   }
 
@@ -4804,7 +5994,10 @@ body.st-on { overflow: hidden; }
   function renderYouTube() {
     var y = last.youtube;
     var h = '<div class="card prose"><h2>Episode pack</h2>' +
-      '<p class="sub">Written from this comparison. Edit freely - it is a starting point, not a script.</p>';
+      '<p class="sub">Written from this comparison. Edit freely - it is a starting point, not a script.</p>' +
+      '<p class="no-print"><button class="btn btn-o btn-sm" data-reshuffle="1">Reshuffle the wording</button>' +
+      '<span class="hint" style="margin-left:10px;color:var(--muted)">Same facts, different sentences. ' +
+      'Hit it until it sounds like you.</span></p>';
     h += '<div class="copybox"><h4>Title options</h4><ul>' +
       y.titles.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
     h += '<div class="copybox"><h4>Thumbnail text</h4>' +
@@ -5129,7 +6322,7 @@ body.st-on { overflow: hidden; }
       last = {
         sim: sim, scores: scores,
         analysis: N.analysis(sim, scores),
-        youtube: N.youtube(sim, scores)
+        youtube: N.youtube(sim, scores, state.scriptSeed || 0)
       };
       scenarioCache = E.runAllScenarios(state);
       renderResults();
@@ -5196,8 +6389,13 @@ body.st-on { overflow: hidden; }
   }
 
   function onClick(ev) {
-    var t = ev.target.closest('[data-matchup],[data-scen],[data-addstage],[data-delstage],.tab');
+    var t = ev.target.closest('[data-matchup],[data-scen],[data-addstage],[data-delstage],[data-reshuffle],.tab');
     if (!t) { return; }
+    if (t.dataset.reshuffle) {
+      state.scriptSeed = (state.scriptSeed || 0) + 1;
+      recompute(true);
+      return;
+    }
     if (t.classList.contains('tab')) {
       document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-selected', String(x === t)); });
       document.querySelectorAll('.panel').forEach(function (p) {
@@ -5365,6 +6563,283 @@ body.st-on { overflow: hidden; }
 <script>
 /* =====================================================================
    Blue Collar Business - The 20-Year Test
+   recorder.js : record the stage from inside the page
+
+   The browser can capture its own tab and write a video file, which
+   means "press Play and it records" is possible without a second app.
+   Three things make it usable rather than merely possible:
+
+   - it captures THIS TAB, so the prompter window on the other half of
+     the monitor is never in the file;
+   - Studio Three is cropped to the 9:16 frame on the way through a
+     canvas, so a vertical episode comes out as a vertical file rather
+     than a widescreen one with a strip in the middle;
+   - the microphone goes into the file, not the speakers, so there is no
+     feedback loop - the earlier decision to keep audio off the camera
+     preview still stands.
+
+   What it cannot do: match OBS. No scenes, no hotkey mid-take, no
+   hardware encoder. For a first take it is enough; for a channel that
+   records weekly, OBS pointed at the same window is the better rig.
+   ===================================================================== */
+(function (global) {
+  'use strict';
+
+  var BCB = global.BCB = global.BCB || {};
+
+  var display = null;      /* the tab/window stream */
+  var mic = null;          /* microphone stream */
+  var recorder = null;
+  var chunks = [];
+  var startedAt = 0;
+  var canvas = null, raf = 0;
+  var lastTake = null;     /* { blob, url, seconds, bytes, name, ext } */
+  var listeners = [];
+  var takeNo = 0;
+
+  var prefs = {
+    autoRecord: true,      /* start on Play, stop on Exit or at the end */
+    includeMic: true,
+    micDeviceId: '',
+    fps: 30,
+    bitrate: 10            /* Mbps */
+  };
+  var KEY = 'bcb-20-year-test-v1-recorder';
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved) { Object.assign(prefs, saved); }
+  } catch (e) { /* storage can throw outright */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) { /* fine */ } }
+
+  function emit(evt, data) { listeners.forEach(function (fn) { try { fn(evt, data); } catch (e) { /* listener's problem */ } }); }
+
+  function supported() {
+    return !!(global.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  }
+
+  /* Prefer a container an editor opens without a fuss. Chrome can write
+     H.264 MP4 on most platforms now; WebM is the universal fallback and
+     YouTube takes it directly. */
+  function pickMime() {
+    /* A bare "video/mp4" can come back as VP9 inside an MP4 box, which
+       YouTube accepts and some editors do not, so it ranks below WebM. */
+    var candidates = [
+      ['video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'mp4'],
+      ['video/mp4;codecs="avc1.42E01E,opus"', 'mp4'],
+      ['video/webm;codecs=vp9,opus', 'webm'],
+      ['video/webm;codecs=vp8,opus', 'webm'],
+      ['video/mp4', 'mp4'],
+      ['video/webm', 'webm']
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      try { if (MediaRecorder.isTypeSupported(candidates[i][0])) { return { mime: candidates[i][0], ext: candidates[i][1] }; } }
+      catch (e) { /* keep looking */ }
+    }
+    return { mime: '', ext: 'webm' };
+  }
+
+  /* Ask for the screen once, ahead of the take, so the picker does not
+     appear on top of the first slide. Resolves true if armed. */
+  function arm() {
+    if (!supported()) { emit('error', 'This browser cannot record its own screen. Use Chrome or Edge, or record with OBS.'); return Promise.resolve(false); }
+    if (display && display.active) { return Promise.resolve(true); }
+    var constraints = {
+      video: { frameRate: { ideal: prefs.fps }, displaySurface: 'browser' },
+      audio: false,
+      /* Chrome-specific hints: offer this tab first, keep the picker
+         from showing the recording's own window, no system audio. */
+      preferCurrentTab: true,
+      selfBrowserSurface: 'include',
+      surfaceSwitching: 'exclude',
+      systemAudio: 'exclude'
+    };
+    return navigator.mediaDevices.getDisplayMedia(constraints).then(function (stream) {
+      display = stream;
+      /* If they stop sharing from the browser's own bar, end the take. */
+      var vt = stream.getVideoTracks()[0];
+      if (vt) { vt.addEventListener('ended', function () { if (recorder) { stop(); } display = null; emit('disarmed'); }); }
+      emit('armed', trackInfo());
+      return true;
+    }).catch(function (err) {
+      display = null;
+      var name = err && err.name;
+      emit('error', name === 'NotAllowedError'
+        ? 'Screen capture was cancelled. Press R (or Play) in the slide window and choose this tab.'
+        : name === 'InvalidStateError'
+          ? 'The browser only starts a recording from a click or key in the slide window itself. Press Play or R there.'
+          : 'Screen capture failed: ' + (err && err.message ? err.message : err));
+      return false;
+    });
+  }
+  function trackInfo() {
+    var vt = display && display.getVideoTracks()[0];
+    var s = vt ? vt.getSettings() : {};
+    return { width: s.width || 0, height: s.height || 0, fps: s.frameRate || 0, surface: s.displaySurface || '' };
+  }
+
+  function getMic() {
+    if (!prefs.includeMic) { return Promise.resolve(null); }
+    if (mic && mic.active) { return Promise.resolve(mic); }
+    var c = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false };
+    if (prefs.micDeviceId) { c.audio.deviceId = { exact: prefs.micDeviceId }; }
+    return navigator.mediaDevices.getUserMedia(c).then(function (s) { mic = s; return s; })
+      .catch(function () { emit('warn', 'No microphone - recording video only.'); return null; });
+  }
+
+  /* Studio Three: crop the captured tab to the 9:16 frame. The capture
+     is the whole viewport; the frame's CSS rect maps onto it by the
+     ratio of captured pixels to CSS pixels. */
+  function cropTo(frameEl, srcTrack) {
+    var video = document.createElement('video');
+    video.srcObject = new MediaStream([srcTrack]);
+    video.muted = true; video.playsInline = true;
+    var st = srcTrack.getSettings();
+    var scaleX = (st.width || global.innerWidth) / global.innerWidth;
+    var scaleY = (st.height || global.innerHeight) / global.innerHeight;
+    var r = frameEl.getBoundingClientRect();
+    var sx = Math.round(r.left * scaleX), sy = Math.round(r.top * scaleY);
+    var sw = Math.round(r.width * scaleX), sh = Math.round(r.height * scaleY);
+    /* Even dimensions keep every encoder happy. */
+    sw -= sw % 2; sh -= sh % 2;
+    canvas = document.createElement('canvas');
+    canvas.width = sw; canvas.height = sh;
+    var ctx = canvas.getContext('2d');
+    var draw = function () {
+      if (!canvas) { return; }
+      try { ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh); } catch (e) { /* frame not ready */ }
+      raf = global.requestAnimationFrame(draw);
+    };
+    return video.play().then(function () { draw(); return canvas.captureStream(prefs.fps).getVideoTracks()[0]; });
+  }
+
+  function start(opts) {
+    opts = opts || {};
+    if (recorder) { return Promise.resolve(false); }
+    return arm().then(function (ok) {
+      if (!ok) { return false; }
+      return getMic().then(function (micStream) {
+        var vt = display.getVideoTracks()[0];
+        var videoTrackP = opts.cropTo ? cropTo(opts.cropTo, vt) : Promise.resolve(vt);
+        return videoTrackP.then(function (videoTrack) {
+          var tracks = [videoTrack];
+          if (micStream) { tracks = tracks.concat(micStream.getAudioTracks()); }
+          var mixed = new MediaStream(tracks);
+          var m = pickMime();
+          var options = { videoBitsPerSecond: prefs.bitrate * 1e6, audioBitsPerSecond: 160000 };
+          if (m.mime) { options.mimeType = m.mime; }
+          try { recorder = new MediaRecorder(mixed, options); }
+          catch (e) { recorder = new MediaRecorder(mixed); }
+          /* The extension follows what the recorder actually chose. */
+          if (recorder.mimeType) { m = { mime: recorder.mimeType, ext: /mp4/.test(recorder.mimeType) ? 'mp4' : 'webm' }; }
+          chunks = [];
+          takeNo++;
+          recorder.__ext = m.ext;
+          recorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) { chunks.push(ev.data); } };
+          recorder.onstop = function () { finish(); };
+          recorder.onerror = function (ev) { emit('error', 'Recording error: ' + (ev.error && ev.error.message ? ev.error.message : 'unknown')); };
+          recorder.start(1000);        /* a chunk a second - a crash loses one second, not the take */
+          startedAt = Date.now();
+          emit('start', { take: takeNo, mime: m.mime, ext: m.ext, info: trackInfo() });
+          return true;
+        });
+      });
+    });
+  }
+
+  function stop() {
+    if (!recorder) { return; }
+    try { recorder.stop(); } catch (e) { finish(); }
+  }
+
+  function finish() {
+    var ext = (recorder && recorder.__ext) || 'webm';
+    var seconds = (Date.now() - startedAt) / 1000;
+    recorder = null;
+    if (raf) { global.cancelAnimationFrame(raf); raf = 0; }
+    canvas = null;
+    if (!chunks.length) { emit('stop', null); return; }
+    var blob = new Blob(chunks, { type: chunks[0].type || ('video/' + ext) });
+    chunks = [];
+    if (lastTake && lastTake.url) { try { URL.revokeObjectURL(lastTake.url); } catch (e) { /* fine */ } }
+    var stamp = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var name = (opts_name() || '20-year-test') + '-take-' + takeNo + '-' +
+      stamp.getFullYear() + pad(stamp.getMonth() + 1) + pad(stamp.getDate()) + '-' + pad(stamp.getHours()) + pad(stamp.getMinutes()) +
+      '.' + ext;
+    lastTake = { blob: blob, url: URL.createObjectURL(blob), seconds: seconds, bytes: blob.size, name: name, ext: ext, take: takeNo };
+    emit('stop', lastTake);
+  }
+  var nameFn = null;
+  function opts_name() { return nameFn ? nameFn() : ''; }
+
+  /* A download works from a real page - the local file or GitHub Pages.
+     It is inert inside an embedded copy, which is also where the camera
+     and screen capture do not work, so nothing is lost. */
+  function download(take) {
+    take = take || lastTake;
+    if (!take) { return false; }
+    var a = document.createElement('a');
+    a.href = take.url; a.download = take.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    return true;
+  }
+
+  /* Chrome and Edge can open a proper save dialog and stream the blob to
+     disk; everywhere else the anchor download lands it in Downloads. */
+  function saveAs(take) {
+    take = take || lastTake;
+    if (!take) { return Promise.resolve(false); }
+    if (!global.showSaveFilePicker) { return Promise.resolve(download(take)); }
+    var accept = {};
+    accept[take.blob.type.split(';')[0] || 'video/' + take.ext] = ['.' + take.ext];
+    return global.showSaveFilePicker({ suggestedName: take.name, types: [{ description: 'Video', accept: accept }] })
+      .then(function (handle) { return handle.createWritable(); })
+      .then(function (w) { return w.write(take.blob).then(function () { return w.close(); }); })
+      .then(function () { emit('saved', take); return true; })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') { return false; }   /* they closed the dialog */
+        return download(take);
+      });
+  }
+
+  function disarm() {
+    if (recorder) { stop(); }
+    if (display) { display.getTracks().forEach(function (t) { t.stop(); }); display = null; }
+    if (mic) { mic.getTracks().forEach(function (t) { t.stop(); }); mic = null; }
+    emit('disarmed');
+  }
+
+  function listMics() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) { return Promise.resolve([]); }
+    return navigator.mediaDevices.enumerateDevices().then(function (list) {
+      return list.filter(function (d) { return d.kind === 'audioinput'; });
+    }).catch(function () { return []; });
+  }
+
+  BCB.recorder = {
+    prefs: prefs, save: save,
+    supported: supported,
+    arm: arm, start: start, stop: stop, disarm: disarm,
+    download: download, saveAs: saveAs, listMics: listMics,
+    isRecording: function () { return !!recorder; },
+    isArmed: function () { return !!(display && display.active); },
+    elapsed: function () { return recorder ? (Date.now() - startedAt) / 1000 : 0; },
+    lastTake: function () { return lastTake; },
+    onChange: function (fn) { listeners.push(fn); },
+    clearTake: function () {
+      if (lastTake && lastTake.url) { try { URL.revokeObjectURL(lastTake.url); } catch (e) { /* fine */ } }
+      lastTake = null; emit('cleared');
+    },
+    setNameSource: function (fn) { nameFn = fn; },
+    pickMime: pickMime
+  };
+
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* =====================================================================
+   Blue Collar Business - The 20-Year Test
    studio.js : the recording rig
 
    Three pieces that have to stay out of each other's way:
@@ -5397,11 +6872,27 @@ body.st-on { overflow: hidden; }
   var promptWin = null;
   var camStream = null;
   var overlay = null;
+  var bgLayer = null;
+  var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
+  var armingRec = false;
+  var recTimer = null;
+  var recMessage = '';
 
   var prefs = {
-    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '' },
+    cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
     prompter: { fontSize: 34, lineHeight: 1.45, width: 26, readingLine: 18, mirror: false, speed: 1 },
-    autoAdvance: true
+    autoAdvance: true,
+    /* 'one'  full-bleed slides, camera floating in a corner
+       'two'  explainer column on the left, camera panel on the right
+       Studio One's markup and CSS are untouched by mode two; the split
+       layout is entirely additive, gated on a class. */
+    mode: 'one',
+    /* Studio Three only: the frame it composes for. */
+    vertical: { ratio: '9:16', safeGuides: true },
+    /* Studio Two framing. Defaults match a floating presenter card:
+       inset from the edge, rounded, outlined, around 60% of frame
+       height and vertically centred. */
+    split: { camHeight: 62, camWidth: 26, align: 'center' }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -5411,6 +6902,10 @@ body.st-on { overflow: hidden; }
       if (p.cam) { Object.assign(prefs.cam, p.cam); }
       if (p.prompter) { Object.assign(prefs.prompter, p.prompter); }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
+      if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
+      if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
+      if (p.split) { Object.assign(prefs.split, p.split); }
+      prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
   } catch (e) { /* storage can throw outright in some contexts */ }
@@ -5447,10 +6942,17 @@ body.st-on { overflow: hidden; }
       var cGap = c.a.totals.netWorth - c.b.totals.netWorth;
       var cWin = cGap >= 0 ? c.a.name : c.b.name;
       var rGap = Math.abs(L.sim.a.totals.netWorth - L.sim.b.totals.netWorth);
-      N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
-        ' instead of ' + N.say(rGap));
+      var rWin = L.scores.netWorthWinner;
+      if (Math.abs(cGap) < 1000) {
+        N.setScenarioNote('it\'s a dead heat');
+      } else if (rWin && cWin !== rWin) {
+        N.setScenarioNote('it flips. ' + cWin + ' comes out ahead, by ' + N.say(Math.abs(cGap)));
+      } else {
+        N.setScenarioNote(cWin + ' is still ahead, but by ' + N.say(Math.abs(cGap)) +
+          ' instead of ' + N.say(rGap));
+      }
     }
-    script = N.episodeScript(L.sim, L.scores);
+    script = N.episodeScript(L.sim, L.scores, BCB.app.getState().scriptSeed || 0);
     if (idx >= script.beats.length) { idx = 0; }
     return script;
   }
@@ -5489,6 +6991,33 @@ body.st-on { overflow: hidden; }
     return d;
   }
 
+  /* Numbers marked data-count roll up from zero when the slide lands.
+     The final text is already in the element, so anything that skips
+     the tween (reduced motion, print) shows the right figure. */
+  var countRaf = 0;
+  function countUp(host) {
+    if (countRaf) { global.cancelAnimationFrame(countRaf); countRaf = 0; }
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var nodes = Array.prototype.slice.call(host.querySelectorAll('[data-count]'));
+    if (!nodes.length || reduce) { return; }
+    var items = nodes.map(function (n) { return { el: n, target: parseFloat(n.dataset.count) || 0, final: n.textContent, money: !!n.dataset.money }; });
+    /* Hold the final width while the shorter numbers roll through, so
+       the layout does not breathe in and out during the count. */
+    items.forEach(function (it) { it.el.style.minWidth = it.el.getBoundingClientRect().width + 'px'; });
+    var t0 = performance.now(), dur = 1300;
+    function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      items.forEach(function (it) {
+        if (k >= 1) { it.el.textContent = it.final; it.el.style.minWidth = ''; return; }
+        var v = it.target * e;
+        it.el.textContent = it.money ? money(v) : String(Math.round(v));
+      });
+      if (k < 1) { countRaf = global.requestAnimationFrame(frame); } else { countRaf = 0; }
+    }
+    countRaf = global.requestAnimationFrame(frame);
+  }
+
   function visualFor(b) {
     var L = BCB.app.getLast(), sim = L.sim, sc = L.scores, cfg = sim.cfg;
     var a = sim.a, bb = sim.b;
@@ -5497,16 +7026,46 @@ body.st-on { overflow: hidden; }
 
     if (b.kind.indexOf('chart:') === 0) {
       var key = b.kind.slice(6);
+      /* A 1180-wide frame shrinks every label once the column narrows, so
+         each layout gets proportions rather than a scaled-down copy. The
+         vertical frame is squarer again and needs the most room per label. */
+      var dims = prefs.mode === 'three' ? { w: 780, h: 620, gap: 44 }
+               : prefs.mode === 'two'   ? { w: 900, h: 520, gap: 40 }
+               :                          { w: 1180, h: 520, gap: 48 };
       wrap.appendChild(C.lineChart({
         series: seriesFor(key), markers: markers(), xTitle: 'Age',
         format: key === 'hours' ? C.fmtNum : C.fmtMoney,
-        width: 1180, height: 520, endLabelGap: 48
+        width: dims.w, height: dims.h, endLabelGap: dims.gap,
+        reveal: b.reveal || null
       }));
       wrap.classList.add('wide');
       return wrap;
     }
 
     switch (b.kind) {
+      case 'brand':
+        var brand = document.createElement('div');
+        brand.className = 'st-brandcard';
+        brand.innerHTML =
+          '<div class="st-ladder">' +
+          ['Do', 'Lead', 'Build', 'Own', 'Invest'].map(function (step, i) {
+            return '<span class="st-rung' + (i === 4 ? ' last' : '') + '">' + step + '</span>';
+          }).join('<i class="st-arrow"></i>') +
+          '</div>' +
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span>' +
+          '<em>vs</em><span class="b">' + esc(bb.name) + '</span></div>';
+        wrap.appendChild(brand);
+        wrap.classList.add('wide');
+        return wrap;
+
+      case 'outro':
+        var outro = document.createElement('div');
+        outro.className = 'st-brandcard';
+        outro.innerHTML =
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>';
+        wrap.appendChild(outro);
+        return wrap;
+
       case 'title':
         wrap.appendChild(bigStat([
           { k: 'Starting age', v: String(cfg.startAge) },
@@ -5589,7 +7148,7 @@ body.st-on { overflow: hidden; }
               return '<div class="st-col-line"><span>' + esc(l[0]) + '</span><span>' + esc(l[1]) + '</span></div>';
             }).join('') +
             '<div class="st-col-total"><div class="k">Estimated net worth</div>' +
-            '<div class="v">' + money(t.netWorth) + '</div></div></div>';
+            '<div class="v" data-count="' + Math.round(t.netWorth) + '" data-money="1">' + money(t.netWorth) + '</div></div></div>';
         });
         wrap.appendChild(cols);
         wrap.classList.add('wide');
@@ -5613,6 +7172,50 @@ body.st-on { overflow: hidden; }
         ]));
         return wrap;
 
+      case 'invest': {
+        /* The rule, then what each of them actually put away. */
+        var inv = cfg.investing || {};
+        var rule = inv.mode === 'percent'
+          ? Math.round((inv.percent || 0) * 100) + '% of what\'s left'
+          : money((inv.fixedAmount || 0)) + ' a year';
+        var shareOf = function (res) {
+          var at = res.rows.reduce(function (t, r) { return t + Math.max(0, r.afterTax); }, 0);
+          return at > 0 ? Math.round(res.totals.invested / at * 100) : 0;
+        };
+        wrap.appendChild(bigStat([
+          { k: 'The rule', v: rule, n: 'after living costs, invested every year' },
+          { k: a.name + ' - put in', v: money(a.totals.invested), n: shareOf(a) + '% of take-home pay', side: 'a' },
+          { k: bb.name + ' - put in', v: money(bb.totals.invested), n: shareOf(bb) + '% of take-home pay', side: 'b' }
+        ]));
+        return wrap;
+      }
+
+      case 'compound': {
+        /* A dollar's journey, then the pile: what went in against what
+           the market added. Totals are the balance at the end. */
+        var r = cfg.investReturn, yrs = cfg.years;
+        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var grey = '#5f656d';
+        wrap.appendChild(bigStat([
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
+        ]));
+        var stack = C.stackChart({
+          columns: [a, bb].map(function (res, i) {
+            return { name: res.name, parts: [
+              { label: 'Put in', value: res.totals.invested, color: grey, ink: '#fff' },
+              { label: 'Growth', value: res.totals.investmentGrowth, color: i === 0 ? colA() : colB(), ink: '#fff' }
+            ] };
+          }),
+          totals: [a.totals.investments, bb.totals.investments],
+          width: 900, height: 150
+        });
+        wrap.appendChild(stack);
+        wrap.classList.add('wide');
+        wrap.classList.add('st-compound');
+        return wrap;
+      }
+
       case 'radar':
         wrap.appendChild(C.radarChart({
           axes: sc.a.lifestyle.rows.map(function (r, i) {
@@ -5627,7 +7230,7 @@ body.st-on { overflow: hidden; }
         s.className = 'st-scores';
         [[a, sc.a, 'a'], [bb, sc.b, 'b']].forEach(function (p) {
           s.innerHTML += '<div class="st-score ' + p[2] + '"><div class="who">' + esc(p[0].name) + '</div>' +
-            '<div class="n">' + p[1].score + '</div><div class="of">out of 100</div>' +
+            '<div class="n" data-count="' + p[1].score + '">' + p[1].score + '</div><div class="of">out of 100</div>' +
             '<div class="four">' +
             [['Career', p[1].four.career.score], ['Owner-op', p[1].four.ownerOperator.score],
              ['Business', p[1].four.businessOwner.score], ['Investor', p[1].four.investor.score]]
@@ -5685,26 +7288,52 @@ body.st-on { overflow: hidden; }
   function openPresentation() {
     if (!build()) { return; }
     if (overlay) { overlay.remove(); }
+    var three = prefs.mode === 'three';
     overlay = document.createElement('div');
-    overlay.className = 'st-stage';
-    overlay.innerHTML =
+    overlay.className = 'st-stage' +
+      (prefs.mode === 'two' ? ' st-two' : '') +
+      (three ? ' st-three ratio-' + prefs.vertical.ratio.replace(':', '-') : '');
+
+    var head =
       '<div class="st-top">' +
         '<div class="st-brand">Blue Collar Business<span>The ' + BCB.app.getLast().sim.cfg.years + '-Year Test</span></div>' +
         '<div class="st-meta"><span id="stCount"></span><span id="stClock"></span></div>' +
-      '</div>' +
+      '</div>';
+    var body =
       '<div class="st-body"><div class="st-kick" id="stKick"></div>' +
-      '<h1 id="stTitle"></h1><div id="stVis"></div></div>' +
-      '<div class="st-progress" id="stProg"></div>' +
+      '<h1 id="stTitle"></h1><div id="stVis"></div></div>';
+    var prog = '<div class="st-progress" id="stProg"></div>';
+    var camcol = '<div class="st-camcol" id="stCamCol"></div>';
+
+    /* Studio Three composes inside a fixed-ratio frame rather than the
+       whole window, because the deliverable is a 9:16 file - what is
+       outside the frame is not in the video. The frame is a wrapper, so
+       every id below stays where the rest of the code expects it. */
+    var inner = three
+      ? '<div class="st-frame">' + camcol + head + body + prog +
+          (prefs.vertical.safeGuides ? '<div class="st-safe" aria-hidden="true">' +
+            '<span class="s-right"></span><span class="s-bottom"></span>' +
+            '<em>platform UI sits here</em></div>' : '') +
+        '</div>'
+      : head + body + prog + (prefs.mode === 'two' ? camcol : '');
+
+    overlay.innerHTML = inner +
       '<div class="st-controls no-print" id="stCtl">' +
         '<button data-act="prev" title="Previous beat (left arrow)">&larr;</button>' +
         '<button data-act="play" title="Play or pause (space)">Play</button>' +
         '<button data-act="next" title="Next beat (right arrow)">&rarr;</button>' +
         '<button data-act="prompter" title="Open the prompter window">Prompter</button>' +
         '<button data-act="cam" title="Toggle the webcam (C)">Camera</button>' +
+        '<button data-act="rec" id="stRecBtn" title="Start or stop a take (R)">Record</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
-      '</div>';
+      '</div>' +
+      '<div class="st-take no-print" id="stTake" hidden></div>';
+    /* Background sits behind everything on the stage. */
+    bgLayer = BCB.media.createLayer();
+    overlay.insertBefore(bgLayer, overlay.firstChild);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
+    BCB.media.load().then(function () { paintBackground(); });
     overlay.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-act]');
       if (!b) { return; }
@@ -5714,7 +7343,13 @@ body.st-on { overflow: hidden; }
       else if (act === 'play') { toggle(); }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
+      else if (act === 'rec') { toggleRecording(); }
+      else if (act === 'save') { BCB.recorder.saveAs(); }
+      else if (act === 'dismiss') { showTake(null); }
       else if (act === 'exit') { closePresentation(); }
+      /* A focused button would pin the control pill on screen - and so
+         into the recording. Drop focus once the click is handled. */
+      if (b.blur) { b.blur(); }
     });
     document.addEventListener('keydown', onKey);
     /* Hide the controls while you are actually recording. */
@@ -5727,17 +7362,64 @@ body.st-on { overflow: hidden; }
     overlay.addEventListener('mousemove', poke);
     poke();
 
-    if (prefs.cam.on) { startCam(); }
+    if (prefs.mode === 'two') { applySplitVars(); }
+    /* The camera is never opened on page load, but it is remembered:
+       if it was on last time you presented, it comes back on now. */
+    if (prefs.cam.on || prefs.cam.wanted) { startCam(); }
     mountCam();
+    recDeclined = false;
     go(idx, true);
+    renderRecState();
+  }
+
+  function applySplitVars() {
+    if (!overlay) { return; }
+    overlay.style.setProperty('--split-cam-h', prefs.split.camHeight + '%');
+    overlay.style.setProperty('--split-cam-w', prefs.split.camWidth + 'vw');
+    overlay.classList.toggle('align-left', prefs.split.align === 'left');
   }
 
   function closePresentation() {
     stop();
+    /* Leaving the stage ends the take and lets go of the screen share,
+       so the browser's "sharing this tab" bar goes away with it. */
+    if (BCB.recorder) { BCB.recorder.disarm(); }
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
     document.body.classList.remove('st-on');
     mountCam();   /* put the camera tile back on the studio tab */
+  }
+
+  /* In the split layout the picture is content, not just a backdrop:
+     the brief for this mode is "text and images on the left". Beats that
+     carry their own visual keep it; the rest get the career photograph
+     as an inset card above the words. */
+  function insetFor(b) {
+    if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
+    if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
+    var sim = BCB.app.getLast().sim;
+    var asset = null;
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'still'); }
+    else {
+      var hs = sim.headStart;
+      var which = (b.id === 'headstart' && hs.leader)
+        ? (hs.leader === sim.a.name ? sim.a : sim.b)
+        : ((idx % 2 === 0) ? sim.a : sim.b);
+      asset = BCB.media.assetFor(which.career, 'still');
+    }
+    if (!asset) { return null; }
+    var fig = document.createElement('div');
+    fig.className = 'st-inset';
+    var img = document.createElement('img');
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.addEventListener('error', function () { fig.remove(); });
+    img.src = asset.src;
+    fig.appendChild(img);
+    return fig;
   }
 
   function renderStage() {
@@ -5749,13 +7431,55 @@ body.st-on { overflow: hidden; }
     overlay.querySelector('#stTitle').textContent = b.title;
     var host = overlay.querySelector('#stVis');
     host.innerHTML = '';
+    var inset = insetFor(b);
+    if (inset) { host.appendChild(inset); }
     host.appendChild(visualFor(b));
+    countUp(host);
     overlay.querySelector('#stCount').textContent = (idx + 1) + ' / ' + script.beats.length;
     overlay.querySelector('#stProg').innerHTML = script.beats.map(function (x, i) {
       return '<i class="' + (i < idx ? 'done' : i === idx ? 'now' : '') + '" style="flex:' + x.seconds + '"></i>';
     }).join('');
     overlay.querySelector('[data-act="play"]').textContent = playing ? 'Pause' : 'Play';
+    /* The platform-UI guides are a framing aid, not part of the video:
+       visible while you are setting up, gone once you are rolling. Scoped
+       to Studio Three so the other two stages keep the exact class list
+       they had before this mode existed. */
+    if (prefs.mode === 'three') { overlay.classList.toggle('guides-on', !playing); }
+    paintBackground();
     tickClock();
+  }
+
+  /* Which career's imagery belongs behind this beat. Beats that are
+     about one side show that side; shared beats alternate so the
+     episode does not sit on one picture for seven minutes. */
+  function paintBackground() {
+    if (!bgLayer || !BCB.media.manifest) { return; }
+    var b = beat();
+    if (!b) { return; }
+    var L = BCB.app.getLast(), sim = L.sim;
+    var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var asset = null;
+
+    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
+    else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
+    if (!asset) {
+      /* Otherwise use whichever career the beat is really about, and
+         fall back to alternating between the two. */
+      var hs = sim.headStart;
+      var which = null;
+      if (b.id === 'headstart' && hs.leader) {
+        which = hs.leader === sim.a.name ? sim.a : sim.b;
+      } else {
+        which = (idx % 2 === 0) ? sim.a : sim.b;
+      }
+      asset = BCB.media.assetFor(which.career, idx % 3 === 0 ? 'clip' : 'still');
+      if (!asset) {
+        var other = which === sim.a ? sim.b : sim.a;
+        asset = BCB.media.assetFor(other.career, 'still');
+      }
+    }
+    BCB.media.setBackground(bgLayer, asset, BCB.media.intensityFor(b.kind), reduce);
   }
 
   function tickClock() {
@@ -5790,12 +7514,30 @@ body.st-on { overflow: hidden; }
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
         if (idx < script.beats.length - 1) { go(idx + 1); }
-        else { stop(); }
+        else { stop(); endTake(); }
       }
     }, 250);
   }
   function play() {
     if (!script) { return; }
+    var R = BCB.recorder;
+    /* Ask for the screen before the clock starts, so the share picker is
+       never the first two seconds of the take. If they cancel it, the
+       next Play runs without recording rather than nagging. */
+    if (overlay && R && R.supported() && R.prefs.autoRecord && !R.isRecording() && !recDeclined) {
+      if (armingRec) { return; }
+      armingRec = true;
+      var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+      R.start({ cropTo: frame }).then(function (ok) {
+        armingRec = false;
+        if (ok) { beginPlay(); }
+        else { recDeclined = true; }
+      });
+      return;
+    }
+    beginPlay();
+  }
+  function beginPlay() {
     playing = true;
     if (remaining <= 0) { remaining = beat().seconds; }
     restartTicker();
@@ -5819,6 +7561,7 @@ body.st-on { overflow: hidden; }
     else if (k === 'ArrowLeft' || k === 'PageUp') { ev.preventDefault(); go(idx - 1); }
     else if (k === 'Escape') { closePresentation(); }
     else if (k === 'c' || k === 'C') { toggleCam(); }
+    else if (k === 'r' || k === 'R') { toggleRecording(); }
     else if (k === 'f' || k === 'F') { toggleFullscreen(); }
     else if (k === 'ArrowUp') { ev.preventDefault(); nudgePrompter(-1); }
     else if (k === 'ArrowDown') { ev.preventDefault(); nudgePrompter(1); }
@@ -5830,9 +7573,142 @@ body.st-on { overflow: hidden; }
   }
 
   /* =====================================================================
+     RECORDING
+     The page records its own tab (recorder.js). Two rules keep the
+     indicator out of the file: nothing on the stage itself changes while
+     a take runs, and the REC clock lives in the control pill (which
+     hides itself) and in the prompter window (which is never captured).
+     ===================================================================== */
+  function toggleRecording() {
+    var R = BCB.recorder;
+    if (!R || !overlay) { return; }
+    if (R.isRecording()) { R.stop(); return; }
+    if (armingRec) { return; }
+    armingRec = true;
+    recDeclined = false;
+    var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
+    R.start({ cropTo: frame }).then(function () { armingRec = false; });
+  }
+  function endTake() {
+    var R = BCB.recorder;
+    if (R && R.isRecording()) { R.stop(); }
+  }
+  function fmtBytes(n) {
+    if (n > 1e9) { return (n / 1e9).toFixed(2) + ' GB'; }
+    if (n > 1e6) { return Math.round(n / 1e6) + ' MB'; }
+    return Math.round(n / 1e3) + ' KB';
+  }
+  function takeSummary(t) {
+    return 'Take ' + t.take + ' \u00b7 ' + mmss(t.seconds) + ' \u00b7 ' + fmtBytes(t.bytes) + ' \u00b7 ' + t.name;
+  }
+  /* The toast above the control pill: a finished take, or why there is
+     no recording. Hidden while a take is running. */
+  function showTake(take, message) {
+    if (!overlay) { return; }
+    var el = overlay.querySelector('#stTake');
+    if (!el) { return; }
+    if (!take && !message) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = take
+      ? '<span>' + esc(takeSummary(take)) + '</span>' +
+        '<button data-act="save">Save the file</button><button data-act="dismiss" title="Hide">&times;</button>'
+      : '<span>' + esc(message) + '</span><button data-act="dismiss" title="Hide">&times;</button>';
+  }
+  function renderRecState() {
+    var R = BCB.recorder;
+    if (!R) { return; }
+    var on = R.isRecording();
+    var label = on ? '\u25cf ' + mmss(R.elapsed()) : (armingRec ? 'Starting\u2026' : 'Record');
+    if (overlay) {
+      var btn = overlay.querySelector('#stRecBtn');
+      if (btn) { btn.textContent = label; btn.classList.toggle('rec-on', on); }
+    }
+    if (promptWin && !promptWin.closed) {
+      var pr = promptWin.document.getElementById('pRec');
+      if (pr) { pr.className = 'rec' + (on ? ' on' : ''); pr.innerHTML = on ? '<i></i>REC ' + mmss(R.elapsed()) : ''; }
+    }
+    var card = document.getElementById('recCard');
+    if (card && !overlay) { card.innerHTML = recCardMarkup(); listMics(); }
+  }
+  function onRecorderEvent(evt, data) {
+    if (evt === 'start') {
+      recMessage = '';
+      showTake(null);
+      clearInterval(recTimer);
+      recTimer = setInterval(renderRecState, 1000);
+    } else if (evt === 'stop') {
+      clearInterval(recTimer); recTimer = null;
+      if (data) { showTake(data); }
+      else { showTake(null, 'That take was empty - nothing was saved.'); }
+    } else if (evt === 'error' || evt === 'warn') {
+      recMessage = data;
+      showTake(null, data);
+    }
+    renderRecState();
+  }
+  function recCardMarkup() {
+    var R = BCB.recorder;
+    if (!R) { return ''; }
+    var P = R.prefs;
+    var take = R.lastTake();
+    var m = R.pickMime();
+    var q = P.fps + '-' + P.bitrate;
+    var opts = [['30-6', '30 fps \u00b7 6 Mbps - smaller file'], ['30-10', '30 fps \u00b7 10 Mbps - YouTube 1080p'],
+      ['30-16', '30 fps \u00b7 16 Mbps - high'], ['60-20', '60 fps \u00b7 20 Mbps - smooth motion']];
+    if (!opts.some(function (o) { return o[0] === q; })) { opts.push([q, P.fps + ' fps \u00b7 ' + P.bitrate + ' Mbps']); }
+    var html = '<h3>Screen recording</h3>' +
+      '<p class="sub">The page records its own tab while you present and hands you the file when the episode ends ' +
+      'or you leave the stage. No second app.</p>';
+    if (!R.supported()) {
+      return html + '<div class="callout">This browser cannot record its own screen. Use Chrome or Edge on a desktop, ' +
+        'or point OBS at this window instead.</div>';
+    }
+    html +=
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recAuto"' + (P.autoRecord ? ' checked' : '') +
+        '><label for="recAuto" style="margin:0">Record automatically when I press Play</label></div>' +
+        '<div class="hint">The first Play opens the browser\u2019s share picker with this tab already selected. Choose it and the ' +
+        'take starts. The prompter window is a separate window, so it is never in the file. R starts or stops a take by hand.</div></div>' +
+      '<div class="field"><div class="field-inline"><input type="checkbox" id="recMic"' + (P.includeMic ? ' checked' : '') +
+        '><label for="recMic" style="margin:0">Record my microphone into the file</label></div></div>' +
+      '<div class="field"><label for="recMicDevice">Microphone</label><select id="recMicDevice"' + (P.includeMic ? '' : ' disabled') +
+        '><option value="">Default microphone</option></select></div>' +
+      '<div class="field"><label for="recQuality">Quality</label><select id="recQuality">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === q ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
+      '</select><div class="hint">' + (m.ext === 'mp4'
+        ? 'Saves as MP4 (H.264), which every editor and platform opens.'
+        : 'Saves as WebM. YouTube takes it directly; convert with HandBrake for other editors.') +
+        ' Ten minutes at 10 Mbps is about 750 MB.</div></div>' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem">The Studio Three take is cropped to the vertical frame on the way ' +
+      'through, so it comes out 9:16. The take lives in the browser\u2019s memory until you save it: reloading the page loses it. ' +
+      'Recording works from the local file and the GitHub Pages link, not inside an embedded preview.</p>';
+    if (recMessage) { html += '<p class="hint" style="color:var(--series-b)">' + esc(recMessage) + '</p>'; }
+    if (take) {
+      html += '<div class="callout" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<strong>Last take</strong><span>' + esc(takeSummary(take)) + '</span>' +
+        '<button class="btn btn-sm" data-rec="save">Save the file</button>' +
+        '<a class="btn btn-o btn-sm" href="' + take.url + '" download="' + esc(take.name) + '">Download</a>' +
+        '<button class="btn btn-o btn-sm" data-rec="clear">Discard</button></div>';
+    }
+    return html;
+  }
+  function listMics() {
+    var sel = document.getElementById('recMicDevice');
+    if (!sel || !BCB.recorder) { return; }
+    BCB.recorder.listMics().then(function (list) {
+      if (!list.length) { return; }
+      var cur = BCB.recorder.prefs.micDeviceId;
+      sel.innerHTML = '<option value="">Default microphone</option>' + list.map(function (d, i) {
+        return '<option value="' + esc(d.deviceId) + '"' + (d.deviceId === cur ? ' selected' : '') + '>' +
+          esc(d.label || 'Microphone ' + (i + 1)) + '</option>';
+      }).join('');
+    });
+  }
+
+  /* =====================================================================
      WEBCAM
      ===================================================================== */
   var camWrap = null;
+  var camPlaceholder = null;
   var camMessage = '';
   function camNode() {
     if (camWrap) { return camWrap; }
@@ -5864,30 +7740,111 @@ body.st-on { overflow: hidden; }
       w.style.left = ''; w.style.top = '';
     }
   }
+  /* A framed stand-in exactly where the real picture will sit, so the
+     layout can be judged - and rehearsed - before the camera is on. */
+  function placeholderNode() {
+    if (camPlaceholder) { return camPlaceholder; }
+    camPlaceholder = document.createElement('div');
+    camPlaceholder.className = 'st-cam st-cam-ghost';
+    camPlaceholder.innerHTML =
+      '<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<rect width="160" height="90" fill="none"></rect>' +
+      '<circle cx="80" cy="38" r="15" fill="currentColor" opacity=".38"></circle>' +
+      '<path d="M52 84c0-16 12.5-25 28-25s28 9 28 25z" fill="currentColor" opacity=".38"></path>' +
+      '</svg><span>Your camera \u00b7 press C to turn it on</span>';
+    return camPlaceholder;
+  }
   function mountCam() {
     var w = camNode();
     applyCamStyle();
-    if (!prefs.cam.on) { if (w.parentNode) { w.remove(); } return; }
-    var host = overlay || document.getElementById('camHost');
+    var ghost = placeholderNode();
+    if (ghost.parentNode) { ghost.remove(); }
+    if (!prefs.cam.on) {
+      if (w.parentNode) { w.remove(); }
+      /* Show the stand-in on the stage, and in the studio tab's tile. */
+      if (prefs.cam.placeholder) {
+        var col = overlay && overlay.querySelector('#stCamCol');
+        var gHost = col || overlay || document.getElementById('camHost');
+        if (gHost) {
+          gHost.appendChild(ghost);
+          ghost.className = 'st-cam st-cam-ghost' + (col ? ' in-col' : ' shape-' + prefs.cam.shape);
+          if (col) {
+            /* The column sizes it; clear anything the floating mode set. */
+            ghost.style.cssText = '';
+          } else if (overlay) {
+            ghost.style.position = 'fixed';
+            ghost.style.width = prefs.cam.size + 'vw';
+            ghost.style.right = '2.4vw'; ghost.style.bottom = '2.4vw';
+            ghost.style.left = ''; ghost.style.top = '';
+          } else {
+            ghost.style.position = 'relative';
+            ghost.style.width = '100%';
+            ghost.style.right = ghost.style.bottom = ghost.style.left = ghost.style.top = '';
+          }
+        }
+      }
+      return;
+    }
+    var col = overlay && overlay.querySelector('#stCamCol');
+    var host = col || overlay || document.getElementById('camHost');
     if (host && w.parentNode !== host) { host.appendChild(w); }
-    if (!overlay) { w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = ''; w.style.width = '100%'; }
-    else { w.style.position = 'fixed'; }
+    if (col) {
+      /* Filling the column is the whole point of this layout, so the
+         camera is not draggable here - the column places it. */
+      w.className = 'st-cam in-col' + (prefs.cam.mirror ? ' mirror' : '');
+      w.style.cssText = '';
+    } else if (!overlay) {
+      w.style.position = 'relative'; w.style.left = w.style.top = w.style.right = w.style.bottom = '';
+      w.style.width = '100%';
+    } else {
+      w.style.position = 'fixed';
+    }
   }
   function setCamMessage(text) {
     camMessage = text;
     var note = document.getElementById('camNote');
     if (note) { note.textContent = text; }
   }
+  /* Why the camera did not start, in words that say what to do next.
+     The browser's own error names are precise and useless on their own. */
+  function camFailure(err) {
+    var name = (err && err.name) || '';
+    var embedded = false;
+    try { embedded = global.top !== global.self; } catch (e) { embedded = true; }
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      if (embedded) {
+        return 'This page is embedded inside another site, which blocks the camera. Open the GitHub Pages link ' +
+          'or the local file in its own browser tab.';
+      }
+      if (!global.isSecureContext) {
+        return 'The browser only allows the camera on an https address or a local file. This page is neither.';
+      }
+      return 'Camera blocked for this page. Click the camera icon at the right end of the address bar, allow it, ' +
+        'then press C again.';
+    }
+    if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') {
+      return 'The camera is busy in another app. Close the Windows camera settings preview, Zoom, Teams, OBS ' +
+        'or the Camera app, then press C again.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') {
+      return 'No camera found. Check it is plugged in, and that Windows privacy settings allow desktop apps ' +
+        'to use the camera.';
+    }
+    return 'The camera did not start (' + (name || 'unknown error') + '). Press C to try again.';
+  }
   function startCam() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCamMessage('This browser will not give a page camera access here.');
-      prefs.cam.on = false; renderStudio(); return;
+      camFailed('This browser will not give a page camera access here. Use Chrome or Edge, from the local ' +
+        'file or the GitHub Pages link.');
+      return;
     }
     var constraints = { audio: false, video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
     if (prefs.cam.deviceId) { constraints.video.deviceId = { exact: prefs.cam.deviceId }; }
+    camFailed('');
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
       camStream = stream;
       prefs.cam.on = true;
+      prefs.cam.wanted = true;
       camNode().querySelector('video').srcObject = stream;
       mountCam();
       savePrefs();
@@ -5895,16 +7852,34 @@ body.st-on { overflow: hidden; }
       listCams();
       renderStudio();
     }).catch(function (err) {
-      prefs.cam.on = false;
-      camMessage = err && err.name === 'NotAllowedError'
-        ? 'Camera blocked. Allow it for this page - or open the local copy of the file, since a page embedded in another site is usually refused the camera outright.'
-        : 'No camera available: ' + (err && err.name ? err.name : 'unknown error') + '.';
-      renderStudio();
+      /* A remembered camera that is no longer plugged in should not
+         stop the one that is: fall back to the default and try again. */
+      var missing = err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError');
+      if (missing && prefs.cam.deviceId) {
+        prefs.cam.deviceId = ''; savePrefs();
+        startCam();
+        return;
+      }
+      camFailed(camFailure(err));
     });
+  }
+  /* A failure has to be visible where you are: on the stage it goes on
+     the placeholder and the toast, on the tab it goes under the tile. */
+  function camFailed(text) {
+    prefs.cam.on = false;
+    camMessage = text;
+    var ghost = placeholderNode().querySelector('span');
+    if (ghost) {
+      ghost.textContent = text || 'Your camera \u00b7 press C to turn it on';
+      ghost.classList.toggle('err', !!text);
+    }
+    if (text && overlay) { showTake(null, text); }
+    if (!overlay) { renderStudio(); }
   }
   function stopCam() {
     if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
     prefs.cam.on = false;
+    prefs.cam.wanted = false;
     if (camWrap && camWrap.parentNode) { camWrap.remove(); }
     camMessage = '';
     savePrefs();
@@ -5944,6 +7919,10 @@ body.st-on { overflow: hidden; }
         'font-size:12px;color:var(--dim);flex:none}' +
       '.bar strong{color:var(--ink);font-size:13px}' +
       '.bar .sp{margin-left:auto}' +
+      '.rec{display:none;color:#ff5a4e;font-weight:600;letter-spacing:.06em;font-size:12px}' +
+      '.rec.on{display:inline-flex;align-items:center;gap:6px}' +
+      '.rec i{width:9px;height:9px;border-radius:50%;background:#ff3b30;animation:pRecBlink 1s steps(2) infinite}' +
+      '@keyframes pRecBlink{50%{opacity:.25}}' +
       '.bar button{background:#16181b;color:var(--ink);border:1px solid var(--rule);border-radius:5px;' +
         'padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}' +
       '.bar button:hover{border-color:var(--dim)}' +
@@ -5968,6 +7947,7 @@ body.st-on { overflow: hidden; }
       '.foot .keys{margin-left:auto}' +
       '</style></head><body>' +
       '<div class="bar"><strong id="pBeat">-</strong><span id="pPos"></span>' +
+        '<span id="pRec" class="rec"></span>' +
         '<span class="sp"></span>' +
         '<button data-p="prev">&larr;</button>' +
         '<button data-p="play">Play</button>' +
@@ -6046,6 +8026,7 @@ body.st-on { overflow: hidden; }
     d.getElementById('pPos').textContent = script ? (idx + 1) + ' / ' + script.beats.length : '';
     d.getElementById('pClock').textContent = mmss(remaining) + (playing ? '' : '  (paused)');
     d.querySelector('[data-p="play"]').textContent = playing ? 'Pause' : 'Play';
+    renderRecState();
     col.style.font = P.fontSize + 'px/' + P.lineHeight + ' system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
     col.style.maxWidth = P.width + 'em';
     if (!b) { col.innerHTML = ''; return; }
@@ -6112,12 +8093,55 @@ body.st-on { overflow: hidden; }
         '<div class="tile"><div class="k">Comparison</div><div class="v" style="font-size:1.05rem">' +
           esc(BCB.app.getLast().sim.a.name) + ' vs ' + esc(BCB.app.getLast().sim.b.name) + '</div></div>' +
       '</div>' +
+      '<div class="st-modes">' +
+        [['one', 'Studio One - full frame',
+          'Slides fill the screen, camera floats in a corner. Best when the numbers are the story.'],
+         ['two', 'Studio Two - explainer and camera',
+          'Explainer column on the left for text and images, you on the right at full height. Best when you are the story.'],
+         ['three', 'Studio Three - vertical',
+          'You on top, explainer underneath, composed inside a 9:16 frame for Reels, TikTok and Shorts.']]
+        .map(function (m) {
+          return '<button class="st-mode' + (prefs.mode === m[0] ? ' on' : '') + '" data-mode="' + m[0] + '">' +
+            '<span class="k">' + esc(m[1]) + '</span><span class="d">' + esc(m[2]) + '</span>' +
+            '<span class="dia dia-' + m[0] + '" aria-hidden="true"></span></button>';
+        }).join('') +
+      '</div>' +
       '<div class="field-inline" style="flex-wrap:wrap;gap:8px">' +
         '<button class="btn" data-st="stage">Start presenting</button>' +
         '<button class="btn btn-o" data-st="prompter">Open prompter window</button>' +
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
       '<p class="hint" id="prompterNote" style="margin-top:8px;color:var(--muted);font-size:.8rem"></p>' +
+      (prefs.mode === 'two'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="sCamH">Camera height</label>' +
+          '<input type="number" id="sCamH" min="30" max="100" step="2" value="' + prefs.split.camHeight + '">' +
+          '<div class="hint">% of the frame. 100 fills the column edge to edge; ' +
+          'lower floats it as a card.</div></div>' +
+          '<div class="field"><label for="sCamW">Camera width</label>' +
+          '<input type="number" id="sCamW" min="14" max="45" step="1" value="' + prefs.split.camWidth + '">' +
+          '<div class="hint">% of the window width.</div></div>' +
+          '<div class="field"><label for="sAlign">Explainer text</label><select id="sAlign">' +
+            [['center', 'Centred'], ['left', 'Left-aligned']].map(function (o) {
+              return '<option value="' + o[0] + '"' + (prefs.split.align === o[0] ? ' selected' : '') +
+                '>' + o[1] + '</option>'; }).join('') +
+          '</select></div></div>'
+        : '') +
+      (prefs.mode === 'three'
+        ? '<div class="field-row" style="margin-top:14px">' +
+          '<div class="field"><label for="vRatio">Frame</label><select id="vRatio">' +
+            [['9:16', '9:16 - Reels, TikTok, Shorts'], ['4:5', '4:5 - Instagram feed'], ['1:1', '1:1 - square']]
+            .map(function (r) {
+              return '<option value="' + r[0] + '"' + (prefs.vertical.ratio === r[0] ? ' selected' : '') +
+                '>' + esc(r[1]) + '</option>'; }).join('') +
+          '</select><div class="hint">Everything outside the frame is not in the video. ' +
+          'Capture the frame, not the window.</div></div>' +
+          '<div class="field"><div class="field-inline" style="margin-top:22px">' +
+          '<input type="checkbox" id="vSafe"' + (prefs.vertical.safeGuides ? ' checked' : '') +
+          '><label for="vSafe" style="margin:0">Show where platform UI covers the frame</label></div>' +
+          '<div class="hint">Captions, buttons and the handle sit over the bottom and right edges. ' +
+          'The guides disappear once you press play.</div></div></div>'
+        : '') +
       '</div>' +
 
       '<div class="callout"><strong>Setting it up on one wide screen.</strong> Put the slide window on the half ' +
@@ -6147,10 +8171,15 @@ body.st-on { overflow: hidden; }
           ['rounded', 'circle', 'square'].map(function (s) {
             return '<option value="' + s + '"' + (cam.shape === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
         '</select></div>' +
+        '<div class="field"><div class="field-inline"><input type="checkbox" id="camGhost"' + (cam.placeholder ? ' checked' : '') +
+          '><label for="camGhost" style="margin:0">Show a placeholder when the camera is off</label></div>' +
+          '<div class="hint">Marks exactly where the picture will sit, so you can rehearse the layout.</div></div>' +
         '<div class="field"><div class="field-inline"><input type="checkbox" id="camMirror"' + (cam.mirror ? ' checked' : '') +
           '><label for="camMirror" style="margin:0">Mirror the picture</label></div>' +
           '<div class="hint">Mirrored looks natural to you; unmirrored is what a viewer expects if there is text behind you.</div></div>' +
       '</div></div>' +
+
+      '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
 
       '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
@@ -6162,19 +8191,22 @@ body.st-on { overflow: hidden; }
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
           '<div class="hint">One line per sentence. Blank lines are ignored.</div></details>';
       }).join('') +
-      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px">Regenerate from the numbers</button>' +
-      '<span class="hint" style="margin-left:10px;color:var(--muted)">Discards your edits.</span>' +
+      '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
+      '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
+      '<span class="hint" style="margin-left:10px;color:var(--muted)">Both discard your edits. Reshuffle keeps the facts and ' +
+      'rewrites every sentence; hit it until it sounds like you.</span>' +
       '</div>' +
 
       '<div class="card"><h3>Keys while presenting</h3>' +
       '<div class="cats">' +
       [['Space', 'play / pause'], ['&larr; &rarr;', 'previous / next beat'], ['&uarr; &darr;', 'prompter reading line'],
-       ['C', 'camera on / off'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
+       ['C', 'camera on / off'], ['R', 'start / stop a take'], ['F', 'fullscreen'], ['Esc', 'leave the stage']]
       .map(function (k) { return '<div class="cat"><span>' + k[0] + '</span><span class="who">' + k[1] + '</span></div>'; }).join('') +
       '</div></div>';
 
     mountCam();
     listCams();
+    listMics();
   }
 
   function field(label, key, val, min, max, step, hint) {
@@ -6186,13 +8218,33 @@ body.st-on { overflow: hidden; }
 
   function onStudioEvent(ev) {
     var t = ev.target;
+    var modeBtn = t.closest && t.closest('[data-mode]');
+    if (modeBtn && ev.type === 'click') {
+      prefs.mode = modeBtn.dataset.mode;
+      savePrefs();
+      renderStudio();
+      return;
+    }
     var btn = t.closest && t.closest('[data-st]');
     if (btn && ev.type === 'click') {
       var act = btn.dataset.st;
       if (act === 'stage') { openPresentation(); }
+      else if (btn.dataset.mode) { /* handled below */ }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
       else if (act === 'regen') { script = null; build(); renderStudio(); renderPrompter(); }
+      else if (act === 'reshuffle') {
+        var st = BCB.app.getState();
+        st.scriptSeed = (st.scriptSeed || 0) + 1;
+        script = null; build(); renderStudio(); renderPrompter();
+        BCB.app.recompute(true);   /* the YouTube tab shares the seed */
+      }
+      return;
+    }
+    var recBtn = t.closest && t.closest('[data-rec]');
+    if (recBtn && ev.type === 'click' && BCB.recorder) {
+      if (recBtn.dataset.rec === 'save') { BCB.recorder.saveAs(); }
+      else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
       return;
     }
     if (t.dataset && t.dataset.pref) {
@@ -6203,10 +8255,28 @@ body.st-on { overflow: hidden; }
       savePrefs();
       return;
     }
-    if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
+    if (t.id === 'sCamH') { prefs.split.camHeight = parseFloat(t.value) || 62; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sCamW') { prefs.split.camWidth = parseFloat(t.value) || 26; savePrefs(); applySplitVars(); }
+    else if (t.id === 'sAlign') { prefs.split.align = t.value; savePrefs(); applySplitVars(); }
+    else if (t.id === 'vRatio') { prefs.vertical.ratio = t.value; savePrefs(); renderStudio(); }
+    else if (t.id === 'vSafe') { prefs.vertical.safeGuides = t.checked; savePrefs(); }
+    else if (t.id === 'camGhost') { prefs.cam.placeholder = t.checked; savePrefs(); mountCam(); }
+    else if (t.id === 'pMirror') { prefs.prompter.mirror = t.checked; savePrefs(); renderPrompter(); }
     else if (t.id === 'stAuto') { prefs.autoAdvance = t.checked; savePrefs(); }
     else if (t.id === 'camMirror') { prefs.cam.mirror = t.checked; savePrefs(); applyCamStyle(); }
     else if (t.id === 'camShape') { prefs.cam.shape = t.value; savePrefs(); applyCamStyle(); }
+    else if (t.id === 'recAuto') { BCB.recorder.prefs.autoRecord = t.checked; BCB.recorder.save(); }
+    else if (t.id === 'recMic') {
+      BCB.recorder.prefs.includeMic = t.checked; BCB.recorder.save();
+      var ms = document.getElementById('recMicDevice'); if (ms) { ms.disabled = !t.checked; }
+    }
+    else if (t.id === 'recMicDevice') { BCB.recorder.prefs.micDeviceId = t.value; BCB.recorder.save(); }
+    else if (t.id === 'recQuality') {
+      var qp = t.value.split('-');
+      BCB.recorder.prefs.fps = parseInt(qp[0], 10) || 30;
+      BCB.recorder.prefs.bitrate = parseInt(qp[1], 10) || 10;
+      BCB.recorder.save();
+    }
     else if (t.id === 'camDevice') {
       prefs.cam.deviceId = t.value; savePrefs();
       if (prefs.cam.on) { stopCam(); prefs.cam.on = true; startCam(); }
@@ -6222,6 +8292,15 @@ body.st-on { overflow: hidden; }
     document.addEventListener('click', onStudioEvent);
     document.addEventListener('input', onStudioEvent);
     document.addEventListener('change', onStudioEvent);
+    if (BCB.recorder) {
+      BCB.recorder.onChange(onRecorderEvent);
+      BCB.recorder.setNameSource(function () {
+        var L = BCB.app.getLast();
+        if (!L) { return ''; }
+        var slug = function (n) { return String(n).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+        return slug(L.sim.a.name) + '-vs-' + slug(L.sim.b.name);
+      });
+    }
     renderStudio();
   }
 

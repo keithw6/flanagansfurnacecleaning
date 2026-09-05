@@ -95,9 +95,15 @@
       svg.appendChild(el('text', { x: pad.left + iw / 2, y: h - 4, class: 'axis-title', 'text-anchor': 'middle' }, opts.xTitle));
     }
 
+    /* A reveal shows the story up to one age and animates only the
+       stretch since the last slide, so a chart can be walked through in
+       stages without the frame or the scales jumping between them. */
+    var rv = opts.reveal || null;
+
     /* Marker lines - business start, the crossover, whatever matters. */
     (opts.markers || []).forEach(function (mk, mi) {
       if (mk.x < xMin || mk.x > xMax) { return; }
+      if (rv && mk.x > rv.to) { return; }
       svg.appendChild(el('line', { x1: X(mk.x), x2: X(mk.x), y1: pad.top, y2: pad.top + ih, class: 'marker-line' }));
       /* Stack the captions on separate rows. Two markers a few years
          apart otherwise print straight over each other. */
@@ -107,32 +113,54 @@
       }, mk.label));
     });
 
+    var lastEnds = [];
     series.forEach(function (s, si) {
-      var d = s.points.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      var pts = rv ? s.points.filter(function (p) { return p.x <= rv.to; }) : s.points;
+      if (!pts.length) { return; }
+      var seg = function (list) {
+        return list.map(function (p, i) { return (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1); }).join(' ');
+      };
+      /* --i staggers the second series behind the first; pathLength=1
+         lets the CSS draw-on run in path units whatever the length. */
+      var stagger = '--i:' + si;
       if (opts.area) {
         svg.appendChild(el('path', {
-          d: d + ' L' + X(s.points[s.points.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(s.points[0].x) + ' ' + Y(ys.lo) + ' Z',
-          fill: s.color, opacity: 0.10, stroke: 'none'
+          d: seg(pts) + ' L' + X(pts[pts.length - 1].x) + ' ' + Y(ys.lo) + ' L' + X(pts[0].x) + ' ' + Y(ys.lo) + ' Z',
+          fill: s.color, opacity: 0.10, stroke: 'none', class: 'series-area', style: stagger
         }));
       }
-      svg.appendChild(el('path', { d: d, fill: 'none', stroke: s.color, 'stroke-width': 2.5,
-        'stroke-linejoin': 'round', 'stroke-linecap': 'round', class: 'series-line' }));
+      /* Already-told years sit still; only the new stretch draws on. */
+      var k = -1;
+      if (rv && rv.from != null) {
+        for (var pi = 0; pi < pts.length; pi++) { if (pts[pi].x <= rv.from) { k = pi; } }
+      }
+      var lineAttrs = { fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      if (k > 0) {
+        svg.appendChild(el('path', Object.assign({ d: seg(pts.slice(0, k + 1)), class: 'series-line series-static' }, lineAttrs)));
+      }
+      var live = k > 0 ? pts.slice(k) : pts;
+      if (live.length > 1) {
+        svg.appendChild(el('path', Object.assign({ d: seg(live), class: 'series-line', pathLength: 1, style: stagger }, lineAttrs)));
+      }
 
       /* Direct label at the end of the line: identity without a
          legend lookup, which is what makes it readable on video. */
-      var lastPt = s.points[s.points.length - 1];
+      var lastPt = pts[pts.length - 1];
+      lastEnds[si] = lastPt;
       var ly = Y(lastPt.y);
       /* Each end label is two lines - a name and a value - so they need a
          full label's height between them, not a few pixels. */
       var gap = opts.endLabelGap || 32;
-      if (si === 1 && series[0].points.length) {
-        var other = Y(series[0].points[series[0].points.length - 1].y);
+      if (si === 1 && lastEnds[0]) {
+        var other = Y(lastEnds[0].y);
         if (Math.abs(ly - other) < gap) { ly = other + (ly >= other ? gap : -gap); }
       }
       ly = Math.max(pad.top + 12, Math.min(pad.top + ih - 6, ly));
       svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
-        stroke: 'var(--surface-1)', 'stroke-width': 2 }));
-      var g = el('g', { class: 'end-label' });
+        class: 'end-halo', style: stagger }));
+      svg.appendChild(el('circle', { cx: X(lastPt.x), cy: Y(lastPt.y), r: 4.5, fill: s.color,
+        stroke: 'var(--surface-1)', 'stroke-width': 2, class: 'end-dot', style: stagger }));
+      var g = el('g', { class: 'end-label', style: stagger });
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly - 2, class: 'end-name', fill: s.color }, s.name));
       g.appendChild(el('text', { x: X(lastPt.x) + 9, y: ly + 12, class: 'end-value' }, fmt(lastPt.y)));
       svg.appendChild(g);
@@ -221,7 +249,8 @@
         /* 2px surface gap between the pair, per the mark spec. */
         var x = cx + side * 1 + (side < 0 ? -barW : 0);
         var y = Math.min(Y(v), Y(0)), bh = Math.abs(Y(v) - Y(0));
-        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4 });
+        var r = el('rect', { x: x, y: y, width: barW, height: Math.max(1, bh), fill: colour, rx: 4,
+          class: 'bar', style: '--i:' + i });
         r.appendChild(el('title', null, c.label + ': ' + fmt(v)));
         svg.appendChild(r);
       });
@@ -262,10 +291,12 @@
     [['a', opts.colorA], ['b', opts.colorB]].forEach(function (pair) {
       var key = pair[0], colour = pair[1];
       var d = axes.map(function (ax, i) { var p = pt(i, ax[key]); return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ') + ' Z';
-      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+      svg.appendChild(el('path', { d: d, fill: colour, 'fill-opacity': 0.14, stroke: colour, 'stroke-width': 2.5, 'stroke-linejoin': 'round',
+        class: 'radar-shape', style: '--i:' + (key === 'a' ? 0 : 1) + ';transform-origin:' + cx + 'px ' + cy + 'px' }));
       axes.forEach(function (ax, i) {
         var p = pt(i, ax[key]);
-        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5 });
+        var c = el('circle', { cx: p[0], cy: p[1], r: 4, fill: colour, stroke: 'var(--surface-1)', 'stroke-width': 1.5,
+          class: 'radar-dot', style: '--i:' + (i + (key === 'a' ? 0 : n)) });
         c.appendChild(el('title', null, ax.label + ': ' + ax[key] + '/10'));
         svg.appendChild(c);
       });
@@ -288,11 +319,13 @@
       var y = 8 + i * rowH;
       svg.appendChild(el('text', { x: 0, y: y + 15, class: 'bar-label' }, r.label));
       svg.appendChild(el('rect', { x: labelW, y: y + 3, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA }));
+      svg.appendChild(el('rect', { x: labelW, y: y + 3, width: Math.max(2, r.a / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorA,
+        class: 'score-fill', style: '--i:' + i }));
       svg.appendChild(el('rect', { x: labelW, y: y + 16, width: trackW, height: 9, rx: 4.5, class: 'track' }));
-      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB }));
-      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA }, r.a));
-      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB }, r.b));
+      svg.appendChild(el('rect', { x: labelW, y: y + 16, width: Math.max(2, r.b / (r.max || 10) * trackW), height: 9, rx: 4.5, fill: opts.colorB,
+        class: 'score-fill', style: '--i:' + i }));
+      svg.appendChild(el('text', { x: w - 60, y: y + 12, class: 'bar-value', fill: opts.colorA, style: '--i:' + i }, r.a));
+      svg.appendChild(el('text', { x: w - 24, y: y + 25, class: 'bar-value', fill: opts.colorB, style: '--i:' + i }, r.b));
     });
     return svg;
   }
@@ -312,20 +345,21 @@
     cols.forEach(function (c, ci) {
       var y = 14 + ci * (barH + gap);
       svg.appendChild(el('text', { x: 0, y: y + barH / 2 + 5, class: 'bar-label' }, c.name));
-      var x = left;
+      var x = left, pi = 0;
       c.parts.forEach(function (p) {
         if (p.value <= 0) { return; }
         var pw = p.value / maxTotal * trackW;
-        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3 });
+        var r = el('rect', { x: x, y: y, width: Math.max(1, pw - 2), height: barH, fill: p.color, rx: 3,
+          class: 'stack-part', style: '--i:' + (pi + ci * 4) });
         r.appendChild(el('title', null, p.label + ': ' + fmtMoney(p.value)));
         svg.appendChild(r);
         if (pw > 54) {
           svg.appendChild(el('text', { x: x + pw / 2 - 1, y: y + barH / 2 + 4, class: 'stack-label',
-            fill: p.ink || '#fff', 'text-anchor': 'middle' }, fmtMoney(p.value)));
+            fill: p.ink || '#fff', 'text-anchor': 'middle', style: '--i:' + (pi + ci * 4) }, fmtMoney(p.value)));
         }
-        x += pw;
+        x += pw; pi++;
       });
-      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total' }, fmtMoney(opts.totals[ci])));
+      svg.appendChild(el('text', { x: x + 8, y: y + barH / 2 + 5, class: 'stack-total', style: '--i:' + (pi + ci * 4) }, fmtMoney(opts.totals[ci])));
     });
     return svg;
   }

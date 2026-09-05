@@ -20,6 +20,8 @@ tools/20-year-test/
   js/narrative.js     the written analysis and the YouTube pack
   js/app.js           form generation, rendering, the printable report
   js/studio.js        the recording rig - stage, prompter window, webcam
+  js/media.js         slide backgrounds and the media library resolver
+  media/manifest.json the image/clip library, keyed by career
   build-single.mjs    bundles all of the above into one self-contained file
 ```
 
@@ -44,6 +46,28 @@ or hand to someone else.
 
 The Studio tab turns the comparison into an episode: seventeen beats, roughly
 seven minutes of narration, generated from the numbers currently on screen.
+
+**Three layouts.** Pick one on the Studio tab before you start:
+
+- **Studio One — full frame.** Slides fill the screen, camera floats in a corner
+  you can drag. Best when the numbers are the story.
+- **Studio Two — explainer and camera.** Centred explainer block on the left
+  carrying the text, figures and a photograph; you on the right as a floating
+  presenter card — inset from the edge, rounded, outlined, around 60% of frame
+  height and vertically centred. Best when you are the story. Camera height, camera
+  width and text alignment are all adjustable on the Studio tab, because the right
+  proportions are a taste call. Charts get their own narrower proportions here
+  rather than being scaled down.
+
+- **Studio Three — vertical.** You on top, explainer underneath, composed inside a
+  9:16 frame (or 4:5, or square) for Reels, TikTok, Shorts and the Instagram feed.
+  Capture the frame, not the window — what falls outside it is not in the video.
+  Content is padded clear of where the platform's own UI sits, roughly 17% up from
+  the bottom and 15% in from the right, and a guide shows those zones while you are
+  paused. The camera still runs edge to edge: a face behind a button is fine, an
+  axis label behind one is not.
+
+The prompter, the script, the beat timing and the keys are identical in all three.
 
 **Three pieces, deliberately kept apart:**
 
@@ -76,6 +100,25 @@ from the numbers" rebuilds it and discards your edits.
 refused camera access outright and cannot open windows, so the camera and the
 pop-out prompter will not work in a hosted copy. Open `index.html` (or the bundled
 `dist/20-year-test.html`) from your own machine to record.
+
+## The media library
+
+`media/manifest.json` maps each career id to background imagery, plus a `_brand`
+block for the intro, outro and title cards. A value is either a path relative to
+`media/` or an absolute URL, so the library works hosted or offline — to go
+offline, download each file into `media/stills/` and replace the URL with the
+filename. Nothing else changes.
+
+Anything left `null` falls back to the procedural background, so a half-filled
+library is never a broken page, and an asset that fails to load falls back the
+same way rather than leaving a heavy photo scrim sitting over nothing.
+
+How strongly a picture shows through is set per beat in `js/media.js`: a title
+card carries the most, a chart almost none. That ordering is deliberate —
+behind a chart, a photograph is a legibility problem, not decoration.
+
+The stills that ship are AI-generated backdrops, not photographs of real people
+or businesses, and the manifest says so.
 
 ## How the model works
 
