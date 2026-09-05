@@ -646,6 +646,15 @@
       return best;
     }
 
+    /* ---- cold open: the matchup, before anything else ---- */
+    beat('cold', 'versus', A + ' vs ' + B, 'Today\'s comparison',
+      [pk('In today\'s comparison we have ' + A + ' in one corner, and ' + B + ' in the other.',
+          'Today\'s matchup. In one corner, ' + A + '. In the other, ' + B + '.',
+          'Two careers walk in. ' + A + ' on one side. ' + B + ' on the other.'),
+       pk('Let\'s see who comes out on top in this battle of careers!',
+          'Same start. ' + years + ' years. One winner. Let\'s find out who.',
+          'Twenty years from now, one of them is ahead. Let\'s see which one, and by how much.')]);
+
     /* ---- intro: who we are, who is on the block ---- */
     beat('brand', 'brand', 'Blue Collar Business',
       'Learn the trade. Build the business. Own the asset.',
@@ -661,6 +670,21 @@
        pk('Today: ' + A + ' against ' + B + '.',
           'Today it\'s ' + A + ' versus ' + B + '. Let\'s go.',
           'On the block today, ' + A + ' and ' + B + '.')]);
+
+    /* ---- the disclaimer: said out loud and on screen ---- */
+    beat('disclaimer', 'disclaimer', 'Before we start', 'The fine print',
+      [pk('Quick housekeeping before we get into it.',
+          'One thing before we start, and I mean this.',
+          'The fine print, said out loud.'),
+       pk('Everything in this episode is my opinion, run through a model with a lot of assumptions in it.',
+          'This is a model and an opinion. The numbers are estimates, not facts about your life.',
+          'What you\'re about to see is a spreadsheet with a personality. It\'s my take, built on assumptions.'),
+       pk('It is not career advice, financial advice, tax advice or investment advice. It\'s entertainment, and a way to think.',
+          'None of it is career, financial, tax or investment advice. It\'s entertainment. It\'s a way to think about the question.',
+          'It is not advice of any kind. Not career, not financial, not tax, not investment. It\'s a show.'),
+       pk('Before you make a real decision, talk to someone who knows your situation.',
+          'Real decisions deserve real advice from someone who knows your numbers. Get that first.',
+          'Use it to ask better questions. Then ask them of a professional who knows you.')]);
 
     /* ---- the hook ---- */
     beat('open', 'title', A + ' vs ' + B, 'The ' + years + '-Year Test',
@@ -1000,9 +1024,25 @@
        pk('If you want the next one, subscribe. We run a different pair every episode, and the ones that surprise me go out first.',
           'Subscribe if you want the next matchup. Different pair every time, and I always lead with the ones that surprised me.',
           'There\'s a new pair every episode. Hit subscribe and I\'ll show you the ones that didn\'t go the way I expected.'),
-       pk('Learn the trade. Build the business. Own the asset. See you next time.',
-          'Learn the trade, build the business, own the asset. See you in the next one.',
-          'Learn the trade. Build the business. Own the asset. That\'s it. See you next time.')]);
+       pk('Learn the trade. Build the business. Own the asset.',
+          'Learn the trade, build the business, own the asset.',
+          'Learn the trade. Build the business. Own the asset. That\'s the whole thing.')]);
+
+    /* ---- the close: thanks, the ask, and the fine print once more ---- */
+    beat('close', 'close', 'That\'s the show', 'Thanks for watching',
+      [pk('That\'s the show. ' + A + ' against ' + B + ', ' + years + ' years, everything counted.',
+          'And that\'s ' + A + ' versus ' + B + '. Thanks for sticking around.',
+          'That\'s it for ' + A + ' and ' + B + '. Thanks for watching.'),
+       pk('If there\'s a matchup you want to see next, put it in the comments. I read all of them, and the good ones become episodes.',
+          'Tell me who to put in the ring next. Drop the two careers in the comments.',
+          'Which two careers should I run next? Comments are open, and that\'s where the next episode comes from.'),
+       pk('Subscribe so you don\'t miss it, and share this with someone who is deciding right now.',
+          'Hit subscribe, and send this to someone who\'s trying to make this exact decision.',
+          'Subscribe if it helped, and pass it along to the kid in your life who\'s picking a path.'),
+       pk('And one more time: opinion and entertainment, not advice. Talk to a professional before you act on any of it.',
+          'Last reminder. This was opinion and entertainment, not financial, tax, career or investment advice.',
+          'Same fine print as the top: not advice, just a way to think. See a professional for the real thing.'),
+       pk('See you next time.', 'See you in the next one.', 'Until next time.')]);
 
     return {
       beats: beats,

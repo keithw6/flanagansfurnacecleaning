@@ -704,6 +704,63 @@ body.st-on { overflow: hidden; }
 .st-rung.last { color: #0b0c0d; background: var(--series-b); border-color: var(--series-b); font-weight: 600; }
 .st-arrow { width: clamp(10px, 1.6vw, 20px); height: 1px; background: #43484f; flex: none; }
 
+/* The cold open: two fighters and a VS. Pictures are portrait cards
+   so a landscape still gets cropped to the person, not the room. */
+.st-versus { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: clamp(14px, 2.6vw, 40px); width: 100%; max-width: 1100px; margin: 0 auto; }
+.st-fighter { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+  background: #16181b; box-shadow: 0 0 0 1.5px rgba(255,255,255,.18), 0 24px 60px rgba(0,0,0,.55);
+  max-height: 52vh; }
+.st-fighter img { width: 100%; height: 100%; object-fit: cover; display: block;
+  animation: bcbFade .8s ease-out both, st-kenburns 30s ease-in-out infinite alternate; }
+.st-fighter .name { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px;
+  font-family: var(--h); text-transform: uppercase; color: #fff; text-align: center;
+  font-size: clamp(1.1rem, 2.6vw, 2.2rem); line-height: 1;
+  background: linear-gradient(to top, rgba(6,7,8,.9), rgba(6,7,8,0)); }
+.st-fighter.a { box-shadow: 0 0 0 2px var(--series-a), 0 24px 60px rgba(0,0,0,.55); }
+.st-fighter.b { box-shadow: 0 0 0 2px var(--series-b), 0 24px 60px rgba(0,0,0,.55); }
+.st-fighter.a { animation: st-slide-l .7s cubic-bezier(.2,.8,.2,1) both; }
+.st-fighter.b { animation: st-slide-r .7s cubic-bezier(.2,.8,.2,1) both; }
+.st-vs-mark { font-family: var(--h); font-weight: 700; font-size: clamp(2rem, 6vw, 5rem); color: #fff;
+  letter-spacing: .04em; animation: bcbPop .5s cubic-bezier(.2,.9,.3,1.4) .5s both; }
+@keyframes st-slide-l { from { opacity: 0; transform: translateX(-6%); } }
+@keyframes st-slide-r { from { opacity: 0; transform: translateX(6%); } }
+.st-stage.st-three .st-versus { grid-template-columns: 1fr auto 1fr; gap: 3%; }
+.st-stage.st-three .st-fighter { max-height: 22vh; aspect-ratio: 3 / 4; }
+.st-stage.st-three .st-fighter .name { font-size: 1.6vh; padding: 1vh; }
+.st-stage.st-three .st-vs-mark { font-size: 3.6vh; }
+.st-stage.st-two .st-fighter { max-height: 38vh; }
+
+/* The disclaimer, big enough to be read on a phone. */
+.st-disclaimer { max-width: 900px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; gap: 2vh; }
+.st-disclaimer .big { font-family: var(--h); text-transform: uppercase; color: #fff;
+  font-size: clamp(1.5rem, 4vw, 3.2rem); line-height: 1.05; }
+.st-disclaimer .small { color: #b6bac0; font-size: clamp(.9rem, 1.4vw, 1.2rem); line-height: 1.5;
+  border: 1px solid #33373d; border-radius: 12px; padding: clamp(12px, 2vh, 22px); background: rgba(20,22,26,.55); }
+.st-stage.st-three .st-disclaimer .big { font-size: 3vh; }
+.st-stage.st-three .st-disclaimer .small { font-size: 1.6vh; }
+
+/* The close. */
+.st-close-asks { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: clamp(8px, 1.4vw, 18px); font-family: var(--h); text-transform: uppercase; letter-spacing: .12em;
+  font-size: clamp(.75rem, 1.3vw, 1.05rem); color: #fff; }
+.st-close-asks i { width: 6px; height: 6px; border-radius: 50%; background: var(--series-b); }
+.st-fineprint { font-size: clamp(.7rem, 1vw, .85rem); color: #7c8088; letter-spacing: .04em; max-width: 60ch; }
+.st-stage.st-three .st-close-asks { font-size: 1.3vh; }
+.st-stage.st-three .st-fineprint { font-size: 1.15vh; }
+
+/* Studio tab: the picture library. */
+.pic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.pic-slot { display: grid; grid-template-columns: 96px 1fr; gap: 12px; border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 10px; background: var(--surface-1); }
+.pic-thumb { width: 96px; height: 96px; border-radius: 6px; overflow: hidden; background: var(--surface-3);
+  display: flex; align-items: center; justify-content: center; color: var(--faint); font-size: .72rem; text-align: center; }
+.pic-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic-fields .k { font-family: var(--h); text-transform: uppercase; font-size: .86rem; color: var(--ink); margin-bottom: 4px; }
+.pic-fields .field { margin-bottom: 6px; }
+.pic-fields .field label { font-size: .68rem; margin-bottom: 1px; }
+.pic-fields .field input { padding: 5px 7px; font-size: .82rem; }
+
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
   font-size: clamp(1.2rem, 3.4vw, 2.6rem); line-height: 1; }
@@ -781,7 +838,9 @@ body.st-on { overflow: hidden; }
 
 /* The picture as content rather than backdrop. */
 .st-inset { width: 100%; max-height: 26vh; border-radius: 10px; overflow: hidden;
-  border: 1px solid #2b2f35; flex: none; line-height: 0; }
+  border: 1px solid #2b2f35; flex: none; line-height: 0; animation: bcbFade .7s ease-out both; }
+.st-stage:not(.st-two):not(.st-three) .st-inset { max-width: 680px; max-height: 22vh; margin: 0 auto 1.2vh; }
+.st-stage:not(.st-two):not(.st-three) .st-inset img { max-height: 22vh; }
 .st-inset img { width: 100%; height: 100%; max-height: 26vh; object-fit: cover; display: block; }
 
 /* The camera column. object-fit: cover crops a 16:9 webcam to this tall
@@ -4540,6 +4599,15 @@ body.st-on { overflow: hidden; }
       return best;
     }
 
+    /* ---- cold open: the matchup, before anything else ---- */
+    beat('cold', 'versus', A + ' vs ' + B, 'Today\'s comparison',
+      [pk('In today\'s comparison we have ' + A + ' in one corner, and ' + B + ' in the other.',
+          'Today\'s matchup. In one corner, ' + A + '. In the other, ' + B + '.',
+          'Two careers walk in. ' + A + ' on one side. ' + B + ' on the other.'),
+       pk('Let\'s see who comes out on top in this battle of careers!',
+          'Same start. ' + years + ' years. One winner. Let\'s find out who.',
+          'Twenty years from now, one of them is ahead. Let\'s see which one, and by how much.')]);
+
     /* ---- intro: who we are, who is on the block ---- */
     beat('brand', 'brand', 'Blue Collar Business',
       'Learn the trade. Build the business. Own the asset.',
@@ -4555,6 +4623,21 @@ body.st-on { overflow: hidden; }
        pk('Today: ' + A + ' against ' + B + '.',
           'Today it\'s ' + A + ' versus ' + B + '. Let\'s go.',
           'On the block today, ' + A + ' and ' + B + '.')]);
+
+    /* ---- the disclaimer: said out loud and on screen ---- */
+    beat('disclaimer', 'disclaimer', 'Before we start', 'The fine print',
+      [pk('Quick housekeeping before we get into it.',
+          'One thing before we start, and I mean this.',
+          'The fine print, said out loud.'),
+       pk('Everything in this episode is my opinion, run through a model with a lot of assumptions in it.',
+          'This is a model and an opinion. The numbers are estimates, not facts about your life.',
+          'What you\'re about to see is a spreadsheet with a personality. It\'s my take, built on assumptions.'),
+       pk('It is not career advice, financial advice, tax advice or investment advice. It\'s entertainment, and a way to think.',
+          'None of it is career, financial, tax or investment advice. It\'s entertainment. It\'s a way to think about the question.',
+          'It is not advice of any kind. Not career, not financial, not tax, not investment. It\'s a show.'),
+       pk('Before you make a real decision, talk to someone who knows your situation.',
+          'Real decisions deserve real advice from someone who knows your numbers. Get that first.',
+          'Use it to ask better questions. Then ask them of a professional who knows you.')]);
 
     /* ---- the hook ---- */
     beat('open', 'title', A + ' vs ' + B, 'The ' + years + '-Year Test',
@@ -4894,9 +4977,25 @@ body.st-on { overflow: hidden; }
        pk('If you want the next one, subscribe. We run a different pair every episode, and the ones that surprise me go out first.',
           'Subscribe if you want the next matchup. Different pair every time, and I always lead with the ones that surprised me.',
           'There\'s a new pair every episode. Hit subscribe and I\'ll show you the ones that didn\'t go the way I expected.'),
-       pk('Learn the trade. Build the business. Own the asset. See you next time.',
-          'Learn the trade, build the business, own the asset. See you in the next one.',
-          'Learn the trade. Build the business. Own the asset. That\'s it. See you next time.')]);
+       pk('Learn the trade. Build the business. Own the asset.',
+          'Learn the trade, build the business, own the asset.',
+          'Learn the trade. Build the business. Own the asset. That\'s the whole thing.')]);
+
+    /* ---- the close: thanks, the ask, and the fine print once more ---- */
+    beat('close', 'close', 'That\'s the show', 'Thanks for watching',
+      [pk('That\'s the show. ' + A + ' against ' + B + ', ' + years + ' years, everything counted.',
+          'And that\'s ' + A + ' versus ' + B + '. Thanks for sticking around.',
+          'That\'s it for ' + A + ' and ' + B + '. Thanks for watching.'),
+       pk('If there\'s a matchup you want to see next, put it in the comments. I read all of them, and the good ones become episodes.',
+          'Tell me who to put in the ring next. Drop the two careers in the comments.',
+          'Which two careers should I run next? Comments are open, and that\'s where the next episode comes from.'),
+       pk('Subscribe so you don\'t miss it, and share this with someone who is deciding right now.',
+          'Hit subscribe, and send this to someone who\'s trying to make this exact decision.',
+          'Subscribe if it helped, and pass it along to the kid in your life who\'s picking a path.'),
+       pk('And one more time: opinion and entertainment, not advice. Talk to a professional before you act on any of it.',
+          'Last reminder. This was opinion and entertainment, not financial, tax, career or investment advice.',
+          'Same fine print as the top: not advice, just a way to think. See a professional for the real thing.'),
+       pk('See you next time.', 'See you in the next one.', 'Until next time.')]);
 
     return {
       beats: beats,
@@ -4953,7 +5052,7 @@ body.st-on { overflow: hidden; }
   /* How much photograph each kind of slide can carry before it starts
      competing with what the viewer is meant to read. */
   var INTENSITY = {
-    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
+    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42, versus: 0.5, close: 0.55, disclaimer: 0.2,
     headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
     dependency: 0.24, hours: 0.24, freedom: 0.24,
     columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12, compound: 0.12, invest: 0.24,
@@ -5001,13 +5100,50 @@ body.st-on { overflow: hidden; }
     return String(career.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
 
+  /* Your own pictures. Anything pasted on the Studio tab - a Higgsfield
+     link, a photo on your site - sits on top of the shipped library,
+     per career, per brand slot, or for one particular slide. Kept in
+     this browser, so it survives a reload and never touches the repo. */
+  var OKEY = 'bcb-20-year-test-v1-media';
+  var overrides = { careers: {}, brand: {}, beats: {} };
+  try {
+    var savedO = JSON.parse(localStorage.getItem(OKEY) || 'null');
+    if (savedO) { overrides.careers = savedO.careers || {}; overrides.brand = savedO.brand || {}; overrides.beats = savedO.beats || {}; }
+  } catch (e) { /* storage can throw outright */ }
+  function saveOverrides() { try { localStorage.setItem(OKEY, JSON.stringify(overrides)); } catch (e) { /* fine */ } }
+  function setOverride(scope, key, field, value) {
+    value = (value || '').trim();
+    if (scope === 'beats') {
+      if (value) { overrides.beats[key] = value; } else { delete overrides.beats[key]; }
+    } else {
+      var slot = overrides[scope][key] || (overrides[scope][key] = {});
+      if (value) { slot[field] = value; } else { delete slot[field]; }
+      if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
+    }
+    saveOverrides();
+  }
+  function libraryEntry(scope, key) {
+    var base = scope === 'brand'
+      ? ((manifest && manifest._brand && manifest._brand[key]) || {})
+      : ((manifest && manifest.careers && manifest.careers[key]) || {});
+    var own = overrides[scope][key] || {};
+    return { still: own.still || base.still || null, clip: own.clip || base.clip || null,
+      ownStill: own.still || '', ownClip: own.clip || '', label: base.label || key };
+  }
+  /* A picture pinned to one slide wins over everything else. A video
+     link counts as a clip; anything else is treated as a still. */
+  function beatAsset(beatId) {
+    var v = overrides.beats[beatId];
+    if (!v) { return null; }
+    return { kind: /\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still', src: resolve(v) };
+  }
+
   function assetFor(careerOrKey, prefer) {
-    if (!manifest) { return null; }
     var entry;
     if (typeof careerOrKey === 'string') {
-      entry = (manifest._brand && manifest._brand[careerOrKey]) || null;
+      entry = libraryEntry('brand', careerOrKey);
     } else {
-      entry = manifest.careers && manifest.careers[idFor(careerOrKey)];
+      entry = libraryEntry('careers', idFor(careerOrKey));
     }
     if (!entry) { return null; }
     var clip = entry.clip, still = entry.still;
@@ -5022,7 +5158,7 @@ body.st-on { overflow: hidden; }
      downloading them into media/ later makes it work offline, and the
      only change is the manifest value. */
   function resolve(v) {
-    return /^(https?:)?\/\//.test(v) ? v : BASE + v;
+    return /^(https?:)?\/\/|^(data|blob):/.test(v) ? v : BASE + v;
   }
 
   /* ---------------------------------------------------------------
@@ -5102,6 +5238,10 @@ body.st-on { overflow: hidden; }
     intensityFor: intensityFor,
     createLayer: createLayer,
     setBackground: setBackground,
+    overrides: overrides,
+    setOverride: setOverride,
+    libraryEntry: libraryEntry,
+    beatAsset: beatAsset,
     get manifest() { return manifest; }
   };
 
@@ -7043,6 +7183,64 @@ body.st-on { overflow: hidden; }
     }
 
     switch (b.kind) {
+      case 'versus': {
+        /* Two fighters, two pictures, one VS. The pictures come from the
+           library, or from whatever was pasted for the career. */
+        var vs = document.createElement('div');
+        vs.className = 'st-versus';
+        [[a, 'a'], [bb, 'b']].forEach(function (pair) {
+          var res = pair[0];
+          var asset = BCB.media.assetFor(res.career, 'still');
+          var card = document.createElement('div');
+          card.className = 'st-fighter ' + pair[1];
+          if (asset) {
+            var im = document.createElement('img');
+            im.alt = ''; im.setAttribute('aria-hidden', 'true');
+            im.addEventListener('error', function () { im.remove(); });
+            im.src = asset.src;
+            card.appendChild(im);
+          }
+          var nm = document.createElement('div');
+          nm.className = 'name'; nm.textContent = res.name;
+          card.appendChild(nm);
+          vs.appendChild(card);
+          if (pair[1] === 'a') {
+            var mid = document.createElement('div');
+            mid.className = 'st-vs-mark'; mid.textContent = 'VS';
+            vs.appendChild(mid);
+          }
+        });
+        wrap.appendChild(vs);
+        wrap.classList.add('wide');
+        return wrap;
+      }
+
+      case 'disclaimer': {
+        var dc = document.createElement('div');
+        dc.className = 'st-disclaimer';
+        dc.innerHTML =
+          '<div class="big">Opinion and entertainment.<br>Not advice.</div>' +
+          '<div class="small">Not career, financial, tax or investment advice. Every number is a model output built on ' +
+          'assumptions, not a fact about you. Talk to a professional who knows your situation before you act on any of it.</div>';
+        wrap.appendChild(dc);
+        return wrap;
+      }
+
+      case 'close': {
+        var cl = document.createElement('div');
+        cl.className = 'st-brandcard st-close';
+        cl.innerHTML =
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span><em>vs</em><span class="b">' + esc(bb.name) + '</span></div>' +
+          '<div class="st-close-asks">' +
+            '<span>Subscribe</span><i></i><span>Comment the next matchup</span><i></i><span>Share it</span>' +
+          '</div>' +
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>' +
+          '<div class="st-fineprint">Opinion and entertainment. Not career, financial, tax or investment advice.</div>';
+        wrap.appendChild(cl);
+        wrap.classList.add('wide');
+        return wrap;
+      }
+
       case 'brand':
         var brand = document.createElement('div');
         brand.className = 'st-brandcard';
@@ -7395,12 +7593,15 @@ body.st-on { overflow: hidden; }
      carry their own visual keep it; the rest get the career photograph
      as an inset card above the words. */
   function insetFor(b) {
-    if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
-    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1, versus: 1, close: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
+    /* Studio One carries the picture as the background; an inset there
+       is for the slides that are otherwise only type and a few numbers. */
+    if (prefs.mode === 'one' && !ONE_INSET[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
-    var asset = null;
-    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
+    var asset = BCB.media.beatAsset(b.id);
+    if (asset) { /* pinned to this slide */ }
+    else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
     else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'still'); }
     else {
@@ -7422,6 +7623,8 @@ body.st-on { overflow: hidden; }
     return fig;
   }
 
+  var ONE_INSET = { setup: 1, education: 1, business: 1, dependency: 1, hours: 1, freedom: 1,
+    invest: 1, disclaimer: 1, outro: 1, title: 1 };
   function renderStage() {
     if (!overlay) { return; }
     var b = beat();
@@ -7453,14 +7656,15 @@ body.st-on { overflow: hidden; }
      about one side show that side; shared beats alternate so the
      episode does not sit on one picture for seven minutes. */
   function paintBackground() {
-    if (!bgLayer || !BCB.media.manifest) { return; }
+    if (!bgLayer) { return; }
     var b = beat();
     if (!b) { return; }
     var L = BCB.app.getLast(), sim = L.sim;
     var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var asset = null;
+    var asset = BCB.media.beatAsset(b.id);
 
-    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    if (asset) { /* pinned to this slide on the Studio tab */ }
+    else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
     else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
     if (!asset) {
@@ -7691,6 +7895,40 @@ body.st-on { overflow: hidden; }
     }
     return html;
   }
+  /* The picture library: what each slot shows now, and a box to paste
+     your own link into. Higgsfield: open the image, right-click, copy
+     image address. The link has to be public for the browser to load it. */
+  function picturesMarkup() {
+    var M = BCB.media;
+    var L = BCB.app.getLast();
+    if (!L) { return '<h3>Pictures and clips</h3><p class="sub">Run a comparison first.</p>'; }
+    var slots = [
+      ['brand', 'intro', 'Intro and cold open'],
+      ['brand', 'title', 'Title card'],
+      ['brand', 'outro', 'Outro and close'],
+      ['careers', M.idFor(L.sim.a.career), L.sim.a.name],
+      ['careers', M.idFor(L.sim.b.career), L.sim.b.name]
+    ];
+    return '<h3>Pictures and clips</h3>' +
+      '<p class="sub">What plays behind and inside the slides. Paste a link to swap any of them for something you made in ' +
+      'Higgsfield: open the image or clip there, right-click, copy the address, paste it here. Stills are used on ' +
+      'most slides, clips on the intro, the outro and every third slide.</p>' +
+      '<div class="pic-grid">' +
+      slots.map(function (sl) {
+        var e = M.libraryEntry(sl[0], sl[1]);
+        return '<div class="pic-slot">' +
+          '<div class="pic-thumb">' + (e.still ? '<img src="' + esc(e.still) + '" alt="" loading="lazy">' : '<span>no picture</span>') + '</div>' +
+          '<div class="pic-fields"><div class="k">' + esc(sl[2]) + '</div>' +
+          '<div class="field"><label>Still image link</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|still" value="' + esc(e.ownStill) + '" placeholder="' + (e.still && !e.ownStill ? 'using the library picture' : 'https://...') + '"></div>' +
+          '<div class="field"><label>Clip link (mp4)</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|clip" value="' + esc(e.ownClip) + '" placeholder="' + (e.clip && !e.ownClip ? 'using the library clip' : 'https://...') + '"></div>' +
+          '</div></div>';
+      }).join('') +
+      '</div>' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box to go back to the library. ' +
+      'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
+      'Links are remembered in this browser only.</p>';
+  }
+
   function listMics() {
     var sel = document.getElementById('recMicDevice');
     if (!sel || !BCB.recorder) { return; }
@@ -8181,6 +8419,8 @@ body.st-on { overflow: hidden; }
 
       '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
 
+      '<div class="card" id="picCard">' + picturesMarkup() + '</div>' +
+
       '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
       script.beats.map(function (b, i) {
@@ -8189,7 +8429,11 @@ body.st-on { overflow: hidden; }
           '<textarea data-beat="' + i + '" rows="' + Math.max(3, b.lines.length + 1) + '" ' +
           'style="width:100%;font:inherit;font-size:.9rem;padding:9px;border:1px solid var(--line);border-radius:5px;' +
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
-          '<div class="hint">One line per sentence. Blank lines are ignored.</div></details>';
+          '<div class="hint">One line per sentence. Blank lines are ignored.</div>' +
+          '<div class="field" style="margin-top:8px"><label for="pic-' + esc(b.id) + '">Picture or clip for this slide</label>' +
+          '<input type="url" id="pic-' + esc(b.id) + '" data-beatpic="' + esc(b.id) + '" placeholder="Paste an image or video link" value="' +
+          esc(BCB.media.overrides.beats[b.id] || '') + '">' +
+          '<div class="hint">Optional. Wins over the library for this one slide.</div></div></details>';
       }).join('') +
       '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
       '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
@@ -8247,6 +8491,24 @@ body.st-on { overflow: hidden; }
       else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
       return;
     }
+    if (t.dataset && t.dataset.pic && ev.type === 'change') {
+      var parts = t.dataset.pic.split('|');
+      BCB.media.setOverride(parts[0], parts[1], parts[2], t.value);
+      /* Refresh this slot's thumbnail in place; redrawing the whole card
+         would pull the box out from under the cursor. */
+      var slot = t.closest('.pic-slot');
+      if (slot) {
+        var e = BCB.media.libraryEntry(parts[0], parts[1]);
+        slot.querySelector('.pic-thumb').innerHTML = e.still ? '<img src="' + esc(e.still) + '" alt="">' : '<span>no picture</span>';
+      }
+      if (overlay) { renderStage(); }
+      return;
+    }
+    if (t.dataset && t.dataset.beatpic && ev.type === 'change') {
+      BCB.media.setOverride('beats', t.dataset.beatpic, null, t.value);
+      if (overlay) { renderStage(); }
+      return;
+    }
     if (t.dataset && t.dataset.pref) {
       var v = parseFloat(t.value);
       if (!isFinite(v)) { return; }
@@ -8292,6 +8554,12 @@ body.st-on { overflow: hidden; }
     document.addEventListener('click', onStudioEvent);
     document.addEventListener('input', onStudioEvent);
     document.addEventListener('change', onStudioEvent);
+    /* The library arrives after the tab is drawn on a hosted copy, so
+       redraw the picture card once it is here. */
+    BCB.media.load().then(function () {
+      var pc = document.getElementById('picCard');
+      if (pc) { pc.innerHTML = picturesMarkup(); }
+    });
     if (BCB.recorder) {
       BCB.recorder.onChange(onRecorderEvent);
       BCB.recorder.setNameSource(function () {
