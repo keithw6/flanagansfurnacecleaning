@@ -374,8 +374,10 @@
 
       case 'hours':
         wrap.appendChild(bigStat([
-          { k: a.name + ' - hours worked', v: Math.round(a.totals.hours).toLocaleString(), side: 'a' },
-          { k: bb.name + ' - hours worked', v: Math.round(bb.totals.hours).toLocaleString(), side: 'b' },
+          { k: a.name + ' - hours, school included', v: Math.round(a.totals.hours).toLocaleString(), side: 'a',
+            n: Math.round(a.totals.hoursWork).toLocaleString() + ' on the job \u00b7 ' + Math.round(a.totals.hoursSchool).toLocaleString() + ' in school' },
+          { k: bb.name + ' - hours, school included', v: Math.round(bb.totals.hours).toLocaleString(), side: 'b',
+            n: Math.round(bb.totals.hoursWork).toLocaleString() + ' on the job \u00b7 ' + Math.round(bb.totals.hoursSchool).toLocaleString() + ' in school' },
           { k: a.name + ' - wealth per hour', v: money(a.totals.wealthPerHour), side: 'a' },
           { k: bb.name + ' - wealth per hour', v: money(bb.totals.wealthPerHour), side: 'b' }
         ]));
@@ -930,23 +932,54 @@
       ['careers', M.idFor(L.sim.b.career), L.sim.b.name]
     ];
     return '<h3>Pictures and clips</h3>' +
-      '<p class="sub">What plays behind and inside the slides. Paste a link to swap any of them for something you made in ' +
-      'Higgsfield: open the image or clip there, right-click, copy the address, paste it here. Stills are used on ' +
+      '<p class="sub">What plays behind and inside the slides. Swap any of them for something you made in ' +
+      'Higgsfield: download it and choose the file, or paste its link. Stills are used on ' +
       'most slides, clips on the intro, the outro and every third slide.</p>' +
       '<div class="pic-grid">' +
       slots.map(function (sl) {
         var e = M.libraryEntry(sl[0], sl[1]);
+        var box = function (field, own, has, accept, label) {
+          var f = M.fileInfo(own) || (/^file:/.test(own) ? { name: 'uploaded file', size: 0 } : null);
+          var id = sl[0] + '|' + esc(sl[1]) + '|' + field;
+          return '<div class="field"><label>' + label + '</label>' +
+            '<div class="pic-row">' +
+            (f
+              ? '<span class="pic-file" title="' + esc(f.name) + '">' + esc(f.name || 'uploaded file') + ' \u00b7 ' + fmtBytes(f.size) + '</span>' +
+                '<button type="button" class="btn btn-o btn-sm" data-picclear="' + id + '">Remove</button>'
+              : '<input type="url" data-pic="' + id + '" value="' + esc(own) + '" placeholder="' +
+                (has && !own ? 'using the library ' + (field === 'clip' ? 'clip' : 'picture') : 'paste a link') + '">') +
+            '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="' + accept + '" data-picfile="' + id + '" hidden></label>' +
+            '</div></div>';
+        };
         return '<div class="pic-slot">' +
-          '<div class="pic-thumb">' + (e.still ? '<img src="' + esc(e.still) + '" alt="" loading="lazy">' : '<span>no picture</span>') + '</div>' +
+          '<div class="pic-thumb">' + (e.stillUrl ? '<img src="' + esc(e.stillUrl) + '" alt="" loading="lazy">' : '<span>no picture</span>') + '</div>' +
           '<div class="pic-fields"><div class="k">' + esc(sl[2]) + '</div>' +
-          '<div class="field"><label>Still image link</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|still" value="' + esc(e.ownStill) + '" placeholder="' + (e.still && !e.ownStill ? 'using the library picture' : 'https://...') + '"></div>' +
-          '<div class="field"><label>Clip link (mp4)</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|clip" value="' + esc(e.ownClip) + '" placeholder="' + (e.clip && !e.ownClip ? 'using the library clip' : 'https://...') + '"></div>' +
+          box('still', e.ownStill, !!e.still, 'image/*', 'Still image') +
+          box('clip', e.ownClip, !!e.clip, 'video/mp4,video/webm,video/quicktime', 'Clip (mp4)') +
           '</div></div>';
       }).join('') +
       '</div>' +
-      '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box to go back to the library. ' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box or press Remove to go back to the library. ' +
       'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
-      'Links are remembered in this browser only.</p>';
+      'Files and links are kept in this browser only: a different computer, or a cleared browser, starts from the library again.</p>';
+  }
+
+  function beatPicMarkup(id) {
+    var own = BCB.media.overrides.beats[id] || '';
+    var f = BCB.media.fileInfo(own) || (/^file:/.test(own) ? { name: 'uploaded file', size: 0 } : null);
+    return '<div class="field beat-pic" style="margin-top:8px" data-beatslot="' + esc(id) + '"><label>Picture or clip for this slide</label>' +
+      '<div class="pic-row">' +
+      (f
+        ? '<span class="pic-file" title="' + esc(f.name) + '">' + esc(f.name || 'uploaded file') + ' \u00b7 ' + fmtBytes(f.size) + '</span>' +
+          '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Remove</button>'
+        : '<input type="url" data-beatpic="' + esc(id) + '" placeholder="Paste an image or video link" value="' + esc(own) + '">') +
+      '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
+      '</div><div class="hint">Optional. Wins over the library for this one slide.</div></div>';
+  }
+  function refreshPicSlot(scope, key) {
+    /* Redraw one library slot in place rather than the whole card. */
+    var card = document.getElementById('picCard');
+    if (card) { card.innerHTML = picturesMarkup(); }
   }
 
   function listMics() {
@@ -1450,10 +1483,7 @@
           'style="width:100%;font:inherit;font-size:.9rem;padding:9px;border:1px solid var(--line);border-radius:5px;' +
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
           '<div class="hint">One line per sentence. Blank lines are ignored.</div>' +
-          '<div class="field" style="margin-top:8px"><label for="pic-' + esc(b.id) + '">Picture or clip for this slide</label>' +
-          '<input type="url" id="pic-' + esc(b.id) + '" data-beatpic="' + esc(b.id) + '" placeholder="Paste an image or video link" value="' +
-          esc(BCB.media.overrides.beats[b.id] || '') + '">' +
-          '<div class="hint">Optional. Wins over the library for this one slide.</div></div></details>';
+          beatPicMarkup(b.id) + '</details>';
       }).join('') +
       '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
       '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
@@ -1511,6 +1541,44 @@
       else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
       return;
     }
+    if (t.dataset && t.dataset.picfile && ev.type === 'change') {
+      var fparts = t.dataset.picfile.split('|');
+      var file = t.files && t.files[0];
+      if (!file) { return; }
+      BCB.media.setFile(fparts[0], fparts[1], fparts[2], file).then(function () {
+        refreshPicSlot();
+        if (overlay) { renderStage(); }
+      });
+      return;
+    }
+    if (t.dataset && t.dataset.beatfile && ev.type === 'change') {
+      var bfile = t.files && t.files[0];
+      if (!bfile) { return; }
+      var bid = t.dataset.beatfile;
+      BCB.media.setFile('beats', bid, null, bfile).then(function () {
+        var slot = document.querySelector('[data-beatslot="' + bid + '"]');
+        if (slot) { slot.outerHTML = beatPicMarkup(bid); }
+        if (overlay) { renderStage(); }
+      });
+      return;
+    }
+    var clearBtn = t.closest && t.closest('[data-picclear]');
+    if (clearBtn && ev.type === 'click') {
+      var cparts = clearBtn.dataset.picclear.split('|');
+      BCB.media.setOverride(cparts[0], cparts[1], cparts[2], '');
+      refreshPicSlot();
+      if (overlay) { renderStage(); }
+      return;
+    }
+    var bclear = t.closest && t.closest('[data-beatclear]');
+    if (bclear && ev.type === 'click') {
+      var cid = bclear.dataset.beatclear;
+      BCB.media.setOverride('beats', cid, null, '');
+      var bslot = document.querySelector('[data-beatslot="' + cid + '"]');
+      if (bslot) { bslot.outerHTML = beatPicMarkup(cid); }
+      if (overlay) { renderStage(); }
+      return;
+    }
     if (t.dataset && t.dataset.pic && ev.type === 'change') {
       var parts = t.dataset.pic.split('|');
       BCB.media.setOverride(parts[0], parts[1], parts[2], t.value);
@@ -1519,7 +1587,7 @@
       var slot = t.closest('.pic-slot');
       if (slot) {
         var e = BCB.media.libraryEntry(parts[0], parts[1]);
-        slot.querySelector('.pic-thumb').innerHTML = e.still ? '<img src="' + esc(e.still) + '" alt="">' : '<span>no picture</span>';
+        slot.querySelector('.pic-thumb').innerHTML = e.stillUrl ? '<img src="' + esc(e.stillUrl) + '" alt="">' : '<span>no picture</span>';
       }
       if (overlay) { renderStage(); }
       return;
@@ -1579,6 +1647,9 @@
     BCB.media.load().then(function () {
       var pc = document.getElementById('picCard');
       if (pc) { pc.innerHTML = picturesMarkup(); }
+      Array.prototype.forEach.call(document.querySelectorAll('[data-beatslot]'), function (el) {
+        el.outerHTML = beatPicMarkup(el.dataset.beatslot);
+      });
     });
     if (BCB.recorder) {
       BCB.recorder.onChange(onRecorderEvent);
