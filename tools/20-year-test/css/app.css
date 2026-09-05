@@ -756,6 +756,13 @@ body.st-on { overflow: hidden; }
 .pic-fields .field { margin-bottom: 6px; }
 .pic-fields .field label { font-size: .68rem; margin-bottom: 1px; }
 .pic-fields .field input { padding: 5px 7px; font-size: .82rem; }
+.pic-row { display: flex; gap: 6px; align-items: center; }
+.pic-row input[type=url] { flex: 1; min-width: 0; }
+.pic-row .pic-file { flex: 1; min-width: 0; font-size: .8rem; color: var(--text); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; padding: 5px 7px; border: 1px dashed var(--line); border-radius: 5px; background: var(--surface-2); }
+.pic-upload { cursor: pointer; white-space: nowrap; display: inline-block; }
+.pic-upload input { display: none; }
+.beat-pic .pic-row { max-width: 640px; }
 
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;

@@ -124,6 +124,8 @@
       { path: 'education.studentLivingCost', label: 'Cost of living while in school', type: 'money',
         hint: 'Per year. Borrowed if income does not cover it.' },
       { path: 'education.schoolWorkHours', label: 'Hours worked per school year', type: 'int', min: 0, max: 2500 },
+      { path: 'education.studyHoursPerYear', label: 'Hours in class and studying per school year', type: 'int', min: 0, max: 4000,
+        hint: 'Class, labs, clinic and study time in the unpaid school years. Counted as hours given to the career.' },
       { path: 'education.familyPaid', label: 'Paid by family', type: 'money' },
       { path: 'education.scholarships', label: 'Scholarships', type: 'money' },
       { path: 'education.grants', label: 'Grants', type: 'money' },
@@ -483,8 +485,8 @@
 
     /* the metrics that make this more than a salary comparison */
     h += '<div class="card"><h2>The numbers that decide it</h2><div class="tiles">' +
-      tile('Lifetime hours worked', num(a.totals.hours), a.name, 'a-tint') +
-      tile('Lifetime hours worked', num(b.totals.hours), b.name, 'b-tint') +
+      tile('Lifetime hours, school included', num(a.totals.hours), a.name + ' \u00b7 ' + num(a.totals.hoursSchool) + ' in school', 'a-tint') +
+      tile('Lifetime hours, school included', num(b.totals.hours), b.name + ' \u00b7 ' + num(b.totals.hoursSchool) + ' in school', 'b-tint') +
       tile('Wealth per hour worked', money(a.totals.wealthPerHour), a.name, 'a-tint') +
       tile('Wealth per hour worked', money(b.totals.wealthPerHour), b.name, 'b-tint') +
       tile('Financial freedom', ageTxt(a.milestones.financialFreedomAgeWithSale),
@@ -1048,8 +1050,8 @@
 
     page(sect(13, 'Lifetime hours worked',
       '<div class="tiles">' +
-      tile('Total hours over ' + cfg.years + ' years', num(a.totals.hours), a.name, 'a-tint') +
-      tile('Total hours over ' + cfg.years + ' years', num(b.totals.hours), b.name, 'b-tint') +
+      tile('Total hours over ' + cfg.years + ' years', num(a.totals.hours), a.name + ' \u00b7 ' + num(a.totals.hoursWork) + ' on the job, ' + num(a.totals.hoursSchool) + ' in school', 'a-tint') +
+      tile('Total hours over ' + cfg.years + ' years', num(b.totals.hours), b.name + ' \u00b7 ' + num(b.totals.hoursWork) + ' on the job, ' + num(b.totals.hoursSchool) + ' in school', 'b-tint') +
       tile('Typical week', sc.a.lifestyle.weeklyHours + ' hrs', a.name, 'a-tint') +
       tile('Typical week', sc.b.lifestyle.weeklyHours + ' hrs', b.name, 'b-tint') +
       '</div><p class="chart-note" style="margin-top:10px">Vacation removed. Years of unpaid schooling count only ' +

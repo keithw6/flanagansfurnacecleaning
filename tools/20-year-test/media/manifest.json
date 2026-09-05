@@ -131,6 +131,126 @@
       "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_125458_85cb444a-f3df-46ef-811e-bd6923cc630a.png",
       "clip": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260904_130705_a914000f-0485-4d81-9d28-a29028f4e6c9.mp4",
       "credit": "AI-generated"
+    },
+    "carpenter": {
+      "label": "Carpenter",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200511_ab9d285a-5da1-4c26-8e73-930daea2f54d.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "autotech": {
+      "label": "Automotive Service Technician",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_afec9f7f-5795-49db-9adb-54c5e00c1822.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "heavyequipment": {
+      "label": "Heavy Equipment Operator",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_a7f2de5d-7f96-4652-a2ed-944388772c95.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "millwright": {
+      "label": "Industrial Mechanic (Millwright)",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_3bbef6e5-61ee-43f6-af66-660125fae5db.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "roofer": {
+      "label": "Roofer",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200511_1da62a19-2a4b-4468-a200-5b75b068e8d5.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "landscaper": {
+      "label": "Landscaper",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_587ced38-d3a2-4a5d-8ecc-1d7737365665.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "ductcleaner": {
+      "label": "Furnace & Duct Cleaning Technician",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200511_53a92479-a119-4d11-89ac-367dc74aeb47.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "painter": {
+      "label": "Painter & Decorator",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_7517b0a3-def1-4dc3-9e89-c27416847406.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "pipefitter": {
+      "label": "Steamfitter-Pipefitter",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200512_0c11715a-5494-460e-a66c-1129cc0d90ca.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "lineworker": {
+      "label": "Powerline Technician",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200511_e58b9da4-9b41-4133-849e-f156bb912642.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "physician": {
+      "label": "Family Physician",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200804_ba0f037d-66b1-4914-af05-5e4634493c36.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "veterinarian": {
+      "label": "Veterinarian",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200803_ceaaafe9-6be0-43e9-99d9-469d821883b7.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "architect": {
+      "label": "Architect",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200803_8ff7413f-4dc8-41b2-8bb5-4d067737c865.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "physiotherapist": {
+      "label": "Physiotherapist",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200803_84b78e57-84a0-449e-8c7d-fb5f2cecc6be.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "optometrist": {
+      "label": "Optometrist",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200804_6e5de2a6-5e0a-4308-9e0e-49644a3e124c.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "chiropractor": {
+      "label": "Chiropractor",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200804_b9a4d973-f613-453d-aaa8-76108ef64fa7.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "financialplanner": {
+      "label": "Financial Planner (CFP)",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200803_4a471699-1009-4e42-bcd3-bde19f3b8430.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "marketingmanager": {
+      "label": "Marketing Manager",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_200803_525d8b2f-8310-48f1-9504-c4bb1fc66b20.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "psychologist": {
+      "label": "Psychologist",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_201507_77925de1-2eb4-4a77-8fa4-38893255fe08.png",
+      "clip": null,
+      "credit": "AI-generated"
+    },
+    "hrmanager": {
+      "label": "Human Resources Manager",
+      "still": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9kbcBDh8aHSoEgiU59HqD3mm1/hf_20260905_201507_1130a3f5-d044-4317-9275-298fc10f5150.png",
+      "clip": null,
+      "credit": "AI-generated"
     }
   }
 }

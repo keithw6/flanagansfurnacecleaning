@@ -413,6 +413,7 @@
     var homeValue = 0, mortgage = 0, mortgagePaymentFixed = 0, owned = false;
     var bizFailed = false, bizFailedAge = null;
     var cumEarnings = 0, cumTax = 0, cumHours = 0, cumInvested = 0, cumEduSpend = 0, cumInterest = 0;
+    var cumHoursSchool = 0;
     var cumInvestReturns = 0;
     var debtFreeAge = null, firstPositiveNetWorthAge = null, freedomAge = null, freedomSaleAge = null;
     var everBorrowed = false;
@@ -685,11 +686,20 @@
         else                           { weekly -= 6; }
         weeksWorked = Math.max(0, 52 - Math.max(1, L.vacationWeeks * (by.hasManager ? 2 : 0.6)));
       }
-      /* Time in class is not time on the clock. Summer and part-time work
-         during school is counted at `schoolWorkHours`. */
+      /* Time in class is time given to the career, so it counts. An
+         unpaid school year is the part-time and summer work
+         (`schoolWorkHours`) plus class, labs, clinic and study
+         (`studyHoursPerYear`). The two are kept apart so the report can
+         show the split rather than bury it in one total. */
       var schoolHours = career.education.schoolWorkHours == null ? 700 : career.education.schoolWorkHours;
-      var hours = weekly * weeksWorked * (1 - eduRow.unpaidShare) + schoolHours * eduRow.unpaidShare;
+      var studyHours = career.education.studyHoursPerYear == null
+        ? ((career.education.yearsEducation || 0) > 0 ? 1350 : 0)
+        : career.education.studyHoursPerYear;
+      var hoursWork = weekly * weeksWorked * (1 - eduRow.unpaidShare) + schoolHours * eduRow.unpaidShare;
+      var hoursSchool = studyHours * eduRow.unpaidShare;
+      var hours = hoursWork + hoursSchool;
       cumHours += hours;
+      cumHoursSchool += hoursSchool;
 
       /* ---------- 9. running totals ---------- */
       var personalIncome = wagesTotal + distributions;
@@ -748,7 +758,7 @@
         netWorthReal: netWorth / idx,
         cumEarnings: cumEarnings, cumTax: cumTax, cumHours: cumHours,
         cumInvested: cumInvested, cumEduSpend: cumEduSpend,
-        hours: hours
+        hours: hours, hoursWork: hoursWork, hoursSchool: hoursSchool, cumHoursSchool: cumHoursSchool
       });
     }
 
@@ -785,6 +795,8 @@
         netWorth: last.netWorth,
         netWorthReal: last.netWorthReal,
         hours: last.cumHours,
+        hoursSchool: last.cumHoursSchool,
+        hoursWork: last.cumHours - last.cumHoursSchool,
         wealthPerHour: last.cumHours > 0 ? last.netWorth / last.cumHours : 0,
         earningsPerHour: last.cumHours > 0 ? last.cumEarnings / last.cumHours : 0,
         finalOwnerDependency: last.ownerDependency,

@@ -928,6 +928,11 @@
        pk(A + ' works about ' + thousands(a) + ' hours over the ' + years + ' years. ' + B + ' works about ' + thousands(b) + '.',
           thousands(a) + ' hours for ' + A + '. ' + thousands(b) + ' for ' + B + '.',
           'Over ' + years + ' years, ' + A + ' puts in roughly ' + thousands(a) + ' hours. ' + B + ', about ' + thousands(b) + '.'),
+       (a.totals.hoursSchool > 500 || b.totals.hoursSchool > 500)
+         ? pk('And yes, that includes school. ' + A + ' spent about ' + Math.round(a.totals.hoursSchool / 100) * 100 + ' hours in class, labs and studying. ' + B + ', about ' + Math.round(b.totals.hoursSchool / 100) * 100 + '. Those are hours you gave to the career, so they count.',
+              'School is in there too. Class, clinic, studying: roughly ' + Math.round(a.totals.hoursSchool / 100) * 100 + ' hours for ' + A + ' and ' + Math.round(b.totals.hoursSchool / 100) * 100 + ' for ' + B + '. Nobody paid for those hours, but they were still hours.',
+              'I count the school years. ' + Math.round(a.totals.hoursSchool / 100) * 100 + ' hours of it for ' + A + ', ' + Math.round(b.totals.hoursSchool / 100) * 100 + ' for ' + B + '. You gave that time to the career whether or not a paycheque came with it.')
+         : null,
        pk('That\'s about ' + perWeek(a) + ' hours a week for ' + A + ' and ' + perWeek(b) + ' for ' + B + '. Every week. For ' + years + ' years.',
           'Per week, that\'s roughly ' + perWeek(a) + ' hours for ' + A + ' against ' + perWeek(b) + ' for ' + B + '.',
           'Call it ' + perWeek(a) + ' hours a week versus ' + perWeek(b) + '. That difference is your evenings.'),

@@ -367,7 +367,7 @@
       name: 'Plumber', type: 'journeyperson', conf: 'industry',
       note: 'Alberta apprenticeship: four years, earning from day one, technical training in blocks.',
       education: {
-        studentLivingCost: 16000, schoolWorkHours: 700,
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 6500,
         certification: 450, licensing: 350, examFees: 300, equipment: 1200, other: 500,
@@ -406,7 +406,7 @@
       name: 'Dentist', type: 'professional', conf: 'industry',
       note: 'Three years of undergraduate prerequisites plus four years of dental school. Four-plus-four is also common - change it if that fits your comparison better.',
       education: {
-        studentLivingCost: 24000, schoolWorkHours: 700,
+        studentLivingCost: 24000, schoolWorkHours: 700, studyHoursPerYear: 1950,
         yearsEducation: 7, yearsApprenticeship: 0, yearsUnpaidSchool: 7, yearsPaidTraining: 0,
         tuitionPerYear: 21000, tuitionYears: 7, books: 6000, tools: 12000,
         certification: 2500, licensing: 2500, examFees: 4500, equipment: 3000, other: 8000,
@@ -445,7 +445,7 @@
       name: 'Electrician', type: 'journeyperson', conf: 'industry',
       note: 'Four-year apprenticeship. Slightly cleaner work than plumbing, slightly more competition in residential service.',
       education: {
-        studentLivingCost: 16000, schoolWorkHours: 700,
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 600, tools: 4500,
         certification: 450, licensing: 400, examFees: 300, equipment: 900, other: 400,
@@ -484,7 +484,7 @@
       name: 'HVAC Technician', type: 'journeyperson', conf: 'industry',
       note: 'Strong seasonal overtime, strong service-agreement potential, which is what makes the business version scale.',
       education: {
-        studentLivingCost: 16000, schoolWorkHours: 700,
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 5500,
         certification: 700, licensing: 350, examFees: 350, equipment: 1500, other: 500,
@@ -521,7 +521,7 @@
       name: 'Welder', type: 'journeyperson', conf: 'industry',
       note: 'Very high ceiling on rig and pressure work, but income is tied to projects and to the owner being in the hood.',
       education: {
-        studentLivingCost: 16000, schoolWorkHours: 700,
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
         yearsEducation: 0, yearsApprenticeship: 3, yearsUnpaidSchool: 0.5, yearsPaidTraining: 2.5,
         tuitionPerYear: 1400, tuitionYears: 3, books: 400, tools: 9000,
         certification: 1400, licensing: 200, examFees: 900, equipment: 4000, other: 600,
@@ -558,7 +558,7 @@
       name: 'Heavy-Duty Mechanic', type: 'journeyperson', conf: 'industry',
       note: 'Fleet and shop work. Very steady demand; the business version is capital-heavy because of the shop and tooling.',
       education: {
-        studentLivingCost: 16000, schoolWorkHours: 700,
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
         yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
         tuitionPerYear: 1300, tuitionYears: 4, books: 500, tools: 22000,
         certification: 500, licensing: 300, examFees: 300, equipment: 3000, other: 600,
@@ -595,7 +595,7 @@
       name: 'Software Engineer', type: 'professional', conf: 'industry',
       note: 'Four-year degree, high starting salary, high ceiling - and the only career here with meaningful automation and offshoring exposure.',
       education: {
-        studentLivingCost: 22000, schoolWorkHours: 700,
+        studentLivingCost: 22000, schoolWorkHours: 700, studyHoursPerYear: 1350,
         yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
         tuitionPerYear: 8500, tuitionYears: 4, books: 2000, tools: 3500,
         certification: 500, licensing: 0, examFees: 300, equipment: 1000, other: 3000,
@@ -633,7 +633,7 @@
       name: 'Accountant (CPA)', type: 'professional', conf: 'industry',
       note: 'Degree plus the CPA program while working. Practice ownership is the real wealth path, and it is a genuinely scalable one.',
       education: {
-        studentLivingCost: 21000, schoolWorkHours: 700,
+        studentLivingCost: 21000, schoolWorkHours: 700, studyHoursPerYear: 1400,
         yearsEducation: 4, yearsApprenticeship: 2.5, yearsUnpaidSchool: 4, yearsPaidTraining: 2.5,
         tuitionPerYear: 8000, tuitionYears: 4, books: 2500, tools: 1000,
         certification: 12000, licensing: 1200, examFees: 3500, equipment: 1500, other: 2500,
@@ -671,7 +671,7 @@
       name: 'Pharmacist', type: 'professional', conf: 'industry',
       note: 'High, flat income. Very little variance either way - the ceiling arrives early and stays.',
       education: {
-        studentLivingCost: 23000, schoolWorkHours: 700,
+        studentLivingCost: 23000, schoolWorkHours: 700, studyHoursPerYear: 1800,
         yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
         tuitionPerYear: 16000, tuitionYears: 6, books: 5000, tools: 1000,
         certification: 2000, licensing: 1800, examFees: 3000, equipment: 1000, other: 5000,
@@ -709,7 +709,7 @@
       name: 'Lawyer', type: 'professional', conf: 'industry',
       note: 'Seven years to call, then a very wide spread. Big-firm partner and small-town practitioner are not the same career.',
       education: {
-        studentLivingCost: 25000, schoolWorkHours: 700,
+        studentLivingCost: 25000, schoolWorkHours: 700, studyHoursPerYear: 1600,
         yearsEducation: 7, yearsApprenticeship: 1, yearsUnpaidSchool: 7, yearsPaidTraining: 1,
         tuitionPerYear: 18000, tuitionYears: 7, books: 7000, tools: 2000,
         certification: 4500, licensing: 3500, examFees: 4000, equipment: 2500, other: 9000,
@@ -747,7 +747,7 @@
       name: 'Professional Engineer', type: 'professional', conf: 'industry',
       note: 'Four-year degree plus four years to P.Eng. Stable, salaried, and rarely spectacular unless it turns into a firm.',
       education: {
-        studentLivingCost: 22000, schoolWorkHours: 700,
+        studentLivingCost: 22000, schoolWorkHours: 700, studyHoursPerYear: 1500,
         yearsEducation: 4, yearsApprenticeship: 4, yearsUnpaidSchool: 4, yearsPaidTraining: 4,
         tuitionPerYear: 9500, tuitionYears: 4, books: 3000, tools: 2000,
         certification: 1500, licensing: 2500, examFees: 1200, equipment: 1500, other: 3000,
@@ -785,7 +785,7 @@
       name: 'Teacher', type: 'professional', conf: 'industry',
       note: 'Modest ceiling, excellent pension, and the best family calendar of any career on this list. The pension is the wealth engine.',
       education: {
-        studentLivingCost: 20000, schoolWorkHours: 700,
+        studentLivingCost: 20000, schoolWorkHours: 700, studyHoursPerYear: 1350,
         yearsEducation: 5, yearsApprenticeship: 0, yearsUnpaidSchool: 5, yearsPaidTraining: 0,
         tuitionPerYear: 7500, tuitionYears: 5, books: 2500, tools: 1500,
         certification: 500, licensing: 400, examFees: 200, equipment: 1000, other: 2500,
@@ -823,7 +823,7 @@
       name: 'Corporate Executive', type: 'professional', conf: 'estimated',
       note: 'Assumes the promotions actually land. Most people on this track top out well below the numbers here - treat it as the successful path, not the average one.',
       education: {
-        studentLivingCost: 25000, schoolWorkHours: 700,
+        studentLivingCost: 25000, schoolWorkHours: 700, studyHoursPerYear: 1400,
         yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
         tuitionPerYear: 14000, tuitionYears: 6, books: 4000, tools: 2500,
         certification: 3000, licensing: 0, examFees: 1500, equipment: 2000, other: 6000,
@@ -861,7 +861,7 @@
       name: 'Owner-Operator Trucker', type: 'owneroperator', conf: 'industry',
       note: 'Owns the truck, drives the truck. The classic owner-operator trap: good income, almost no transferable asset.',
       education: {
-        studentLivingCost: 15000, schoolWorkHours: 700,
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 400,
         yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0.2, yearsPaidTraining: 0,
         tuitionPerYear: 10000, tuitionYears: 1, books: 200, tools: 800,
         certification: 500, licensing: 900, examFees: 400, equipment: 500, other: 400,
@@ -898,7 +898,7 @@
       name: 'Registered Nurse', type: 'professional', conf: 'industry',
       note: 'Four-year degree, strong pension, heavy shift work. Almost no business path unless it becomes an agency.',
       education: {
-        studentLivingCost: 21000, schoolWorkHours: 700,
+        studentLivingCost: 21000, schoolWorkHours: 700, studyHoursPerYear: 1600,
         yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
         tuitionPerYear: 8500, tuitionYears: 4, books: 3000, tools: 1500,
         certification: 1000, licensing: 900, examFees: 1000, equipment: 1200, other: 2500,
@@ -931,11 +931,756 @@
       living: { expenses: 48000, creep: 0.25, conf: 'estimated' }
     },
 
+    /* ---------------- ten more trades ---------------- */
+    carpenter: {
+      name: 'Carpenter', type: 'journeyperson', conf: 'industry',
+      note: 'Four-year Alberta apprenticeship, eight weeks of class a year. Framing and finishing, then a renovation company.',
+      education: {
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
+        tuitionPerYear: 1300, tuitionYears: 4, books: 400, tools: 5500,
+        certification: 450, licensing: 350, examFees: 300, equipment: 900, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, '1st year apprentice', 38000, 4000, 0, { benefits: 2200 }),
+        stage(19, '2nd year apprentice', 46000, 5000, 0, { benefits: 2500 }),
+        stage(20, '3rd year apprentice', 54000, 6000, 500, { benefits: 2800, pension: 1200 }),
+        stage(21, '4th year apprentice', 60000, 7000, 800, { benefits: 3000, pension: 1600 }),
+        stage(22, 'Journeyperson', 72000, 8000, 1500, { benefits: 3500, pension: 2500, vehicle: 1200 }),
+        stage(25, 'Lead carpenter / site super', 82000, 10000, 3000, { benefits: 3800, pension: 3500, vehicle: 2000 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.38, ownerCapacity: 220000, revPerTech: 260000, costPerTech: 95000, overheadPct: 0.12, fixedOverhead: 26000,
+        startAge: 27, startup: 30000, rev: 220000, growth: 0.17, ceiling: 2600000,
+        gross: 0.52, net: 0.18, ownerSalary: 85000, emp: 0, marketWage: 82000,
+        multiple: 2.8, valMethod: 'sde', leadAge: 30, ownerAge: 34, investorAge: 40,
+        qOwner: 4, qRecur: 2, qSpread: 7, qMgmt: 3, qAssets: 5, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 42, ot: 5, evening: 3, weekend: 4, onCall: 2, vac: 2, vacTake: 5, leaveWeeks: 2,
+        sCust: 5, sEmp: 3, sLiab: 5, sEmerg: 3, sFin: 5, sReg: 4,
+        phys: 3, mental: 6,
+        fHours: 5, fDays: 4, fRemote: 1, fVac: 4, fMove: 8, fEmp: 8, fSelf: 9,
+        kDemand: 8, kAuto: 9, kOut: 10, kRec: 4, kLic: 5, kShort: 7,
+        pEve: 6, pWknd: 6, pPred: 5, pTravel: 7, pAttend: 6
+      }),
+      traits: traits({ bEase: 9, demand: 8, margins: 5, capital: 8, scale: 7, durable: 8, wealth: 7, ceiling: 5, schedule: 5, delegate: 7, recurring: 2 }),
+      living: { expenses: 42000, creep: 0.25, conf: 'estimated' }
+    },
+    autotech: {
+      name: 'Automotive Service Technician', type: 'journeyperson', conf: 'industry',
+      note: 'Four-year apprenticeship. Flat-rate pay is common; the business is an independent repair shop with real fixed costs.',
+      education: {
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
+        tuitionPerYear: 1300, tuitionYears: 4, books: 400, tools: 9000,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1500, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, '1st year apprentice', 36000, 3000, 0, { benefits: 2000 }),
+        stage(19, '2nd year apprentice', 42000, 4000, 0, { benefits: 2400 }),
+        stage(20, '3rd year apprentice', 50000, 5000, 500, { benefits: 2800, pension: 1000 }),
+        stage(21, '4th year apprentice', 58000, 6000, 1000, { benefits: 3000, pension: 1500 }),
+        stage(22, 'Journeyperson technician', 70000, 6000, 3000, { benefits: 3500, pension: 2500 }),
+        stage(25, 'Senior / diagnostic tech', 78000, 8000, 4000, { benefits: 3800, pension: 3200 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.36, ownerCapacity: 260000, revPerTech: 300000, costPerTech: 90000, overheadPct: 0.12, fixedOverhead: 40000,
+        startAge: 28, startup: 90000, loanShare: 0.7, rev: 400000, growth: 0.12, ceiling: 3000000,
+        gross: 0.58, net: 0.16, ownerSalary: 75000, emp: 1, marketWage: 80000,
+        multiple: 2.6, valMethod: 'sde', leadAge: 30, ownerAge: 34, investorAge: 41,
+        qOwner: 5, qRecur: 6, qSpread: 8, qMgmt: 3, qAssets: 7, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 42, ot: 4, evening: 3, weekend: 4, onCall: 1, vac: 2, vacTake: 5, leaveWeeks: 2,
+        sCust: 6, sEmp: 3, sLiab: 5, sEmerg: 3, sFin: 5, sReg: 5,
+        phys: 4, mental: 6,
+        fHours: 4, fDays: 4, fRemote: 1, fVac: 4, fMove: 8, fEmp: 8, fSelf: 7,
+        kDemand: 8, kAuto: 7, kOut: 10, kRec: 7, kLic: 6, kShort: 8,
+        pEve: 7, pWknd: 6, pPred: 7, pTravel: 9, pAttend: 6
+      }),
+      traits: traits({ bEase: 6, demand: 9, margins: 5, capital: 4, scale: 7, durable: 8, wealth: 6, ceiling: 5, schedule: 4, delegate: 7, recurring: 6 }),
+      living: { expenses: 42000, creep: 0.25, conf: 'estimated' }
+    },
+    heavyequipment: {
+      name: 'Heavy Equipment Operator', type: 'owneroperator', conf: 'industry',
+      note: 'Short course, then seat time. Seasonal, overtime-heavy. The business is an excavation contractor, which means iron.',
+      education: {
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 400,
+        yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0.2, yearsPaidTraining: 0,
+        tuitionPerYear: 12000, tuitionYears: 1, books: 400, tools: 800,
+        certification: 450, licensing: 350, examFees: 300, equipment: 600, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, 'Labourer / spotter', 42000, 6000, 0, { benefits: 2000 }),
+        stage(20, 'Operator', 62000, 12000, 1000, { benefits: 3000, pension: 2000 }),
+        stage(23, 'Experienced operator', 74000, 14000, 2000, { benefits: 3500, pension: 3000 }),
+        stage(28, 'Lead hand / foreman', 82000, 15000, 3000, { benefits: 3800, pension: 3500 })
+      ],
+      business: biz({
+        support: 0,
+        materials: 0.18, ownerCapacity: 320000, revPerTech: 300000, costPerTech: 92000, capex: 0.08, overheadPct: 0.12, fixedOverhead: 35000,
+        startAge: 27, startup: 220000, loanShare: 0.8, loanRate: 0.085, loanYears: 6, rev: 320000, growth: 0.10, ceiling: 2000000,
+        gross: 0.60, net: 0.20, ownerSalary: 90000, marketWage: 82000,
+        multiple: 2.5, valMethod: 'sde', leadAge: 31, ownerAge: 35, investorAge: 42,
+        qOwner: 4, qRecur: 3, qSpread: 5, qMgmt: 3, qAssets: 8, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 50, ot: 10, evening: 4, weekend: 5, onCall: 3, vac: 2, vacTake: 4, leaveWeeks: 2,
+        sCust: 4, sEmp: 3, sLiab: 6, sEmerg: 4, sFin: 6, sReg: 5,
+        phys: 5, mental: 6,
+        fHours: 3, fDays: 3, fRemote: 1, fVac: 3, fMove: 7, fEmp: 8, fSelf: 7,
+        kDemand: 7, kAuto: 6, kOut: 10, kRec: 4, kLic: 4, kShort: 7,
+        pEve: 4, pWknd: 5, pPred: 4, pTravel: 5, pAttend: 4
+      }),
+      traits: traits({ bEase: 6, demand: 7, margins: 6, capital: 3, scale: 6, durable: 7, wealth: 6, ceiling: 5, schedule: 3, delegate: 6, recurring: 3 }),
+      living: { expenses: 44000, creep: 0.25, conf: 'estimated' }
+    },
+    millwright: {
+      name: 'Industrial Mechanic (Millwright)', type: 'journeyperson', conf: 'industry',
+      note: 'Four-year apprenticeship, plants and mills, shutdown overtime. The business is an industrial maintenance contractor.',
+      education: {
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
+        tuitionPerYear: 1300, tuitionYears: 4, books: 400, tools: 7000,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1200, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, '1st year apprentice', 40000, 5000, 0, { benefits: 2500 }),
+        stage(19, '2nd year apprentice', 48000, 6000, 0, { benefits: 2800 }),
+        stage(20, '3rd year apprentice', 56000, 8000, 500, { benefits: 3000, pension: 1500 }),
+        stage(21, '4th year apprentice', 64000, 10000, 1000, { benefits: 3200, pension: 2000 }),
+        stage(22, 'Journeyperson millwright', 82000, 14000, 3000, { benefits: 4200, pension: 4000 }),
+        stage(25, 'Senior millwright / planner', 92000, 18000, 4000, { benefits: 4500, pension: 5500 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.22, ownerCapacity: 260000, revPerTech: 320000, costPerTech: 120000, overheadPct: 0.12, fixedOverhead: 40000,
+        startAge: 30, startup: 80000, loanShare: 0.6, rev: 380000, growth: 0.15, ceiling: 4000000,
+        gross: 0.58, net: 0.22, ownerSalary: 110000, emp: 1, marketWage: 100000,
+        multiple: 3.0, valMethod: 'sde', leadAge: 32, ownerAge: 36, investorAge: 42,
+        qOwner: 4, qRecur: 5, qSpread: 4, qMgmt: 3, qAssets: 5, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 44, ot: 10, evening: 6, weekend: 5, onCall: 6, vac: 3, vacTake: 5, leaveWeeks: 2,
+        sCust: 4, sEmp: 3, sLiab: 6, sEmerg: 6, sFin: 4, sReg: 5,
+        phys: 4, mental: 6,
+        fHours: 3, fDays: 4, fRemote: 1, fVac: 4, fMove: 7, fEmp: 8, fSelf: 7,
+        kDemand: 8, kAuto: 8, kOut: 9, kRec: 5, kLic: 7, kShort: 8,
+        pEve: 5, pWknd: 5, pPred: 4, pTravel: 5, pAttend: 5
+      }),
+      traits: traits({ bEase: 6, demand: 8, margins: 6, capital: 6, scale: 6, durable: 8, wealth: 7, ceiling: 7, schedule: 3, delegate: 6, recurring: 5 }),
+      living: { expenses: 46000, creep: 0.25, conf: 'estimated' }
+    },
+    roofer: {
+      name: 'Roofer', type: 'journeyperson', conf: 'industry',
+      note: 'Two-year apprenticeship. Hard on the body, seasonal, storms make the phone ring. Low barrier to a company of your own.',
+      education: {
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 2, yearsUnpaidSchool: 0.3, yearsPaidTraining: 1.7,
+        tuitionPerYear: 1300, tuitionYears: 2, books: 400, tools: 3500,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1500, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, 'Labourer / 1st year', 38000, 6000, 0, { benefits: 1500 }),
+        stage(19, '2nd year apprentice', 46000, 7000, 0, { benefits: 2000 }),
+        stage(20, 'Journeyperson roofer', 62000, 10000, 1500, { benefits: 2800, pension: 1500 }),
+        stage(24, 'Foreman', 74000, 12000, 3000, { benefits: 3200, pension: 2500, vehicle: 1500 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.42, ownerCapacity: 240000, revPerTech: 260000, costPerTech: 78000, overheadPct: 0.12, fixedOverhead: 32000,
+        startAge: 25, startup: 45000, rev: 380000, growth: 0.20, ceiling: 4000000,
+        gross: 0.48, net: 0.18, ownerSalary: 85000, emp: 1, marketWage: 75000,
+        multiple: 2.5, valMethod: 'sde', leadAge: 27, ownerAge: 31, investorAge: 37,
+        qOwner: 5, qRecur: 2, qSpread: 7, qMgmt: 3, qAssets: 4, qGrowth: 7
+      }),
+      lifestyle: life({
+        hours: 46, ot: 8, evening: 3, weekend: 5, onCall: 4, vac: 2, vacTake: 4, leaveWeeks: 2,
+        sCust: 6, sEmp: 4, sLiab: 7, sEmerg: 6, sFin: 6, sReg: 5,
+        phys: 1, mental: 7,
+        fHours: 4, fDays: 4, fRemote: 1, fVac: 3, fMove: 8, fEmp: 8, fSelf: 9,
+        kDemand: 8, kAuto: 9, kOut: 10, kRec: 4, kLic: 4, kShort: 8,
+        pEve: 6, pWknd: 5, pPred: 4, pTravel: 8, pAttend: 5
+      }),
+      traits: traits({ bEase: 9, demand: 8, margins: 5, capital: 7, scale: 8, durable: 7, wealth: 7, ceiling: 4, schedule: 4, delegate: 8, recurring: 2 }),
+      living: { expenses: 40000, creep: 0.25, conf: 'estimated' }
+    },
+    landscaper: {
+      name: 'Landscaper', type: 'journeyperson', conf: 'industry',
+      note: 'Crew work first, then a landscape construction and maintenance company. Maintenance contracts are the recurring part.',
+      education: {
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 3, yearsUnpaidSchool: 0.45, yearsPaidTraining: 2.55,
+        tuitionPerYear: 1300, tuitionYears: 3, books: 400, tools: 2500,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1000, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, 'Crew member', 36000, 5000, 0, { benefits: 1200 }),
+        stage(19, '2nd year', 40000, 5000, 0, { benefits: 1500 }),
+        stage(20, '3rd year', 46000, 6000, 500, { benefits: 2000 }),
+        stage(21, 'Crew lead', 54000, 8000, 1000, { benefits: 2500, pension: 1000 }),
+        stage(24, 'Foreman / estimator', 64000, 9000, 2500, { benefits: 3000, pension: 2000, vehicle: 1500 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.34, ownerCapacity: 220000, revPerTech: 190000, costPerTech: 62000, overheadPct: 0.12, fixedOverhead: 30000,
+        startAge: 24, startup: 60000, loanShare: 0.6, rev: 260000, growth: 0.20, ceiling: 3000000,
+        gross: 0.50, net: 0.18, ownerSalary: 75000, emp: 1, marketWage: 65000,
+        multiple: 2.6, valMethod: 'sde', leadAge: 26, ownerAge: 30, investorAge: 36,
+        qOwner: 5, qRecur: 6, qSpread: 7, qMgmt: 3, qAssets: 6, qGrowth: 7
+      }),
+      lifestyle: life({
+        hours: 50, ot: 8, evening: 3, weekend: 6, onCall: 2, vac: 3, vacTake: 5, leaveWeeks: 3,
+        sCust: 5, sEmp: 4, sLiab: 4, sEmerg: 3, sFin: 6, sReg: 3,
+        phys: 2, mental: 7,
+        fHours: 4, fDays: 4, fRemote: 1, fVac: 5, fMove: 8, fEmp: 8, fSelf: 10,
+        kDemand: 7, kAuto: 8, kOut: 10, kRec: 4, kLic: 2, kShort: 6,
+        pEve: 6, pWknd: 4, pPred: 4, pTravel: 8, pAttend: 5
+      }),
+      traits: traits({ bEase: 10, demand: 7, margins: 5, capital: 7, scale: 8, durable: 7, wealth: 6, ceiling: 4, schedule: 4, delegate: 8, recurring: 6 }),
+      living: { expenses: 40000, creep: 0.25, conf: 'estimated' }
+    },
+    ductcleaner: {
+      name: 'Furnace & Duct Cleaning Technician', type: 'owneroperator', conf: 'industry',
+      note: 'No apprenticeship, a certificate and a truck. Almost the whole outcome is whether the business gets built, which is the point.',
+      education: {
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 150,
+        yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0.2, yearsPaidTraining: 0,
+        tuitionPerYear: 1500, tuitionYears: 1, books: 400, tools: 1500,
+        certification: 450, licensing: 350, examFees: 300, equipment: 800, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, 'Helper', 38000, 4000, 0, { benefits: 1200 }),
+        stage(19, 'Technician', 46000, 6000, 500, { benefits: 1800 }),
+        stage(21, 'Senior technician', 54000, 7000, 1500, { benefits: 2200, pension: 800 }),
+        stage(25, 'Lead tech / estimator', 62000, 8000, 3000, { benefits: 2600, pension: 1500, vehicle: 1200 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.12, ownerCapacity: 200000, revPerTech: 175000, costPerTech: 64000, capex: 0.06, marketing: 0.09, overheadPct: 0.15, fixedOverhead: 30000,
+        startAge: 22, startup: 55000, loanShare: 0.7, rev: 200000, growth: 0.15, ceiling: 1500000,
+        gross: 0.68, net: 0.22, ownerSalary: 70000, emp: 0, marketWage: 60000,
+        multiple: 2.4, valMethod: 'sde', leadAge: 25, ownerAge: 29, investorAge: 35,
+        qOwner: 5, qRecur: 5, qSpread: 9, qMgmt: 3, qAssets: 5, qGrowth: 7
+      }),
+      lifestyle: life({
+        hours: 45, ot: 6, evening: 3, weekend: 4, onCall: 2, vac: 2, vacTake: 5, leaveWeeks: 2,
+        sCust: 5, sEmp: 3, sLiab: 3, sEmerg: 2, sFin: 5, sReg: 2,
+        phys: 3, mental: 7,
+        fHours: 5, fDays: 4, fRemote: 1, fVac: 4, fMove: 8, fEmp: 7, fSelf: 10,
+        kDemand: 7, kAuto: 9, kOut: 10, kRec: 6, kLic: 3, kShort: 5,
+        pEve: 6, pWknd: 6, pPred: 6, pTravel: 8, pAttend: 6
+      }),
+      traits: traits({ bEase: 10, demand: 7, margins: 7, capital: 8, scale: 8, durable: 7, wealth: 7, ceiling: 3, schedule: 5, delegate: 8, recurring: 5 }),
+      living: { expenses: 40000, creep: 0.25, conf: 'estimated' }
+    },
+    painter: {
+      name: 'Painter & Decorator', type: 'journeyperson', conf: 'industry',
+      note: 'Three-year apprenticeship. Low capital, thin barriers, so the business is easy to start and hard to make special.',
+      education: {
+        studentLivingCost: 15000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 3, yearsUnpaidSchool: 0.45, yearsPaidTraining: 2.55,
+        tuitionPerYear: 1300, tuitionYears: 3, books: 400, tools: 2000,
+        certification: 450, licensing: 350, examFees: 300, equipment: 800, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, '1st year apprentice', 34000, 3000, 0, { benefits: 1500 }),
+        stage(19, '2nd year apprentice', 40000, 4000, 0, { benefits: 1800 }),
+        stage(20, '3rd year apprentice', 46000, 4000, 500, { benefits: 2200 }),
+        stage(21, 'Journeyperson painter', 58000, 6000, 1000, { benefits: 2800, pension: 1500 }),
+        stage(25, 'Lead painter', 64000, 7000, 2000, { benefits: 3000, pension: 2000, vehicle: 1000 })
+      ],
+      business: biz({
+        support: 0,
+        materials: 0.18, ownerCapacity: 180000, revPerTech: 150000, costPerTech: 62000, overheadPct: 0.13, fixedOverhead: 22000,
+        startAge: 25, startup: 20000, rev: 200000, growth: 0.14, ceiling: 1600000,
+        gross: 0.62, net: 0.22, ownerSalary: 70000, emp: 0, marketWage: 62000,
+        multiple: 2.5, valMethod: 'sde', leadAge: 27, ownerAge: 31, investorAge: 38,
+        qOwner: 5, qRecur: 3, qSpread: 8, qMgmt: 3, qAssets: 3, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 42, ot: 4, evening: 3, weekend: 3, onCall: 1, vac: 2, vacTake: 5, leaveWeeks: 2,
+        sCust: 5, sEmp: 3, sLiab: 3, sEmerg: 2, sFin: 5, sReg: 2,
+        phys: 4, mental: 8,
+        fHours: 5, fDays: 5, fRemote: 1, fVac: 5, fMove: 8, fEmp: 8, fSelf: 10,
+        kDemand: 7, kAuto: 8, kOut: 10, kRec: 4, kLic: 3, kShort: 6,
+        pEve: 7, pWknd: 7, pPred: 6, pTravel: 8, pAttend: 7
+      }),
+      traits: traits({ bEase: 10, demand: 7, margins: 6, capital: 9, scale: 7, durable: 7, wealth: 6, ceiling: 3, schedule: 6, delegate: 7, recurring: 3 }),
+      living: { expenses: 40000, creep: 0.25, conf: 'estimated' }
+    },
+    pipefitter: {
+      name: 'Steamfitter-Pipefitter', type: 'journeyperson', conf: 'industry',
+      note: 'Four-year apprenticeship, industrial sites and shutdowns, the biggest overtime in the trades. Camp work is common.',
+      education: {
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 4, yearsUnpaidSchool: 0.6, yearsPaidTraining: 3.4,
+        tuitionPerYear: 1300, tuitionYears: 4, books: 400, tools: 6500,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1500, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, '1st year apprentice', 44000, 8000, 0, { benefits: 2500 }),
+        stage(19, '2nd year apprentice', 52000, 9000, 0, { benefits: 2800 }),
+        stage(20, '3rd year apprentice', 60000, 11000, 500, { benefits: 3000, pension: 2000 }),
+        stage(21, '4th year apprentice', 68000, 13000, 1000, { benefits: 3200, pension: 2500 }),
+        stage(22, 'Journeyperson', 92000, 20000, 3000, { benefits: 4500, pension: 6000 }),
+        stage(25, 'Senior / foreman', 104000, 24000, 5000, { benefits: 4800, pension: 7500 })
+      ],
+      business: biz({
+        support: 2,
+        materials: 0.35, ownerCapacity: 300000, revPerTech: 340000, costPerTech: 130000, overheadPct: 0.12, fixedOverhead: 55000,
+        startAge: 30, startup: 120000, loanShare: 0.6, rev: 600000, growth: 0.14, ceiling: 6000000,
+        gross: 0.50, net: 0.18, ownerSalary: 120000, emp: 1, marketWage: 110000,
+        multiple: 3.0, valMethod: 'sde', leadAge: 32, ownerAge: 36, investorAge: 42,
+        qOwner: 4, qRecur: 4, qSpread: 4, qMgmt: 3, qAssets: 5, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 48, ot: 14, evening: 5, weekend: 6, onCall: 4, vac: 3, vacTake: 4, leaveWeeks: 2,
+        sCust: 4, sEmp: 3, sLiab: 6, sEmerg: 5, sFin: 4, sReg: 6,
+        phys: 3, mental: 6,
+        fHours: 3, fDays: 3, fRemote: 1, fVac: 4, fMove: 6, fEmp: 8, fSelf: 7,
+        kDemand: 8, kAuto: 9, kOut: 10, kRec: 4, kLic: 8, kShort: 8,
+        pEve: 4, pWknd: 4, pPred: 3, pTravel: 3, pAttend: 4
+      }),
+      traits: traits({ bEase: 6, demand: 8, margins: 6, capital: 5, scale: 7, durable: 8, wealth: 7, ceiling: 7, schedule: 3, delegate: 6, recurring: 4 }),
+      living: { expenses: 48000, creep: 0.25, conf: 'estimated' }
+    },
+    lineworker: {
+      name: 'Powerline Technician', type: 'journeyperson', conf: 'industry',
+      note: 'Three-year apprenticeship, storm calls, big overtime, a real pension. Almost always a utility employee - the business path is off by default.',
+      education: {
+        studentLivingCost: 16000, schoolWorkHours: 700, studyHoursPerYear: 320,
+        yearsEducation: 0, yearsApprenticeship: 3, yearsUnpaidSchool: 0.45, yearsPaidTraining: 2.55,
+        tuitionPerYear: 1300, tuitionYears: 3, books: 400, tools: 4000,
+        certification: 450, licensing: 350, examFees: 300, equipment: 1500, other: 500,
+        familyPaid: 0, scholarships: 1000, grants: 2000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 5, conf: 'estimated' },
+      stages: [
+        stage(18, 'Pre-apprentice / groundhand', 50000, 10000, 0, { benefits: 3000, pension: 3000 }),
+        stage(19, '2nd year apprentice', 60000, 14000, 0, { benefits: 3500, pension: 4000 }),
+        stage(20, '3rd year apprentice', 70000, 16000, 500, { benefits: 4000, pension: 5000 }),
+        stage(21, 'Journeyperson PLT', 100000, 24000, 2000, { benefits: 5500, pension: 10000 }),
+        stage(25, 'Senior PLT / crew lead', 112000, 28000, 3000, { benefits: 6000, pension: 12000 })
+      ],
+      business: biz({
+        support: 2,
+        materials: 0.25, ownerCapacity: 400000, revPerTech: 380000, costPerTech: 150000, capex: 0.08, overheadPct: 0.12, fixedOverhead: 90000,
+        enabled: false, startAge: 34, startup: 400000, loanShare: 0.8, loanRate: 0.085, loanYears: 8, rev: 900000, growth: 0.12, ceiling: 8000000,
+        gross: 0.55, net: 0.16, ownerSalary: 140000, emp: 2, marketWage: 125000,
+        multiple: 3.0, valMethod: 'sde', leadAge: 35, ownerAge: 39, investorAge: 45,
+        qOwner: 4, qRecur: 4, qSpread: 3, qMgmt: 4, qAssets: 7, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 44, ot: 14, evening: 5, weekend: 6, onCall: 9, vac: 4, vacTake: 6, leaveWeeks: 3,
+        sCust: 3, sEmp: 2, sLiab: 8, sEmerg: 8, sFin: 2, sReg: 6,
+        phys: 2, mental: 5,
+        fHours: 3, fDays: 3, fRemote: 1, fVac: 5, fMove: 6, fEmp: 6, fSelf: 3,
+        kDemand: 9, kAuto: 9, kOut: 10, kRec: 8, kLic: 8, kShort: 8,
+        pEve: 5, pWknd: 4, pPred: 3, pTravel: 5, pAttend: 4
+      }),
+      traits: traits({ bEase: 3, demand: 9, margins: 5, capital: 2, scale: 5, durable: 9, wealth: 6, ceiling: 7, schedule: 3, delegate: 5, recurring: 4 }),
+      living: { expenses: 46000, creep: 0.25, conf: 'estimated' }
+    },
+
+    /* ---------------- ten more professions ---------------- */
+    physician: {
+      name: 'Family Physician', type: 'professional', conf: 'industry',
+      note: 'Four years of undergrad, four of medical school, two of paid residency. Fee-for-service billings less clinic overhead.',
+      education: {
+        studentLivingCost: 24000, schoolWorkHours: 700, studyHoursPerYear: 2000,
+        yearsEducation: 8, yearsApprenticeship: 0, yearsUnpaidSchool: 8, yearsPaidTraining: 0,
+        tuitionPerYear: 10250, tuitionYears: 8, books: 6000, tools: 4000,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 9000,
+        familyPaid: 25000, scholarships: 8000, grants: 5000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 15, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'Medical school, summer work', 6000, 0, 0, {}),
+        stage(26, 'Resident', 72000, 8000, 0, { benefits: 3000 }),
+        stage(28, 'Family physician, net of overhead', 230000, 0, 0, {}),
+        stage(32, 'Established physician', 260000, 0, 0, {})
+      ],
+      business: biz({
+        support: 4,
+        materials: 0.06, ownerCapacity: 480000, revPerTech: 420000, costPerTech: 290000, managerSalary: 85000, overheadPct: 0.14, fixedOverhead: 60000,
+        startAge: 31, startup: 180000, loanShare: 0.8, loanRate: 0.07, loanYears: 10, rev: 900000, growth: 0.08, ceiling: 2600000,
+        gross: 0.72, net: 0.18, ownerSalary: 240000, emp: 1, marketWage: 240000,
+        multiple: 2.5, valMethod: 'sde', leadAge: 31, ownerAge: 36, investorAge: 45,
+        qOwner: 3, qRecur: 8, qSpread: 9, qMgmt: 4, qAssets: 5, qGrowth: 4
+      }),
+      lifestyle: life({
+        hours: 50, ot: 6, evening: 4, weekend: 3, onCall: 5, vac: 4, vacTake: 6, leaveWeeks: 3,
+        sCust: 7, sEmp: 5, sLiab: 9, sEmerg: 6, sFin: 5, sReg: 8,
+        phys: 6, mental: 2,
+        fHours: 6, fDays: 7, fRemote: 2, fVac: 5, fMove: 6, fEmp: 7, fSelf: 8,
+        kDemand: 10, kAuto: 8, kOut: 10, kRec: 10, kLic: 10, kShort: 9,
+        pEve: 6, pWknd: 7, pPred: 6, pTravel: 9, pAttend: 6
+      }),
+      traits: traits({ bEase: 4, demand: 10, margins: 6, capital: 3, scale: 5, durable: 10, wealth: 7, ceiling: 9, schedule: 6, delegate: 4, recurring: 8 }),
+      living: { expenses: 65000, creep: 0.3, conf: 'estimated' }
+    },
+    veterinarian: {
+      name: 'Veterinarian', type: 'professional', conf: 'industry',
+      note: 'Two years of pre-vet plus four of veterinary school. Clinic ownership is where the money is, and consolidators pay for clinics.',
+      education: {
+        studentLivingCost: 22000, schoolWorkHours: 700, studyHoursPerYear: 2000,
+        yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
+        tuitionPerYear: 11200, tuitionYears: 6, books: 5000, tools: 3500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 6000,
+        familyPaid: 15000, scholarships: 6000, grants: 4000, conf: 'industry'
+      },
+      debt: { rate: 0.066, termYears: 15, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(20, 'Vet school, summer work', 6000, 0, 0, {}),
+        stage(24, 'Associate veterinarian', 95000, 0, 4000, { benefits: 2500 }),
+        stage(27, 'Experienced associate', 118000, 0, 8000, { benefits: 3000 }),
+        stage(31, 'Senior associate', 135000, 0, 10000, { benefits: 3500 })
+      ],
+      business: biz({
+        support: 5,
+        materials: 0.25, ownerCapacity: 600000, revPerTech: 550000, costPerTech: 165000, managerSalary: 95000, overheadPct: 0.24, fixedOverhead: 130000,
+        startAge: 31, startup: 500000, loanShare: 0.8, loanRate: 0.07, loanYears: 12, rev: 1100000, growth: 0.09, ceiling: 3500000,
+        gross: 0.68, net: 0.18, ownerSalary: 160000, emp: 2, marketWage: 130000,
+        multiple: 4.0, valMethod: 'sde', leadAge: 32, ownerAge: 36, investorAge: 44,
+        qOwner: 4, qRecur: 8, qSpread: 9, qMgmt: 5, qAssets: 7, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 45, ot: 6, evening: 5, weekend: 5, onCall: 6, vac: 3, vacTake: 6, leaveWeeks: 3,
+        sCust: 7, sEmp: 5, sLiab: 7, sEmerg: 7, sFin: 6, sReg: 6,
+        phys: 5, mental: 3,
+        fHours: 6, fDays: 7, fRemote: 1, fVac: 5, fMove: 7, fEmp: 7, fSelf: 8,
+        kDemand: 9, kAuto: 9, kOut: 10, kRec: 7, kLic: 10, kShort: 9,
+        pEve: 6, pWknd: 6, pPred: 6, pTravel: 9, pAttend: 6
+      }),
+      traits: traits({ bEase: 4, demand: 9, margins: 7, capital: 2, scale: 6, durable: 9, wealth: 8, ceiling: 7, schedule: 6, delegate: 5, recurring: 8 }),
+      living: { expenses: 56000, creep: 0.3, conf: 'estimated' }
+    },
+    architect: {
+      name: 'Architect', type: 'professional', conf: 'industry',
+      note: 'Four-year degree, two-year M.Arch, then a paid internship before registration. Studio hours are long in school and after.',
+      education: {
+        studentLivingCost: 21000, schoolWorkHours: 700, studyHoursPerYear: 1600,
+        yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
+        tuitionPerYear: 8500, tuitionYears: 6, books: 4000, tools: 3500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 5000,
+        familyPaid: 8000, scholarships: 5000, grants: 3000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 12, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'Master of Architecture', 8000, 0, 0, {}),
+        stage(24, 'Intern architect', 62000, 3000, 1000, { benefits: 2500 }),
+        stage(27, 'Registered architect', 82000, 5000, 3000, { benefits: 3500, pension: 3000 }),
+        stage(32, 'Senior architect / associate', 105000, 10000, 8000, { benefits: 4500, pension: 5000 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.06, ownerCapacity: 260000, revPerTech: 210000, costPerTech: 95000, overheadPct: 0.16, fixedOverhead: 45000,
+        startAge: 34, startup: 40000, rev: 350000, growth: 0.14, ceiling: 4000000,
+        gross: 0.80, net: 0.22, ownerSalary: 110000, emp: 1, marketWage: 105000,
+        multiple: 2.2, valMethod: 'sde', leadAge: 36, ownerAge: 40, investorAge: 47,
+        qOwner: 3, qRecur: 3, qSpread: 5, qMgmt: 3, qAssets: 2, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 45, ot: 6, evening: 5, weekend: 3, onCall: 1, vac: 3, vacTake: 6, leaveWeeks: 3,
+        sCust: 6, sEmp: 3, sLiab: 7, sEmerg: 2, sFin: 5, sReg: 6,
+        phys: 8, mental: 4,
+        fHours: 6, fDays: 5, fRemote: 6, fVac: 5, fMove: 6, fEmp: 7, fSelf: 7,
+        kDemand: 6, kAuto: 6, kOut: 6, kRec: 3, kLic: 8, kShort: 5,
+        pEve: 6, pWknd: 7, pPred: 6, pTravel: 8, pAttend: 6
+      }),
+      traits: traits({ bEase: 5, demand: 6, margins: 6, capital: 8, scale: 5, durable: 6, wealth: 5, ceiling: 7, schedule: 6, delegate: 5, recurring: 3 }),
+      living: { expenses: 52000, creep: 0.3, conf: 'estimated' }
+    },
+    physiotherapist: {
+      name: 'Physiotherapist', type: 'professional', conf: 'industry',
+      note: 'Four-year degree plus a two-year MScPT. Clinic ownership with associates on a split is the business.',
+      education: {
+        studentLivingCost: 21000, schoolWorkHours: 700, studyHoursPerYear: 1600,
+        yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
+        tuitionPerYear: 10000, tuitionYears: 6, books: 3500, tools: 2500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 5000,
+        familyPaid: 8000, scholarships: 5000, grants: 3000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 12, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'MScPT, summer work', 5000, 0, 0, {}),
+        stage(24, 'Physiotherapist', 78000, 3000, 0, { benefits: 3000, pension: 2500 }),
+        stage(27, 'Experienced physiotherapist', 90000, 6000, 2000, { benefits: 3500, pension: 3500 }),
+        stage(32, 'Senior / clinic lead', 98000, 8000, 4000, { benefits: 4000, pension: 4500 })
+      ],
+      business: biz({
+        support: 2,
+        materials: 0.06, ownerCapacity: 250000, revPerTech: 190000, costPerTech: 100000, overheadPct: 0.18, fixedOverhead: 60000,
+        startAge: 29, startup: 120000, loanShare: 0.7, rev: 420000, growth: 0.15, ceiling: 3000000,
+        gross: 0.78, net: 0.22, ownerSalary: 100000, emp: 1, marketWage: 92000,
+        multiple: 3.0, valMethod: 'sde', leadAge: 30, ownerAge: 34, investorAge: 40,
+        qOwner: 5, qRecur: 6, qSpread: 8, qMgmt: 4, qAssets: 4, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 40, ot: 3, evening: 4, weekend: 2, onCall: 1, vac: 4, vacTake: 7, leaveWeeks: 3,
+        sCust: 5, sEmp: 3, sLiab: 5, sEmerg: 2, sFin: 4, sReg: 5,
+        phys: 5, mental: 5,
+        fHours: 7, fDays: 8, fRemote: 2, fVac: 6, fMove: 8, fEmp: 8, fSelf: 8,
+        kDemand: 9, kAuto: 9, kOut: 10, kRec: 7, kLic: 9, kShort: 8,
+        pEve: 7, pWknd: 8, pPred: 8, pTravel: 9, pAttend: 7
+      }),
+      traits: traits({ bEase: 6, demand: 9, margins: 6, capital: 5, scale: 7, durable: 9, wealth: 6, ceiling: 5, schedule: 7, delegate: 6, recurring: 6 }),
+      living: { expenses: 50000, creep: 0.3, conf: 'estimated' }
+    },
+    optometrist: {
+      name: 'Optometrist', type: 'professional', conf: 'industry',
+      note: 'Three years of undergrad plus four at optometry school, usually out of province. The practice sells frames as well as exams.',
+      education: {
+        studentLivingCost: 24000, schoolWorkHours: 700, studyHoursPerYear: 1850,
+        yearsEducation: 7, yearsApprenticeship: 0, yearsUnpaidSchool: 7, yearsPaidTraining: 0,
+        tuitionPerYear: 14000, tuitionYears: 7, books: 4500, tools: 6000,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 8000,
+        familyPaid: 15000, scholarships: 5000, grants: 3000, conf: 'industry'
+      },
+      debt: { rate: 0.068, termYears: 15, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(21, 'Optometry school, summer work', 5000, 0, 0, {}),
+        stage(25, 'Associate optometrist', 105000, 0, 5000, { benefits: 2500 }),
+        stage(28, 'Experienced associate', 125000, 0, 8000, { benefits: 3000 }),
+        stage(32, 'Senior associate', 140000, 0, 10000, { benefits: 3500 })
+      ],
+      business: biz({
+        support: 4,
+        materials: 0.30, ownerCapacity: 520000, revPerTech: 480000, costPerTech: 140000, managerSalary: 85000, overheadPct: 0.15, fixedOverhead: 70000,
+        startAge: 31, startup: 350000, loanShare: 0.8, loanRate: 0.07, loanYears: 12, rev: 650000, growth: 0.08, ceiling: 2200000,
+        gross: 0.64, net: 0.22, ownerSalary: 150000, emp: 0, marketWage: 135000,
+        multiple: 3.5, valMethod: 'sde', leadAge: 32, ownerAge: 36, investorAge: 44,
+        qOwner: 4, qRecur: 8, qSpread: 9, qMgmt: 5, qAssets: 7, qGrowth: 4
+      }),
+      lifestyle: life({
+        hours: 38, ot: 2, evening: 3, weekend: 3, onCall: 1, vac: 4, vacTake: 7, leaveWeeks: 3,
+        sCust: 5, sEmp: 4, sLiab: 6, sEmerg: 2, sFin: 5, sReg: 6,
+        phys: 7, mental: 4,
+        fHours: 7, fDays: 8, fRemote: 1, fVac: 6, fMove: 5, fEmp: 6, fSelf: 8,
+        kDemand: 8, kAuto: 7, kOut: 9, kRec: 7, kLic: 10, kShort: 6,
+        pEve: 8, pWknd: 7, pPred: 8, pTravel: 9, pAttend: 8
+      }),
+      traits: traits({ bEase: 4, demand: 8, margins: 7, capital: 2, scale: 6, durable: 8, wealth: 7, ceiling: 7, schedule: 7, delegate: 5, recurring: 8 }),
+      living: { expenses: 56000, creep: 0.3, conf: 'estimated' }
+    },
+    chiropractor: {
+      name: 'Chiropractor', type: 'professional', conf: 'industry',
+      note: 'Three years of undergrad plus four at CMCC in Toronto, priced in. Most chiropractors own their clinic early, and it depends on them.',
+      education: {
+        studentLivingCost: 25000, schoolWorkHours: 700, studyHoursPerYear: 1850,
+        yearsEducation: 7, yearsApprenticeship: 0, yearsUnpaidSchool: 7, yearsPaidTraining: 0,
+        tuitionPerYear: 18600, tuitionYears: 7, books: 4000, tools: 5000,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 7000,
+        familyPaid: 12000, scholarships: 4000, grants: 3000, conf: 'industry'
+      },
+      debt: { rate: 0.068, termYears: 15, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(21, 'Chiropractic college, summer work', 4000, 0, 0, {}),
+        stage(25, 'Associate chiropractor', 70000, 0, 10000, {}),
+        stage(28, 'Established chiropractor', 95000, 0, 10000, {}),
+        stage(32, 'Senior chiropractor', 115000, 0, 12000, {})
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.05, ownerCapacity: 280000, revPerTech: 200000, costPerTech: 100000, overheadPct: 0.18, fixedOverhead: 55000,
+        startAge: 27, startup: 90000, loanShare: 0.7, rev: 280000, growth: 0.14, ceiling: 1800000,
+        gross: 0.80, net: 0.28, ownerSalary: 100000, emp: 0, marketWage: 90000,
+        multiple: 2.2, valMethod: 'sde', leadAge: 30, ownerAge: 35, investorAge: 44,
+        qOwner: 2, qRecur: 6, qSpread: 8, qMgmt: 2, qAssets: 3, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 40, ot: 3, evening: 4, weekend: 3, onCall: 1, vac: 3, vacTake: 5, leaveWeeks: 2,
+        sCust: 5, sEmp: 3, sLiab: 6, sEmerg: 2, sFin: 6, sReg: 6,
+        phys: 4, mental: 5,
+        fHours: 8, fDays: 8, fRemote: 1, fVac: 5, fMove: 6, fEmp: 5, fSelf: 10,
+        kDemand: 6, kAuto: 9, kOut: 10, kRec: 5, kLic: 9, kShort: 4,
+        pEve: 7, pWknd: 7, pPred: 8, pTravel: 9, pAttend: 7
+      }),
+      traits: traits({ bEase: 7, demand: 6, margins: 7, capital: 5, scale: 4, durable: 7, wealth: 5, ceiling: 5, schedule: 8, delegate: 3, recurring: 6 }),
+      living: { expenses: 50000, creep: 0.3, conf: 'estimated' }
+    },
+    financialplanner: {
+      name: 'Financial Planner (CFP)', type: 'professional', conf: 'industry',
+      note: 'Four-year business degree and the CFP. Salary early, then a book of clients that pays every year and can be sold.',
+      education: {
+        studentLivingCost: 20000, schoolWorkHours: 700, studyHoursPerYear: 1350,
+        yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
+        tuitionPerYear: 7500, tuitionYears: 4, books: 2500, tools: 1500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 3000,
+        familyPaid: 6000, scholarships: 3000, grants: 2500, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 10, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'Associate advisor', 52000, 0, 6000, { benefits: 2500, pension: 2000 }),
+        stage(25, 'Financial advisor', 68000, 0, 12000, { benefits: 3000, pension: 3000 }),
+        stage(29, 'Senior advisor', 90000, 0, 25000, { benefits: 3500, pension: 4500 }),
+        stage(34, 'Senior planner', 110000, 0, 35000, { benefits: 4000, pension: 5500 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.04, ownerCapacity: 320000, revPerTech: 260000, costPerTech: 110000, overheadPct: 0.16, fixedOverhead: 45000,
+        startAge: 32, startup: 60000, rev: 320000, growth: 0.14, ceiling: 3000000,
+        gross: 0.85, net: 0.30, ownerSalary: 120000, emp: 0, marketWage: 105000,
+        multiple: 3.0, valMethod: 'sde', leadAge: 34, ownerAge: 38, investorAge: 45,
+        qOwner: 4, qRecur: 9, qSpread: 8, qMgmt: 3, qAssets: 2, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 42, ot: 4, evening: 4, weekend: 2, onCall: 1, vac: 3, vacTake: 6, leaveWeeks: 3,
+        sCust: 6, sEmp: 3, sLiab: 7, sEmerg: 2, sFin: 6, sReg: 8,
+        phys: 9, mental: 5,
+        fHours: 7, fDays: 6, fRemote: 7, fVac: 6, fMove: 6, fEmp: 7, fSelf: 8,
+        kDemand: 7, kAuto: 5, kOut: 7, kRec: 5, kLic: 6, kShort: 5,
+        pEve: 7, pWknd: 8, pPred: 7, pTravel: 8, pAttend: 7
+      }),
+      traits: traits({ bEase: 6, demand: 7, margins: 8, capital: 7, scale: 6, durable: 6, wealth: 7, ceiling: 8, schedule: 7, delegate: 5, recurring: 9 }),
+      living: { expenses: 48000, creep: 0.3, conf: 'estimated' }
+    },
+    marketingmanager: {
+      name: 'Marketing Manager', type: 'professional', conf: 'industry',
+      note: 'Four-year degree, then the corporate ladder. The business is an agency, which sells hours and retainers.',
+      education: {
+        studentLivingCost: 20000, schoolWorkHours: 700, studyHoursPerYear: 1350,
+        yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
+        tuitionPerYear: 7500, tuitionYears: 4, books: 2500, tools: 1500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 3000,
+        familyPaid: 6000, scholarships: 3000, grants: 2500, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 10, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'Marketing coordinator', 50000, 0, 2000, { benefits: 2500, pension: 2000 }),
+        stage(25, 'Marketing specialist', 66000, 0, 4000, { benefits: 3000, pension: 3000 }),
+        stage(29, 'Marketing manager', 92000, 0, 8000, { benefits: 3800, pension: 4500 }),
+        stage(34, 'Senior manager / director', 120000, 0, 15000, { benefits: 4500, pension: 6000 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.12, ownerCapacity: 220000, revPerTech: 200000, costPerTech: 85000, overheadPct: 0.14, fixedOverhead: 35000,
+        startAge: 31, startup: 25000, rev: 260000, growth: 0.18, ceiling: 4000000,
+        gross: 0.80, net: 0.22, ownerSalary: 100000, emp: 1, marketWage: 95000,
+        multiple: 2.5, valMethod: 'sde', leadAge: 33, ownerAge: 37, investorAge: 44,
+        qOwner: 4, qRecur: 6, qSpread: 5, qMgmt: 3, qAssets: 2, qGrowth: 7
+      }),
+      lifestyle: life({
+        hours: 44, ot: 5, evening: 4, weekend: 2, onCall: 1, vac: 3, vacTake: 6, leaveWeeks: 3,
+        sCust: 6, sEmp: 4, sLiab: 3, sEmerg: 2, sFin: 5, sReg: 2,
+        phys: 9, mental: 4,
+        fHours: 6, fDays: 5, fRemote: 8, fVac: 5, fMove: 7, fEmp: 8, fSelf: 7,
+        kDemand: 6, kAuto: 4, kOut: 4, kRec: 3, kLic: 1, kShort: 3,
+        pEve: 7, pWknd: 8, pPred: 7, pTravel: 7, pAttend: 7
+      }),
+      traits: traits({ bEase: 7, demand: 6, margins: 6, capital: 9, scale: 6, durable: 5, wealth: 5, ceiling: 7, schedule: 6, delegate: 6, recurring: 6 }),
+      living: { expenses: 50000, creep: 0.3, conf: 'estimated' }
+    },
+    psychologist: {
+      name: 'Psychologist', type: 'professional', conf: 'industry',
+      note: 'Four-year degree, two-year master of arts, then supervised hours to register. Private practice is lucrative and entirely you.',
+      education: {
+        studentLivingCost: 21000, schoolWorkHours: 700, studyHoursPerYear: 1500,
+        yearsEducation: 6, yearsApprenticeship: 0, yearsUnpaidSchool: 6, yearsPaidTraining: 0,
+        tuitionPerYear: 8000, tuitionYears: 6, books: 3500, tools: 1500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 5000,
+        familyPaid: 8000, scholarships: 5000, grants: 4000, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 12, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'Graduate school, summer work', 8000, 0, 0, {}),
+        stage(24, 'Provisional psychologist', 68000, 2000, 0, { benefits: 3000, pension: 3000 }),
+        stage(26, 'Registered psychologist', 88000, 4000, 0, { benefits: 3500, pension: 5000 }),
+        stage(31, 'Senior psychologist', 100000, 6000, 0, { benefits: 4000, pension: 6000 })
+      ],
+      business: biz({
+        support: 1,
+        materials: 0.03, ownerCapacity: 200000, revPerTech: 170000, costPerTech: 95000, overheadPct: 0.14, fixedOverhead: 30000,
+        startAge: 29, startup: 20000, rev: 180000, growth: 0.15, ceiling: 2000000,
+        gross: 0.88, net: 0.32, ownerSalary: 110000, emp: 0, marketWage: 100000,
+        multiple: 2.0, valMethod: 'sde', leadAge: 32, ownerAge: 36, investorAge: 44,
+        qOwner: 2, qRecur: 5, qSpread: 8, qMgmt: 2, qAssets: 1, qGrowth: 6
+      }),
+      lifestyle: life({
+        hours: 38, ot: 2, evening: 4, weekend: 2, onCall: 2, vac: 4, vacTake: 7, leaveWeeks: 3,
+        sCust: 6, sEmp: 2, sLiab: 6, sEmerg: 4, sFin: 4, sReg: 6,
+        phys: 9, mental: 3,
+        fHours: 8, fDays: 8, fRemote: 8, fVac: 6, fMove: 7, fEmp: 7, fSelf: 9,
+        kDemand: 9, kAuto: 8, kOut: 9, kRec: 7, kLic: 9, kShort: 8,
+        pEve: 7, pWknd: 8, pPred: 8, pTravel: 9, pAttend: 8
+      }),
+      traits: traits({ bEase: 8, demand: 9, margins: 8, capital: 9, scale: 4, durable: 8, wealth: 5, ceiling: 6, schedule: 8, delegate: 3, recurring: 5 }),
+      living: { expenses: 48000, creep: 0.3, conf: 'estimated' }
+    },
+    hrmanager: {
+      name: 'Human Resources Manager', type: 'professional', conf: 'industry',
+      note: 'Four-year degree and the CPHR. A steady corporate ladder; the business is HR consulting, which sells your own hours.',
+      education: {
+        studentLivingCost: 20000, schoolWorkHours: 700, studyHoursPerYear: 1350,
+        yearsEducation: 4, yearsApprenticeship: 0, yearsUnpaidSchool: 4, yearsPaidTraining: 0,
+        tuitionPerYear: 7500, tuitionYears: 4, books: 2500, tools: 1500,
+        certification: 1500, licensing: 1200, examFees: 1500, equipment: 1500, other: 3000,
+        familyPaid: 6000, scholarships: 3000, grants: 2500, conf: 'industry'
+      },
+      debt: { rate: 0.065, termYears: 10, conf: 'industry' },
+      stages: [
+        stage(18, 'Undergrad, summer work', 9000, 0, 0, {}),
+        stage(22, 'HR coordinator', 52000, 0, 2000, { benefits: 2500, pension: 2500 }),
+        stage(25, 'HR generalist', 68000, 0, 4000, { benefits: 3000, pension: 3500 }),
+        stage(29, 'HR manager', 95000, 0, 8000, { benefits: 4000, pension: 6000 }),
+        stage(34, 'Senior HR manager / director', 120000, 0, 14000, { benefits: 4500, pension: 7500 })
+      ],
+      business: biz({
+        support: 0,
+        materials: 0.03, ownerCapacity: 200000, revPerTech: 190000, costPerTech: 100000, overheadPct: 0.12, fixedOverhead: 25000,
+        startAge: 33, startup: 15000, rev: 200000, growth: 0.14, ceiling: 2000000,
+        gross: 0.85, net: 0.30, ownerSalary: 110000, emp: 0, marketWage: 105000,
+        multiple: 2.0, valMethod: 'sde', leadAge: 35, ownerAge: 39, investorAge: 46,
+        qOwner: 3, qRecur: 5, qSpread: 5, qMgmt: 2, qAssets: 1, qGrowth: 5
+      }),
+      lifestyle: life({
+        hours: 42, ot: 4, evening: 2, weekend: 1, onCall: 1, vac: 4, vacTake: 7, leaveWeeks: 3,
+        sCust: 5, sEmp: 6, sLiab: 5, sEmerg: 3, sFin: 3, sReg: 6,
+        phys: 9, mental: 5,
+        fHours: 6, fDays: 5, fRemote: 8, fVac: 6, fMove: 7, fEmp: 8, fSelf: 6,
+        kDemand: 7, kAuto: 5, kOut: 5, kRec: 5, kLic: 3, kShort: 4,
+        pEve: 8, pWknd: 9, pPred: 8, pTravel: 8, pAttend: 8
+      }),
+      traits: traits({ bEase: 6, demand: 6, margins: 7, capital: 9, scale: 4, durable: 6, wealth: 4, ceiling: 7, schedule: 6, delegate: 4, recurring: 5 }),
+      living: { expenses: 50000, creep: 0.3, conf: 'estimated' }
+    },
+
     generic: {
       name: 'Custom career', type: 'professional', conf: 'user',
       note: 'A blank slate. Fill in what you actually know and mark the rest as estimated.',
       education: {
-        studentLivingCost: 20000, schoolWorkHours: 700,
+        studentLivingCost: 20000, schoolWorkHours: 700, studyHoursPerYear: 0,
         yearsEducation: 0, yearsApprenticeship: 0, yearsUnpaidSchool: 0, yearsPaidTraining: 0,
         tuitionPerYear: 0, tuitionYears: 0, books: 0, tools: 0,
         certification: 0, licensing: 0, examFees: 0, equipment: 0, other: 0,
@@ -967,7 +1712,17 @@
     { a: 'hvac',         b: 'executive',        title: 'Trade Business Owner vs Corporate Executive' },
     { a: 'electrician',  b: 'teacher',          title: 'Electrician vs Teacher' },
     { a: 'trucker',      b: 'hdmechanic',       title: 'Owner-Operator vs Employee' },
-    { a: 'plumber',      b: 'plumber',          title: 'Same trade: employee vs business owner', ownerSplit: true }
+    { a: 'plumber',      b: 'plumber',          title: 'Same trade: employee vs business owner', ownerSplit: true },
+    { a: 'ductcleaner',  b: 'physician',        title: 'Duct Cleaner vs Family Doctor' },
+    { a: 'carpenter',    b: 'architect',        title: 'Carpenter vs Architect' },
+    { a: 'autotech',     b: 'veterinarian',     title: 'Auto Technician vs Veterinarian' },
+    { a: 'lineworker',   b: 'financialplanner', title: 'Powerline Tech vs Financial Planner' },
+    { a: 'roofer',       b: 'chiropractor',     title: 'Roofer vs Chiropractor' },
+    { a: 'pipefitter',   b: 'optometrist',      title: 'Pipefitter vs Optometrist' },
+    { a: 'landscaper',   b: 'psychologist',     title: 'Landscaper vs Psychologist' },
+    { a: 'millwright',   b: 'marketingmanager', title: 'Millwright vs Marketing Manager' },
+    { a: 'heavyequipment', b: 'hrmanager',      title: 'Heavy Equipment Operator vs HR Manager' },
+    { a: 'painter',      b: 'physiotherapist',  title: 'Painter vs Physiotherapist' }
   ];
 
   var GLOBAL_DEFAULTS = {

@@ -38,8 +38,15 @@
   }
 
   function load() {
-    if (manifest) { return Promise.resolve(manifest); }
+    if (manifest && filesReady) { return filesReady.then(function () { return manifest; }); }
     if (loading) { return loading; }
+    loading = loadFiles().then(function () { return loadManifest(); });
+    return loading;
+  }
+  var loadingManifest = null;
+  function loadManifest() {
+    if (manifest) { return Promise.resolve(manifest); }
+    if (loadingManifest) { return loadingManifest; }
     /* A bundler can inline the library so no request is needed at all. */
     if (global.BCB_MEDIA_MANIFEST) {
       manifest = global.BCB_MEDIA_MANIFEST;
@@ -51,7 +58,7 @@
       manifest = emptyManifest();
       return Promise.resolve(manifest);
     }
-    loading = fetch(BASE + 'manifest.json')
+    loadingManifest = fetch(BASE + 'manifest.json')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) { manifest = j || emptyManifest(); return manifest; })
       .catch(function () {
@@ -60,7 +67,7 @@
         manifest = emptyManifest();
         return manifest;
       });
-    return loading;
+    return loadingManifest;
   }
   function emptyManifest() { return { _brand: {}, careers: {} }; }
 
@@ -87,6 +94,8 @@
   function saveOverrides() { try { localStorage.setItem(OKEY, JSON.stringify(overrides)); } catch (e) { /* fine */ } }
   function setOverride(scope, key, field, value) {
     value = (value || '').trim();
+    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    if (prev && /^file:/.test(prev) && prev !== value) { removeFile(prev.slice(5)); }
     if (scope === 'beats') {
       if (value) { overrides.beats[key] = value; } else { delete overrides.beats[key]; }
     } else {
@@ -101,7 +110,8 @@
       ? ((manifest && manifest._brand && manifest._brand[key]) || {})
       : ((manifest && manifest.careers && manifest.careers[key]) || {});
     var own = overrides[scope][key] || {};
-    return { still: own.still || base.still || null, clip: own.clip || base.clip || null,
+    var still = own.still || base.still || null, clip = own.clip || base.clip || null;
+    return { still: still, clip: clip, stillUrl: still ? resolve(still) : null, clipUrl: clip ? resolve(clip) : null,
       ownStill: own.still || '', ownClip: own.clip || '', label: base.label || key };
   }
   /* A picture pinned to one slide wins over everything else. A video
@@ -109,7 +119,10 @@
   function beatAsset(beatId) {
     var v = overrides.beats[beatId];
     if (!v) { return null; }
-    return { kind: /\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still', src: resolve(v) };
+    var src = resolve(v);
+    if (!src) { return null; }
+    var f = fileInfo(v);
+    return { kind: f ? f.kind : (/\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still'), src: src };
   }
 
   function assetFor(careerOrKey, prefer) {
@@ -120,10 +133,12 @@
       entry = libraryEntry('careers', idFor(careerOrKey));
     }
     if (!entry) { return null; }
-    var clip = entry.clip, still = entry.still;
-    if (prefer === 'clip' && clip) { return { kind: 'clip', src: resolve(clip) }; }
-    if (still) { return { kind: 'still', src: resolve(still) }; }
-    if (clip) { return { kind: 'clip', src: resolve(clip) }; }
+    /* An uploaded file that has not loaded yet resolves to nothing;
+       fall through to the next option rather than show a broken slot. */
+    var clip = entry.clip && resolve(entry.clip), still = entry.still && resolve(entry.still);
+    if (prefer === 'clip' && clip) { return { kind: 'clip', src: clip }; }
+    if (still) { return { kind: 'still', src: still }; }
+    if (clip) { return { kind: 'clip', src: clip }; }
     return null;
   }
 
@@ -132,7 +147,87 @@
      downloading them into media/ later makes it work offline, and the
      only change is the manifest value. */
   function resolve(v) {
+    if (/^file:/.test(v)) { var f = files[v.slice(5)]; return f ? f.url : null; }
     return /^(https?:)?\/\/|^(data|blob):/.test(v) ? v : BASE + v;
+  }
+
+  /* ---------------------------------------------------------------
+     UPLOADED FILES
+     A picture or clip chosen from disk is kept in IndexedDB - the
+     only browser store that takes a 200 MB video without complaint -
+     and referenced from the overrides as "file:<id>". Object URLs are
+     minted once per page load, so everything else can treat them as
+     ordinary links.
+     --------------------------------------------------------------- */
+  var DBNAME = 'bcb-20-year-test-media', STORE = 'files';
+  var files = {};            /* id -> { url, kind, name, size } */
+  var filesReady = null;
+  function openDb() {
+    return new Promise(function (res, rej) {
+      if (!global.indexedDB) { rej(new Error('no IndexedDB')); return; }
+      var r = global.indexedDB.open(DBNAME, 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore(STORE); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function loadFiles() {
+    if (filesReady) { return filesReady; }
+    filesReady = openDb().then(function (db) {
+      return new Promise(function (res) {
+        var tx = db.transaction(STORE, 'readonly');
+        var store = tx.objectStore(STORE);
+        var req = store.openCursor();
+        req.onsuccess = function () {
+          var c = req.result;
+          if (!c) { res(); return; }
+          var rec = c.value;
+          if (rec && rec.blob) {
+            files[c.key] = { url: URL.createObjectURL(rec.blob), kind: /^video\//.test(rec.blob.type) ? 'clip' : 'still',
+              name: rec.name || '', size: rec.blob.size };
+          }
+          c.continue();
+        };
+        req.onerror = function () { res(); };
+      });
+    }).catch(function () { /* no store: uploads simply do not persist */ });
+    return filesReady;
+  }
+  function putFile(id, file) {
+    return openDb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put({ blob: file, name: file.name }, id);
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { rej(tx.error); };
+      });
+    }).then(function () {
+      if (files[id] && files[id].url) { try { URL.revokeObjectURL(files[id].url); } catch (e) { /* fine */ } }
+      files[id] = { url: URL.createObjectURL(file), kind: /^video\//.test(file.type) ? 'clip' : 'still', name: file.name, size: file.size };
+      return 'file:' + id;
+    });
+  }
+  function removeFile(id) {
+    if (files[id]) { try { URL.revokeObjectURL(files[id].url); } catch (e) { /* fine */ } delete files[id]; }
+    return openDb().then(function (db) {
+      return new Promise(function (res) {
+        var tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).delete(id);
+        tx.oncomplete = function () { res(); };
+        tx.onerror = function () { res(); };
+      });
+    }).catch(function () { /* fine */ });
+  }
+  function fileInfo(v) { return /^file:/.test(v || '') ? (files[v.slice(5)] || null) : null; }
+
+  /* Store a chosen file against a slot and point the override at it.
+     scope 'beats' uses key as the beat id; otherwise scope|key|field. */
+  function setFile(scope, key, field, file) {
+    var id = scope === 'beats' ? ('beat|' + key) : (scope + '|' + key + '|' + field);
+    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    var p = putFile(id, file).then(function (ref) { setOverride(scope, key, field, ref); return ref; });
+    if (prev && /^file:/.test(prev) && prev.slice(5) !== id) { removeFile(prev.slice(5)); }
+    return p;
   }
 
   /* ---------------------------------------------------------------
@@ -214,6 +309,8 @@
     setBackground: setBackground,
     overrides: overrides,
     setOverride: setOverride,
+    setFile: setFile,
+    fileInfo: fileInfo,
     libraryEntry: libraryEntry,
     beatAsset: beatAsset,
     get manifest() { return manifest; }
