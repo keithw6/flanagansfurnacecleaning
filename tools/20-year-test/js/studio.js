@@ -203,6 +203,64 @@
     }
 
     switch (b.kind) {
+      case 'versus': {
+        /* Two fighters, two pictures, one VS. The pictures come from the
+           library, or from whatever was pasted for the career. */
+        var vs = document.createElement('div');
+        vs.className = 'st-versus';
+        [[a, 'a'], [bb, 'b']].forEach(function (pair) {
+          var res = pair[0];
+          var asset = BCB.media.assetFor(res.career, 'still');
+          var card = document.createElement('div');
+          card.className = 'st-fighter ' + pair[1];
+          if (asset) {
+            var im = document.createElement('img');
+            im.alt = ''; im.setAttribute('aria-hidden', 'true');
+            im.addEventListener('error', function () { im.remove(); });
+            im.src = asset.src;
+            card.appendChild(im);
+          }
+          var nm = document.createElement('div');
+          nm.className = 'name'; nm.textContent = res.name;
+          card.appendChild(nm);
+          vs.appendChild(card);
+          if (pair[1] === 'a') {
+            var mid = document.createElement('div');
+            mid.className = 'st-vs-mark'; mid.textContent = 'VS';
+            vs.appendChild(mid);
+          }
+        });
+        wrap.appendChild(vs);
+        wrap.classList.add('wide');
+        return wrap;
+      }
+
+      case 'disclaimer': {
+        var dc = document.createElement('div');
+        dc.className = 'st-disclaimer';
+        dc.innerHTML =
+          '<div class="big">Opinion and entertainment.<br>Not advice.</div>' +
+          '<div class="small">Not career, financial, tax or investment advice. Every number is a model output built on ' +
+          'assumptions, not a fact about you. Talk to a professional who knows your situation before you act on any of it.</div>';
+        wrap.appendChild(dc);
+        return wrap;
+      }
+
+      case 'close': {
+        var cl = document.createElement('div');
+        cl.className = 'st-brandcard st-close';
+        cl.innerHTML =
+          '<div class="st-vs"><span class="a">' + esc(a.name) + '</span><em>vs</em><span class="b">' + esc(bb.name) + '</span></div>' +
+          '<div class="st-close-asks">' +
+            '<span>Subscribe</span><i></i><span>Comment the next matchup</span><i></i><span>Share it</span>' +
+          '</div>' +
+          '<div class="st-brandmark">Learn the trade.<br>Build the business.<br>Own the asset.</div>' +
+          '<div class="st-fineprint">Opinion and entertainment. Not career, financial, tax or investment advice.</div>';
+        wrap.appendChild(cl);
+        wrap.classList.add('wide');
+        return wrap;
+      }
+
       case 'brand':
         var brand = document.createElement('div');
         brand.className = 'st-brandcard';
@@ -555,12 +613,15 @@
      carry their own visual keep it; the rest get the career photograph
      as an inset card above the words. */
   function insetFor(b) {
-    if ((prefs.mode !== 'two' && prefs.mode !== 'three') || !BCB.media.manifest) { return null; }
-    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
+    var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1, versus: 1, close: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
+    /* Studio One carries the picture as the background; an inset there
+       is for the slides that are otherwise only type and a few numbers. */
+    if (prefs.mode === 'one' && !ONE_INSET[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
-    var asset = null;
-    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
+    var asset = BCB.media.beatAsset(b.id);
+    if (asset) { /* pinned to this slide */ }
+    else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
     else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'still'); }
     else {
@@ -582,6 +643,8 @@
     return fig;
   }
 
+  var ONE_INSET = { setup: 1, education: 1, business: 1, dependency: 1, hours: 1, freedom: 1,
+    invest: 1, disclaimer: 1, outro: 1, title: 1 };
   function renderStage() {
     if (!overlay) { return; }
     var b = beat();
@@ -613,14 +676,15 @@
      about one side show that side; shared beats alternate so the
      episode does not sit on one picture for seven minutes. */
   function paintBackground() {
-    if (!bgLayer || !BCB.media.manifest) { return; }
+    if (!bgLayer) { return; }
     var b = beat();
     if (!b) { return; }
     var L = BCB.app.getLast(), sim = L.sim;
     var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var asset = null;
+    var asset = BCB.media.beatAsset(b.id);
 
-    if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
+    if (asset) { /* pinned to this slide on the Studio tab */ }
+    else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
     else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
     if (!asset) {
@@ -851,6 +915,40 @@
     }
     return html;
   }
+  /* The picture library: what each slot shows now, and a box to paste
+     your own link into. Higgsfield: open the image, right-click, copy
+     image address. The link has to be public for the browser to load it. */
+  function picturesMarkup() {
+    var M = BCB.media;
+    var L = BCB.app.getLast();
+    if (!L) { return '<h3>Pictures and clips</h3><p class="sub">Run a comparison first.</p>'; }
+    var slots = [
+      ['brand', 'intro', 'Intro and cold open'],
+      ['brand', 'title', 'Title card'],
+      ['brand', 'outro', 'Outro and close'],
+      ['careers', M.idFor(L.sim.a.career), L.sim.a.name],
+      ['careers', M.idFor(L.sim.b.career), L.sim.b.name]
+    ];
+    return '<h3>Pictures and clips</h3>' +
+      '<p class="sub">What plays behind and inside the slides. Paste a link to swap any of them for something you made in ' +
+      'Higgsfield: open the image or clip there, right-click, copy the address, paste it here. Stills are used on ' +
+      'most slides, clips on the intro, the outro and every third slide.</p>' +
+      '<div class="pic-grid">' +
+      slots.map(function (sl) {
+        var e = M.libraryEntry(sl[0], sl[1]);
+        return '<div class="pic-slot">' +
+          '<div class="pic-thumb">' + (e.still ? '<img src="' + esc(e.still) + '" alt="" loading="lazy">' : '<span>no picture</span>') + '</div>' +
+          '<div class="pic-fields"><div class="k">' + esc(sl[2]) + '</div>' +
+          '<div class="field"><label>Still image link</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|still" value="' + esc(e.ownStill) + '" placeholder="' + (e.still && !e.ownStill ? 'using the library picture' : 'https://...') + '"></div>' +
+          '<div class="field"><label>Clip link (mp4)</label><input type="url" data-pic="' + sl[0] + '|' + esc(sl[1]) + '|clip" value="' + esc(e.ownClip) + '" placeholder="' + (e.clip && !e.ownClip ? 'using the library clip' : 'https://...') + '"></div>' +
+          '</div></div>';
+      }).join('') +
+      '</div>' +
+      '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box to go back to the library. ' +
+      'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
+      'Links are remembered in this browser only.</p>';
+  }
+
   function listMics() {
     var sel = document.getElementById('recMicDevice');
     if (!sel || !BCB.recorder) { return; }
@@ -1341,6 +1439,8 @@
 
       '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
 
+      '<div class="card" id="picCard">' + picturesMarkup() + '</div>' +
+
       '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
       script.beats.map(function (b, i) {
@@ -1349,7 +1449,11 @@
           '<textarea data-beat="' + i + '" rows="' + Math.max(3, b.lines.length + 1) + '" ' +
           'style="width:100%;font:inherit;font-size:.9rem;padding:9px;border:1px solid var(--line);border-radius:5px;' +
           'background:var(--surface-1);color:var(--text)">' + esc(b.lines.join('\n')) + '</textarea>' +
-          '<div class="hint">One line per sentence. Blank lines are ignored.</div></details>';
+          '<div class="hint">One line per sentence. Blank lines are ignored.</div>' +
+          '<div class="field" style="margin-top:8px"><label for="pic-' + esc(b.id) + '">Picture or clip for this slide</label>' +
+          '<input type="url" id="pic-' + esc(b.id) + '" data-beatpic="' + esc(b.id) + '" placeholder="Paste an image or video link" value="' +
+          esc(BCB.media.overrides.beats[b.id] || '') + '">' +
+          '<div class="hint">Optional. Wins over the library for this one slide.</div></div></details>';
       }).join('') +
       '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
       '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
@@ -1407,6 +1511,24 @@
       else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
       return;
     }
+    if (t.dataset && t.dataset.pic && ev.type === 'change') {
+      var parts = t.dataset.pic.split('|');
+      BCB.media.setOverride(parts[0], parts[1], parts[2], t.value);
+      /* Refresh this slot's thumbnail in place; redrawing the whole card
+         would pull the box out from under the cursor. */
+      var slot = t.closest('.pic-slot');
+      if (slot) {
+        var e = BCB.media.libraryEntry(parts[0], parts[1]);
+        slot.querySelector('.pic-thumb').innerHTML = e.still ? '<img src="' + esc(e.still) + '" alt="">' : '<span>no picture</span>';
+      }
+      if (overlay) { renderStage(); }
+      return;
+    }
+    if (t.dataset && t.dataset.beatpic && ev.type === 'change') {
+      BCB.media.setOverride('beats', t.dataset.beatpic, null, t.value);
+      if (overlay) { renderStage(); }
+      return;
+    }
     if (t.dataset && t.dataset.pref) {
       var v = parseFloat(t.value);
       if (!isFinite(v)) { return; }
@@ -1452,6 +1574,12 @@
     document.addEventListener('click', onStudioEvent);
     document.addEventListener('input', onStudioEvent);
     document.addEventListener('change', onStudioEvent);
+    /* The library arrives after the tab is drawn on a hosted copy, so
+       redraw the picture card once it is here. */
+    BCB.media.load().then(function () {
+      var pc = document.getElementById('picCard');
+      if (pc) { pc.innerHTML = picturesMarkup(); }
+    });
     if (BCB.recorder) {
       BCB.recorder.onChange(onRecorderEvent);
       BCB.recorder.setNameSource(function () {

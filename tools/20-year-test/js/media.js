@@ -26,7 +26,7 @@
   /* How much photograph each kind of slide can carry before it starts
      competing with what the viewer is meant to read. */
   var INTENSITY = {
-    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42,
+    brand: 0.55, title: 0.5, outro: 0.55, verdict: 0.42, versus: 0.5, close: 0.55, disclaimer: 0.2,
     headstart: 0.3, setup: 0.26, education: 0.24, business: 0.24,
     dependency: 0.24, hours: 0.24, freedom: 0.24,
     columns: 0.12, scores: 0.12, categories: 0.12, scenarios: 0.12, compound: 0.12, invest: 0.24,
@@ -74,13 +74,50 @@
     return String(career.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   }
 
+  /* Your own pictures. Anything pasted on the Studio tab - a Higgsfield
+     link, a photo on your site - sits on top of the shipped library,
+     per career, per brand slot, or for one particular slide. Kept in
+     this browser, so it survives a reload and never touches the repo. */
+  var OKEY = 'bcb-20-year-test-v1-media';
+  var overrides = { careers: {}, brand: {}, beats: {} };
+  try {
+    var savedO = JSON.parse(localStorage.getItem(OKEY) || 'null');
+    if (savedO) { overrides.careers = savedO.careers || {}; overrides.brand = savedO.brand || {}; overrides.beats = savedO.beats || {}; }
+  } catch (e) { /* storage can throw outright */ }
+  function saveOverrides() { try { localStorage.setItem(OKEY, JSON.stringify(overrides)); } catch (e) { /* fine */ } }
+  function setOverride(scope, key, field, value) {
+    value = (value || '').trim();
+    if (scope === 'beats') {
+      if (value) { overrides.beats[key] = value; } else { delete overrides.beats[key]; }
+    } else {
+      var slot = overrides[scope][key] || (overrides[scope][key] = {});
+      if (value) { slot[field] = value; } else { delete slot[field]; }
+      if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
+    }
+    saveOverrides();
+  }
+  function libraryEntry(scope, key) {
+    var base = scope === 'brand'
+      ? ((manifest && manifest._brand && manifest._brand[key]) || {})
+      : ((manifest && manifest.careers && manifest.careers[key]) || {});
+    var own = overrides[scope][key] || {};
+    return { still: own.still || base.still || null, clip: own.clip || base.clip || null,
+      ownStill: own.still || '', ownClip: own.clip || '', label: base.label || key };
+  }
+  /* A picture pinned to one slide wins over everything else. A video
+     link counts as a clip; anything else is treated as a still. */
+  function beatAsset(beatId) {
+    var v = overrides.beats[beatId];
+    if (!v) { return null; }
+    return { kind: /\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still', src: resolve(v) };
+  }
+
   function assetFor(careerOrKey, prefer) {
-    if (!manifest) { return null; }
     var entry;
     if (typeof careerOrKey === 'string') {
-      entry = (manifest._brand && manifest._brand[careerOrKey]) || null;
+      entry = libraryEntry('brand', careerOrKey);
     } else {
-      entry = manifest.careers && manifest.careers[idFor(careerOrKey)];
+      entry = libraryEntry('careers', idFor(careerOrKey));
     }
     if (!entry) { return null; }
     var clip = entry.clip, still = entry.still;
@@ -95,7 +132,7 @@
      downloading them into media/ later makes it work offline, and the
      only change is the manifest value. */
   function resolve(v) {
-    return /^(https?:)?\/\//.test(v) ? v : BASE + v;
+    return /^(https?:)?\/\/|^(data|blob):/.test(v) ? v : BASE + v;
   }
 
   /* ---------------------------------------------------------------
@@ -175,6 +212,10 @@
     intensityFor: intensityFor,
     createLayer: createLayer,
     setBackground: setBackground,
+    overrides: overrides,
+    setOverride: setOverride,
+    libraryEntry: libraryEntry,
+    beatAsset: beatAsset,
     get manifest() { return manifest; }
   };
 
