@@ -142,7 +142,7 @@
   }
   function bigStat(items) {
     var d = document.createElement('div');
-    d.className = 'st-stats';
+    d.className = 'st-stats' + (items.length === 4 && items.some(function (it) { return it.n; }) ? ' grid4' : '');
     d.innerHTML = items.map(function (it) {
       return '<div class="st-stat' + (it.side ? ' side-' + it.side : '') + '">' +
         '<div class="k">' + esc(it.k) + '</div><div class="v">' + esc(it.v) + '</div>' +
