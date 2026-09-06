@@ -766,6 +766,18 @@ body.st-on { overflow: hidden; }
 .pic-upload { cursor: pointer; white-space: nowrap; display: inline-block; flex: none; }
 .pic-upload input { display: none; }
 .beat-pic .pic-row { max-width: 640px; }
+.pic-list { list-style: none; margin: 0 0 8px; padding: 0; max-width: 640px;
+  display: flex; flex-direction: column; gap: 4px; }
+.pic-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+  background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 5px; font-size: .8rem; }
+.pic-kind { font-family: var(--h); text-transform: uppercase; letter-spacing: .08em; font-size: .6rem;
+  padding: 2px 6px; border-radius: 3px; background: var(--surface-3); color: var(--muted); flex: none; }
+.pic-kind.clip { background: var(--series-b); color: #fff; }
+.pic-item .pic-file { flex: 1; min-width: 0; }
+.pic-secs { color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
+.pic-x { background: none; border: 0; color: var(--muted); font-size: 1.05rem; line-height: 1;
+  cursor: pointer; padding: 0 3px; flex: none; }
+.pic-x:hover { color: var(--critical); }
 
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
@@ -843,11 +855,9 @@ body.st-on { overflow: hidden; }
 .st-stage.st-two .st-cols, .st-stage.st-two .st-scores { gap: clamp(10px, 1.6vw, 22px); }
 
 /* The picture as content rather than backdrop. */
-.st-inset { width: 100%; max-height: 26vh; border-radius: 10px; overflow: hidden;
-  border: 1px solid #2b2f35; flex: none; line-height: 0; animation: bcbFade .7s ease-out both; }
-.st-stage:not(.st-two):not(.st-three) .st-inset { max-width: 680px; max-height: 22vh; margin: 0 auto 1.2vh; }
-.st-stage:not(.st-two):not(.st-three) .st-inset img { max-height: 22vh; }
-.st-inset img { width: 100%; height: 100%; max-height: 26vh; object-fit: cover; display: block; }
+.st-mediahost.as-inset { width: 100%; aspect-ratio: 16 / 9; max-height: 26vh; border-radius: 10px;
+  border: 1px solid #2b2f35; flex: none; animation: bcbFade .7s ease-out both; }
+.st-stage:not(.st-two):not(.st-three) .st-mediahost.as-inset { max-width: 680px; max-height: 22vh; margin: 0 auto 1.2vh; }
 
 /* The camera column. object-fit: cover crops a 16:9 webcam to this tall
    frame, which is the framing a presenter column wants anyway. */
@@ -1001,8 +1011,7 @@ body.st-on { overflow: hidden; }
 .st-stage.st-three .st-ladder { gap: .6vh; }
 .st-stage.st-three .st-rung { font-size: 1.2vh; padding: .7vh 1.4vh; }
 .st-stage.st-three .st-vs { font-size: 2.8vh; gap: 1.6vh; }
-.st-stage.st-three .st-inset { max-height: 11vh; }
-.st-stage.st-three .st-inset img { max-height: 11vh; }
+.st-stage.st-three .st-mediahost.as-inset { max-height: 11vh; }
 
 .st-stage.st-three .st-progress { grid-row: 3; height: .5vh; margin: 0 0 1.4vh; padding: 0 5.6%;
   position: absolute; left: 0; right: 0; bottom: 0; }
@@ -1052,7 +1061,7 @@ body.st-on { overflow: hidden; }
    ===================================================================== */
 .st-feature { position: absolute; inset: 0; z-index: 2; display: none; background: #000; overflow: hidden; }
 .st-stage.lay-fill .st-feature { display: block; }
-.st-feature .st-mediabox { width: 100%; height: 100%; border-radius: 0; border: 0; }
+.st-feature .st-mediahost.as-feature { border-radius: 0; border: 0; }
 .st-feature img, .st-feature video { width: 100%; height: 100%; object-fit: cover; display: block;
   animation: bcbFade .5s ease-out both; }
 
@@ -1099,21 +1108,20 @@ body.st-on { overflow: hidden; }
 .st-stage.st-three.no-cam .st-stat .v { font-size: 4.4vh; }
 .st-stage.st-three.no-cam .st-hero-num { font-size: 10vh; }
 
-/* The picture in place of the chart or the numbers. */
-.st-mediabox { width: 100%; overflow: hidden; border-radius: 12px; line-height: 0;
-  background: #0b0c0d; border: 1px solid #2b2f35; }
-.st-mediabox img, .st-mediabox video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Pictures play in a host with two slots, so one fades up as the last
+   fades out. The host carries the size, so a picture of a different
+   shape never makes the words below it jump. */
+.st-mediahost { position: relative; overflow: hidden; background: #0b0c0d; }
+.st-mediaslot { position: absolute; inset: 0; opacity: 0; transition: opacity .55s ease; }
+.st-mediaslot.on { opacity: 1; }
+.st-mediaslot img, .st-mediaslot video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-mediahost.as-feature { position: absolute; inset: 0; }
+.st-mediahost.as-main { width: 100%; aspect-ratio: 16 / 9; max-height: 58vh;
+  border-radius: 12px; border: 1px solid #2b2f35; animation: bcbFade .6s ease-out both; }
 .st-stage .st-visual.st-mediaonly { justify-content: center; }
-.st-stage .st-visual.st-mediaonly .st-mediabox,
-.st-stage .st-visual.st-mediaonly .st-mediabox img,
-.st-stage .st-visual.st-mediaonly .st-mediabox video { max-height: 58vh; }
-.st-stage .st-visual.st-mediaonly .st-mediabox { animation: bcbFade .6s ease-out both; }
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox video { max-height: 48vh; }
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox video { max-height: 32vh; }
+.st-stage.st-two .st-mediahost.as-main { max-height: 48vh; }
+.st-stage.st-three .st-mediahost.as-main { max-height: 32vh; }
+@media (prefers-reduced-motion: reduce) { .st-mediaslot { transition: none; } }
 
 /* The three per-slide controls in the script editor. */
 .beat-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

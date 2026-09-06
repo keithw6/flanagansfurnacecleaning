@@ -94,16 +94,53 @@
   function saveOverrides() { try { localStorage.setItem(OKEY, JSON.stringify(overrides)); } catch (e) { /* fine */ } }
   function setOverride(scope, key, field, value) {
     value = (value || '').trim();
-    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    var slot = overrides[scope][key] || (overrides[scope][key] = {});
+    var prev = slot[field];
     if (prev && /^file:/.test(prev) && prev !== value) { removeFile(prev.slice(5)); }
-    if (scope === 'beats') {
-      if (value) { overrides.beats[key] = value; } else { delete overrides.beats[key]; }
-    } else {
-      var slot = overrides[scope][key] || (overrides[scope][key] = {});
-      if (value) { slot[field] = value; } else { delete slot[field]; }
-      if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
-    }
+    if (value) { slot[field] = value; } else { delete slot[field]; }
+    if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
     saveOverrides();
+  }
+
+  /* ---------------------------------------------------------------
+     A SLIDE'S OWN PICTURES
+     A slide holds a list rather than one picture, so a run of them can
+     be played in turn to fill the time the script takes to speak. A
+     bare string from an earlier version reads as a list of one.
+     --------------------------------------------------------------- */
+  function beatList(id) {
+    var v = overrides.beats[id];
+    if (!v) { return []; }
+    return Array.isArray(v) ? v.slice() : [v];
+  }
+  function setBeatList(id, list) {
+    if (list && list.length) { overrides.beats[id] = list; }
+    else { delete overrides.beats[id]; }
+    saveOverrides();
+  }
+  function addBeatMedia(id, value) {
+    value = (value || '').trim();
+    if (!value) { return false; }
+    var list = beatList(id);
+    list.push(value);
+    setBeatList(id, list);
+    return true;
+  }
+  function addBeatFile(id, file) {
+    /* Each upload gets its own key, so adding a second picture to a
+       slide does not overwrite the first. */
+    var fid = 'beat|' + id + '|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    return putFile(fid, file).then(function (ref) { addBeatMedia(id, ref); return ref; });
+  }
+  function removeBeatMedia(id, i) {
+    var list = beatList(id);
+    var gone = list.splice(i, 1)[0];
+    setBeatList(id, list);
+    if (gone && /^file:/.test(gone)) { removeFile(gone.slice(5)); }
+  }
+  function clearBeatMedia(id) {
+    beatList(id).forEach(function (v) { if (/^file:/.test(v)) { removeFile(v.slice(5)); } });
+    setBeatList(id, []);
   }
   function libraryEntry(scope, key) {
     var base = scope === 'brand'
@@ -114,16 +151,22 @@
     return { still: still, clip: clip, stillUrl: still ? resolve(still) : null, clipUrl: clip ? resolve(clip) : null,
       ownStill: own.still || '', ownClip: own.clip || '', label: base.label || key };
   }
-  /* A picture pinned to one slide wins over everything else. A video
-     link counts as a clip; anything else is treated as a still. */
-  function beatAsset(beatId) {
-    var v = overrides.beats[beatId];
-    if (!v) { return null; }
+  /* A picture pinned to a slide wins over everything else. A video link
+     counts as a clip; anything else is treated as a still. */
+  function assetFromRef(v) {
     var src = resolve(v);
     if (!src) { return null; }
     var f = fileInfo(v);
-    return { kind: f ? f.kind : (/\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still'), src: src };
+    return {
+      kind: f ? f.kind : (/\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still'),
+      src: src, ref: v,
+      name: f ? (f.name || 'uploaded file') : v.replace(/[?#].*$/, '').replace(/^.*\//, '').slice(0, 44) || v
+    };
   }
+  function beatAssets(beatId) {
+    return beatList(beatId).map(assetFromRef).filter(Boolean);
+  }
+  function beatAsset(beatId) { return beatAssets(beatId)[0] || null; }
 
   function assetFor(careerOrKey, prefer) {
     var entry;
@@ -220,11 +263,11 @@
   }
   function fileInfo(v) { return /^file:/.test(v || '') ? (files[v.slice(5)] || null) : null; }
 
-  /* Store a chosen file against a slot and point the override at it.
-     scope 'beats' uses key as the beat id; otherwise scope|key|field. */
+  /* Store a chosen file against a library slot and point the override
+     at it. Slides use addBeatFile instead, since they hold a list. */
   function setFile(scope, key, field, file) {
-    var id = scope === 'beats' ? ('beat|' + key) : (scope + '|' + key + '|' + field);
-    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    var id = scope + '|' + key + '|' + field;
+    var prev = (overrides[scope][key] || {})[field];
     var p = putFile(id, file).then(function (ref) { setOverride(scope, key, field, ref); return ref; });
     if (prev && /^file:/.test(prev) && prev.slice(5) !== id) { removeFile(prev.slice(5)); }
     return p;
@@ -311,6 +354,12 @@
     setOverride: setOverride,
     setFile: setFile,
     fileInfo: fileInfo,
+    beatList: beatList,
+    beatAssets: beatAssets,
+    addBeatMedia: addBeatMedia,
+    addBeatFile: addBeatFile,
+    removeBeatMedia: removeBeatMedia,
+    clearBeatMedia: clearBeatMedia,
     libraryEntry: libraryEntry,
     beatAsset: beatAsset,
     get manifest() { return manifest; }
