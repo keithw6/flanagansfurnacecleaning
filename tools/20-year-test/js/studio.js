@@ -33,6 +33,7 @@
   var camStream = null;
   var overlay = null;
   var bgLayer = null;
+  var featureLayer = null;
   var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
   var armingRec = false;
   var recTimer = null;
@@ -52,7 +53,10 @@
     /* Studio Two framing. Defaults match a floating presenter card:
        inset from the edge, rounded, outlined, around 60% of frame
        height and vertically centred. */
-    split: { camHeight: 62, camWidth: 26, align: 'center' }
+    split: { camHeight: 62, camWidth: 26, align: 'center' },
+    /* Per-slide layout overrides, keyed by beat id, so a format
+       decision made once holds for every episode. */
+    beatLayout: {}
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -65,6 +69,7 @@
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
+      if (p.beatLayout) { prefs.beatLayout = p.beatLayout; }
       prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
@@ -118,6 +123,64 @@
   }
 
   function beat() { return script ? script.beats[idx] : null; }
+
+  /* =====================================================================
+     PER-SLIDE LAYOUT
+     A slide can hand its whole frame to the picture or clip pinned to
+     it, with or without the camera over the top. Every one of these
+     layouts is about that pinned media, so a slide without any falls
+     back to the studio's normal layout rather than cutting to black.
+     ===================================================================== */
+  function layoutFor(b) {
+    if (!b) { return ''; }
+    var v = prefs.beatLayout[b.id] || '';
+    if (!v) { return ''; }
+    return BCB.media.beatAsset(b.id) ? v : '';
+  }
+  var LAYOUTS = [
+    ['', 'Default for this studio'],
+    ['full', 'Fills the frame, nothing else'],
+    ['fullcam', 'Fills the frame, camera over the top'],
+    ['media', 'Is the slide, with the title and camera']
+  ];
+
+  /* One picture or clip, ready to drop into a slide. */
+  function mediaNode(asset) {
+    var box = document.createElement('div');
+    box.className = 'st-mediabox';
+    var el;
+    if (asset.kind === 'clip') {
+      el = document.createElement('video');
+      el.muted = true; el.loop = true; el.playsInline = true; el.autoplay = true;
+    } else {
+      el = document.createElement('img');
+      el.alt = '';
+    }
+    el.setAttribute('aria-hidden', 'true');
+    el.addEventListener('error', function () { box.remove(); });
+    el.src = asset.src;
+    box.appendChild(el);
+    if (el.play) {
+      var pr = el.play();
+      if (pr && pr.catch) { pr.catch(function () { /* autoplay refusal is not a failure */ }); }
+    }
+    return box;
+  }
+
+  /* The full-frame layer. Rebuilt only when the source changes, so a
+     looping clip is not restarted by every redraw that passes through. */
+  function paintFeature(lay, b) {
+    if (!featureLayer) { return; }
+    var asset = (lay === 'full' || lay === 'fullcam') ? BCB.media.beatAsset(b.id) : null;
+    if (!asset) {
+      if (featureLayer.dataset.src) { featureLayer.innerHTML = ''; delete featureLayer.dataset.src; }
+      return;
+    }
+    if (featureLayer.dataset.src === asset.src) { return; }
+    featureLayer.dataset.src = asset.src;
+    featureLayer.innerHTML = '';
+    featureLayer.appendChild(mediaNode(asset));
+  }
 
   /* =====================================================================
      BEAT VISUALS
@@ -183,6 +246,12 @@
     var a = sim.a, bb = sim.b;
     var wrap = document.createElement('div');
     wrap.className = 'st-visual';
+
+    if (layoutFor(b) === 'media') {
+      wrap.appendChild(mediaNode(BCB.media.beatAsset(b.id)));
+      wrap.classList.add('wide', 'st-mediaonly');
+      return wrap;
+    }
 
     if (b.kind.indexOf('chart:') === 0) {
       var key = b.kind.slice(6);
@@ -551,6 +620,11 @@
     /* Background sits behind everything on the stage. */
     bgLayer = BCB.media.createLayer();
     overlay.insertBefore(bgLayer, overlay.firstChild);
+    /* The feature layer belongs inside whatever the mode composes in:
+       the vertical frame for Studio Three, the stage otherwise. */
+    featureLayer = document.createElement('div');
+    featureLayer.className = 'st-feature';
+    (overlay.querySelector('.st-frame') || overlay).appendChild(featureLayer);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
     BCB.media.load().then(function () { paintBackground(); });
@@ -606,6 +680,7 @@
     if (BCB.recorder) { BCB.recorder.disarm(); }
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
+    featureLayer = null;
     document.body.classList.remove('st-on');
     mountCam();   /* put the camera tile back on the studio tab */
   }
@@ -615,6 +690,7 @@
      carry their own visual keep it; the rest get the career photograph
      as an inset card above the words. */
   function insetFor(b) {
+    if (layoutFor(b)) { return null; }   /* the media is the slide already */
     var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1, versus: 1, close: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
     /* Studio One carries the picture as the background; an inset there
@@ -651,6 +727,12 @@
     if (!overlay) { return; }
     var b = beat();
     if (!b) { return; }
+    var lay = layoutFor(b);
+    overlay.classList.toggle('lay-full', lay === 'full');
+    overlay.classList.toggle('lay-fullcam', lay === 'fullcam');
+    overlay.classList.toggle('lay-media', lay === 'media');
+    paintFeature(lay, b);
+    mountCam();      /* a feature slide takes the camera away and gives it back */
     overlay.classList.toggle('chart', b.kind.indexOf('chart:') === 0 || b.kind === 'radar');
     overlay.querySelector('#stKick').textContent = b.kicker || '';
     overlay.querySelector('#stTitle').textContent = b.title;
@@ -974,7 +1056,15 @@
           '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Remove</button>'
         : '<input type="url" data-beatpic="' + esc(id) + '" placeholder="Paste an image or video link" value="' + esc(own) + '">') +
       '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
-      '</div><div class="hint">Optional. Wins over the library for this one slide.</div></div>';
+      '</div><div class="hint">Optional. Wins over the library for this one slide.</div>' +
+      '<div class="field" style="margin-top:8px"><label for="lay-' + esc(id) + '">Layout for this slide</label>' +
+      '<select id="lay-' + esc(id) + '" data-beatlayout="' + esc(id) + '">' +
+      LAYOUTS.map(function (o) {
+        return '<option value="' + o[0] + '"' + ((prefs.beatLayout[id] || '') === o[0] ? ' selected' : '') +
+          '>' + esc(o[1]) + '</option>';
+      }).join('') +
+      '</select><div class="hint">Needs a picture or clip above. Without one the slide keeps the studio\u2019s ' +
+      'normal layout.</div></div></div>';
   }
   function refreshPicSlot(scope, key) {
     /* Redraw one library slot in place rather than the whole card. */
@@ -1050,6 +1140,11 @@
     applyCamStyle();
     var ghost = placeholderNode();
     if (ghost.parentNode) { ghost.remove(); }
+    /* A feature slide is the picture and nothing else. */
+    if (overlay && layoutFor(beat()) === 'full') {
+      if (w.parentNode) { w.remove(); }
+      return;
+    }
     if (!prefs.cam.on) {
       if (w.parentNode) { w.remove(); }
       /* Show the stand-in on the stage, and in the studio tab's tile. */
@@ -1589,6 +1684,13 @@
         var e = BCB.media.libraryEntry(parts[0], parts[1]);
         slot.querySelector('.pic-thumb').innerHTML = e.stillUrl ? '<img src="' + esc(e.stillUrl) + '" alt="">' : '<span>no picture</span>';
       }
+      if (overlay) { renderStage(); }
+      return;
+    }
+    if (t.dataset && t.dataset.beatlayout != null && ev.type === 'change') {
+      if (t.value) { prefs.beatLayout[t.dataset.beatlayout] = t.value; }
+      else { delete prefs.beatLayout[t.dataset.beatlayout]; }
+      savePrefs();
       if (overlay) { renderStage(); }
       return;
     }
