@@ -790,6 +790,12 @@ body.st-on { overflow: hidden; }
 .cta-at input { width: 64px; padding: 4px 6px; font: inherit; font-size: .82rem;
   border: 1px solid var(--line); border-radius: 4px; background: var(--surface-1); color: var(--text); }
 .cta-note { font-size: .78rem; color: var(--faint); }
+.rec-test { margin-top: 10px; padding: 10px 12px; border-radius: 6px; font-size: .84rem; line-height: 1.45;
+  border: 1px solid var(--line); background: var(--surface-2); }
+.rec-test[hidden] { display: none; }
+.rec-test.good { border-color: var(--good); background: rgba(12,163,12,.10); }
+.rec-test.bad { border-color: var(--critical); background: rgba(208,59,59,.10); }
+.rec-test.busy { color: var(--muted); }
 
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;

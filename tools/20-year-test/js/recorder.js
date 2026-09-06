@@ -105,7 +105,11 @@
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
       surfaceSwitching: 'exclude',
-      systemAudio: 'exclude'
+      systemAudio: 'exclude',
+      /* A whole screen or a loose window stops being drawn the moment
+         something covers it, and the take carries on recording nothing.
+         A tab keeps going, so the picker is not offered the other two. */
+      monitorTypeSurfaces: 'exclude'
     };
     return navigator.mediaDevices.getDisplayMedia(constraints).then(function (stream) {
       display = stream;
@@ -122,7 +126,12 @@
         });
         vt.addEventListener('unmute', function () { if (recorder) { emit('resumed'); } });
       }
-      emit('armed', trackInfo());
+      var info = trackInfo();
+      emit('armed', info);
+      if (info.surface && info.surface !== 'browser') {
+        emit('stall', 'This is recording a ' + info.surface + ', not a tab. That stops sending pictures the ' +
+          'moment another window covers it. Stop the share and pick this tab instead.');
+      }
       return true;
     }).catch(function (err) {
       display = null;
@@ -147,7 +156,17 @@
     var c = { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false };
     if (prefs.micDeviceId) { c.audio.deviceId = { exact: prefs.micDeviceId }; }
     return navigator.mediaDevices.getUserMedia(c).then(function (s) { mic = s; return s; })
-      .catch(function () { emit('warn', 'No microphone - recording video only.'); return null; });
+      .catch(function (err) {
+        var n = err && err.name;
+        emit('warn', n === 'NotAllowedError'
+            ? 'The microphone was refused, so this take has no sound. Allow it from the icon at the right end of the address bar.'
+          : n === 'NotFoundError' || n === 'OverconstrainedError'
+            ? 'No microphone was found, so this take has no sound. Check the one chosen above is plugged in.'
+          : n === 'NotReadableError'
+            ? 'The microphone is busy in another app, so this take has no sound.'
+            : 'No microphone (' + (n || 'unknown') + '), so this take has no sound.');
+        return null;
+      });
   }
 
   /* Studio Three: crop the captured tab to the 9:16 frame. The capture
@@ -353,6 +372,47 @@
       });
   }
 
+  /* Five seconds, then read back what actually landed. Turns a twelve
+     minute gamble into a check you can run before every episode. */
+  function selfTest() {
+    var report = { surface: '', audio: false, expected: 5, got: 0, ok: false, why: '' };
+    if (!supported()) {
+      report.why = 'This browser cannot record its own screen.';
+      return Promise.resolve(report);
+    }
+    return start({}).then(function (ok) {
+      if (!ok) { report.why = 'Screen capture did not start.'; return report; }
+      report.surface = trackInfo().surface || 'unknown';
+      report.audio = hadAudio;
+      return new Promise(function (res) {
+        setTimeout(function () {
+          stop();
+          var t0 = Date.now();
+          var iv = setInterval(function () {
+            if (lastTake && lastTake.mediaSeconds != null) {
+              clearInterval(iv);
+              report.got = Math.round(lastTake.mediaSeconds * 10) / 10;
+              res(report);
+            } else if (Date.now() - t0 > 8000) {
+              clearInterval(iv); res(report);
+            }
+          }, 200);
+        }, 5000);
+      });
+    }).then(function (r) {
+      if (!r.why) {
+        if (r.got < 3) { r.why = 'Only ' + r.got + ' seconds of video landed out of five. The screen being captured is not sending pictures.'; }
+        else if (r.surface && r.surface !== 'browser') { r.why = 'Recording a ' + r.surface + ' rather than a tab, which freezes when covered.'; }
+        else if (!r.audio) { r.why = 'Video is fine, but there is no sound.'; }
+        else { r.ok = true; r.why = 'Picture and sound both landed.'; }
+      }
+      return r;
+    }).catch(function (err) {
+      report.why = 'The check failed: ' + (err && err.message ? err.message : err);
+      return report;
+    });
+  }
+
   function disarm() {
     if (recorder) { stop(); }
     if (display) { display.getTracks().forEach(function (t) { t.stop(); }); display = null; }
@@ -371,7 +431,7 @@
     prefs: prefs, save: save,
     supported: supported,
     arm: arm, start: start, stop: stop, disarm: disarm,
-    download: download, saveAs: saveAs, listMics: listMics,
+    download: download, saveAs: saveAs, listMics: listMics, selfTest: selfTest,
     isRecording: function () { return !!recorder; },
     isArmed: function () { return !!(display && display.active); },
     elapsed: function () { return recorder ? (Date.now() - startedAt) / 1000 : 0; },
