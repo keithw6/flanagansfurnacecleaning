@@ -41,6 +41,7 @@
   var armingRec = false;
   var recTimer = null;
   var recMessage = '';
+  var recAlarm = '';       /* a capture that stopped sending pictures */
 
   var prefs = {
     cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
@@ -772,7 +773,8 @@
         '<button data-act="rec" id="stRecBtn" title="Start or stop a take (R)">Record</button>' +
         '<button data-act="exit" title="Leave the stage (Esc)">Exit</button>' +
       '</div>' +
-      '<div class="st-take no-print" id="stTake" hidden></div>';
+      '<div class="st-take no-print" id="stTake" hidden></div>' +
+      '<div class="st-alarm no-print" id="stAlarm" hidden></div>';
     /* Background sits behind everything on the stage. */
     bgLayer = BCB.media.createLayer();
     overlay.insertBefore(bgLayer, overlay.firstChild);
@@ -1096,7 +1098,12 @@
     return Math.round(n / 1e3) + ' KB';
   }
   function takeSummary(t) {
-    return 'Take ' + t.take + ' \u00b7 ' + mmss(t.seconds) + ' \u00b7 ' + fmtBytes(t.bytes) + ' \u00b7 ' + t.name;
+    var len = t.mediaSeconds == null ? mmss(t.seconds) : mmss(t.mediaSeconds) + ' of video';
+    var shortfall = t.mediaSeconds != null && t.seconds > 5 && t.mediaSeconds < t.seconds * 0.8
+      ? ' \u00b7 the take ran ' + mmss(t.seconds) : '';
+    return 'Take ' + t.take + ' \u00b7 ' + len + shortfall +
+      (t.audio === false ? ' \u00b7 no sound' : '') +
+      ' \u00b7 ' + fmtBytes(t.bytes) + ' \u00b7 ' + t.name;
   }
   /* The toast above the control pill: a finished take, or why there is
      no recording. Hidden while a take is running. */
@@ -1115,7 +1122,12 @@
     var R = BCB.recorder;
     if (!R) { return; }
     var on = R.isRecording();
+    if (!on) { recAlarm = ''; }
     var label = on ? '\u25cf ' + mmss(R.elapsed()) : (armingRec ? 'Starting\u2026' : 'Record');
+    if (overlay) {
+      var al = overlay.querySelector('#stAlarm');
+      if (al) { al.hidden = !recAlarm; al.textContent = recAlarm || ''; }
+    }
     if (overlay) {
       var btn = overlay.querySelector('#stRecBtn');
       if (btn) { btn.textContent = label; btn.classList.toggle('rec-on', on); }
@@ -1137,6 +1149,17 @@
       clearInterval(recTimer); recTimer = null;
       if (data) { showTake(data); }
       else { showTake(null, 'That take was empty - nothing was saved.'); }
+    } else if (evt === 'measured') {
+      /* The summary is rewritten once the file has been read back, so
+         what it claims is what is in the file. */
+      if (data) { showTake(data); }
+    } else if (evt === 'stall' || evt === 'short') {
+      /* Loud, and it stays: this is the failure that costs a whole take. */
+      recMessage = data;
+      recAlarm = data;
+      showTake(null, data);
+    } else if (evt === 'resumed') {
+      recAlarm = '';
     } else if (evt === 'error' || evt === 'warn') {
       recMessage = data;
       showTake(null, data);
@@ -1169,6 +1192,12 @@
         '><label for="recMic" style="margin:0">Record my microphone into the file</label></div></div>' +
       '<div class="field"><label for="recMicDevice">Microphone</label><select id="recMicDevice"' + (P.includeMic ? '' : ' disabled') +
         '><option value="">Default microphone</option></select></div>' +
+      '<div class="field"><label for="recFormat">File format</label><select id="recFormat">' +
+        [['auto', 'H.264 MP4 if this browser can, otherwise WebM'], ['mp4', 'Always MP4'], ['webm', 'Always WebM']]
+        .map(function (o) { return '<option value="' + o[0] + '"' + (P.format === o[0] ? ' selected' : '') +
+          '>' + esc(o[1]) + '</option>'; }).join('') +
+      '</select><div class="hint">WebM is written a second at a time, so a crash costs a second. MP4 is written ' +
+      'in one piece at the end. If a take ever comes out shorter than it should, try WebM.</div></div>' +
       '<div class="field"><label for="recQuality">Quality</label><select id="recQuality">' +
         opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === q ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') +
       '</select><div class="hint">' + (m.ext === 'mp4'
@@ -2057,6 +2086,7 @@
       var ms = document.getElementById('recMicDevice'); if (ms) { ms.disabled = !t.checked; }
     }
     else if (t.id === 'recMicDevice') { BCB.recorder.prefs.micDeviceId = t.value; BCB.recorder.save(); }
+    else if (t.id === 'recFormat') { BCB.recorder.prefs.format = t.value; BCB.recorder.save(); }
     else if (t.id === 'recQuality') {
       var qp = t.value.split('-');
       BCB.recorder.prefs.fps = parseInt(qp[0], 10) || 30;
