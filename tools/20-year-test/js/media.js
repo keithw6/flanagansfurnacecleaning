@@ -292,6 +292,30 @@
 
   /* Swap in a new background. Returns quietly when there is nothing to
      show, leaving the procedural ground in place. */
+  /* ---------------------------------------------------------------
+     LETTING GO OF A VIDEO
+     A <video> that is merely detached from the page keeps its decoder
+     until the collector gets round to it, and a browser has only so
+     many. An episode that swaps a clip every few seconds runs the pool
+     dry, and the symptom is not an error: it is torn frames and a
+     picture that stops moving. So every clip we replace is stopped and
+     emptied on the spot.
+     --------------------------------------------------------------- */
+  function release(root) {
+    if (!root || !root.querySelectorAll) { return; }
+    Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { /* already gone */ }
+    });
+  }
+  /* Out of sight but still decoding is waste too. Paused rather than
+     emptied, because this one may fade back in. */
+  function pauseMedia(root) {
+    if (!root || !root.querySelectorAll) { return; }
+    Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+      try { v.pause(); } catch (e) { /* fine */ }
+    });
+  }
+
   function setBackground(layer, asset, intensity, reduceMotion) {
     if (!layer) { return; }
     var next = layer.__slot === 'a' ? 'b' : 'a';
@@ -307,6 +331,7 @@
       return;
     }
     layer.classList.remove('bare');
+    release(incoming);
     incoming.innerHTML = '';
 
     /* An asset that fails to arrive - an expired link, no network, a
@@ -340,6 +365,10 @@
     }
     incoming.style.opacity = intensity;
     outgoing.style.opacity = 0;
+    /* Once it has finished fading it is not being watched, so stop it
+       decoding. It is emptied outright when this slot is reused. */
+    if (layer.__fade) { clearTimeout(layer.__fade); }
+    layer.__fade = setTimeout(function () { pauseMedia(outgoing); }, 1000);
     layer.__slot = next;
   }
 
@@ -350,6 +379,8 @@
     intensityFor: intensityFor,
     createLayer: createLayer,
     setBackground: setBackground,
+    release: release,
+    pauseMedia: pauseMedia,
     overrides: overrides,
     setOverride: setOverride,
     setFile: setFile,

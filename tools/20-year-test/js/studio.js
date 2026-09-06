@@ -253,6 +253,10 @@
     var next = host.dataset.slot === 'a' ? 1 : 0;
     host.dataset.slot = next ? 'b' : 'a';
     var incoming = slots[next], outgoing = slots[next ? 0 : 1];
+    /* This slot last held the picture from two swaps ago. Emptying it
+       properly is what keeps the number of live clips at two per place
+       rather than one for every swap in the episode. */
+    BCB.media.release(incoming);
     incoming.innerHTML = '';
     var el = mediaNode(asset);
     /* A picture that never arrives - a dead link, no network - must not
@@ -269,11 +273,18 @@
     incoming.appendChild(el);
     incoming.classList.add('on');
     outgoing.classList.remove('on');
+    if (host.__fade) { clearTimeout(host.__fade); }
+    host.__fade = setTimeout(function () {
+      if (!outgoing.classList.contains('on')) { BCB.media.pauseMedia(outgoing); }
+    }, 700);
   }
 
   /* How long each item in a slide's list holds the screen. */
   function holdFor(asset) {
-    return asset.kind === 'clip' ? (prefs.media.clipHold || 10) : (prefs.media.imageHold || 5);
+    var h = asset.kind === 'clip' ? (prefs.media.clipHold || 10) : (prefs.media.imageHold || 5);
+    /* A hold of zero would leave the schedule below stepping through
+       time without ever advancing. */
+    return Math.max(1, h);
   }
   /* Which item should be showing this far into the slide. The list
      repeats, so a short list still covers a long section. */
@@ -312,6 +323,7 @@
   /* The full-frame layer. */
   function paintFeature(lay, b) {
     if (!featureLayer) { return; }
+    BCB.media.release(featureLayer);
     featureLayer.innerHTML = '';
     if (lay !== 'fill') { return; }
     var list = BCB.media.beatAssets(b.id);
@@ -822,6 +834,9 @@
 
   function closePresentation() {
     stop();
+    /* Hand every decoder back before the stage goes, rather than waiting
+       for the collector to notice. */
+    if (overlay) { BCB.media.release(overlay); }
     /* Leaving the stage ends the take and lets go of the screen share,
        so the browser's "sharing this tab" bar goes away with it. */
     if (BCB.recorder) { BCB.recorder.disarm(); }
@@ -888,6 +903,7 @@
     overlay.querySelector('#stKick').textContent = b.kicker || '';
     overlay.querySelector('#stTitle').textContent = b.title;
     var host = overlay.querySelector('#stVis');
+    BCB.media.release(host);
     host.innerHTML = '';
     var inset = insetFor(b);
     if (inset) { host.appendChild(inset); }
@@ -919,6 +935,7 @@
     var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
     /* A picture filling the frame already is the background. */
     if (bgFor(b) === 'none' || fgFor(b) === 'fill') {
+      bgCycles = false;
       BCB.media.setBackground(bgLayer, null, 0, reduce);
       return;
     }
@@ -1003,6 +1020,13 @@
         armingRec = false;
         if (ok) { beginPlay(); }
         else { recDeclined = true; }
+      }).catch(function () {
+        /* Never leave the flag set. It gates Play, so a rejection that
+           is not caught here stops the episode from ever starting again
+           without a reload. */
+        armingRec = false;
+        recDeclined = true;
+        beginPlay();
       });
       return;
     }
@@ -1058,7 +1082,9 @@
     armingRec = true;
     recDeclined = false;
     var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
-    R.start({ cropTo: frame }).then(function () { armingRec = false; });
+    R.start({ cropTo: frame })
+      .then(function () { armingRec = false; })
+      .catch(function () { armingRec = false; recDeclined = true; });
   }
   function endTake() {
     var R = BCB.recorder;

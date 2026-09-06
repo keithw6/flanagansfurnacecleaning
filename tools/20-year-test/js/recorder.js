@@ -156,7 +156,18 @@
       if (!ok) { return false; }
       return getMic().then(function (micStream) {
         var vt = display.getVideoTracks()[0];
-        var videoTrackP = opts.cropTo ? cropTo(opts.cropTo, vt) : Promise.resolve(vt);
+        /* The share can be stopped from the browser's own bar between
+           arming and rolling. */
+        if (!vt) { emit('error', 'The screen share ended before the take started.'); return false; }
+        /* Cropping needs a hidden video to play, and a browser is within
+           its rights to refuse. Losing the crop is worth a warning; it is
+           not worth losing the take. */
+        var videoTrackP = opts.cropTo
+          ? cropTo(opts.cropTo, vt).catch(function () {
+              emit('warn', 'Could not crop to the vertical frame, so the whole tab is being recorded.');
+              return vt;
+            })
+          : Promise.resolve(vt);
         return videoTrackP.then(function (videoTrack) {
           var tracks = [videoTrack];
           if (micStream) { tracks = tracks.concat(micStream.getAudioTracks()); }
@@ -180,6 +191,15 @@
           return true;
         });
       });
+    }).catch(function (err) {
+      /* Whatever went wrong, this resolves to false rather than
+         rejecting. A caller that is waiting on it to decide whether the
+         episode may begin must never be left waiting. */
+      recorder = null;
+      if (raf) { global.cancelAnimationFrame(raf); raf = 0; }
+      canvas = null;
+      emit('error', 'Could not start recording: ' + (err && err.message ? err.message : err));
+      return false;
     });
   }
 
