@@ -782,6 +782,11 @@ body.st-on { overflow: hidden; }
 .pic-x { background: none; border: 0; color: var(--muted); font-size: 1.05rem; line-height: 1;
   cursor: pointer; padding: 0 3px; flex: none; }
 .pic-x:hover { color: var(--critical); }
+.cta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.cta-at { font-size: .78rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.cta-at input { width: 64px; padding: 4px 6px; font: inherit; font-size: .82rem;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--surface-1); color: var(--text); }
+.cta-note { font-size: .78rem; color: var(--faint); }
 
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
@@ -1046,7 +1051,7 @@ body.st-on { overflow: hidden; }
    silently reverted the brand bar to relative - which dropped it to the
    bottom of the grid. Same class of collision as the control pill in
    Studio One. */
-.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe):not(.st-feature) { position: relative; z-index: 1; }
+.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe):not(.st-feature):not(.st-cta) { position: relative; z-index: 1; }
 
 @media (prefers-reduced-motion: reduce) { .st-safe { transition: none; } }
 
@@ -1116,6 +1121,7 @@ body.st-on { overflow: hidden; }
    fades out. The host carries the size, so a picture of a different
    shape never makes the words below it jump. */
 .st-mediahost { position: relative; overflow: hidden; background: #0b0c0d; }
+.st-mediahost.empty { display: none; }
 .st-mediaslot { position: absolute; inset: 0; opacity: 0; transition: opacity .55s ease; }
 .st-mediaslot.on { opacity: 1; }
 .st-mediaslot img, .st-mediaslot video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1131,6 +1137,55 @@ body.st-on { overflow: hidden; }
 .beat-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px; margin-top: 10px; }
 .beat-opts .field { margin-bottom: 0; }
+
+/* =====================================================================
+   LIKE, SUBSCRIBE, BELL
+   Rides over whatever is on screen for five seconds. Built from the same
+   parts as the ladder on the intro card - condensed caps in bordered
+   rungs, the one that matters filled orange - so it reads as this show
+   rather than a stock sticker. One transition carries it both in and
+   out, so removing the class plays the exit.
+   ===================================================================== */
+.st-cta { position: absolute; left: 3vw; bottom: 8vh; z-index: 4; pointer-events: none;
+  opacity: 0; transform: translateY(20px) scale(.97);
+  transition: opacity .38s ease, transform .45s cubic-bezier(.2,.9,.3,1.25); }
+.st-cta.on { opacity: 1; transform: none; }
+.st-cta-plate { display: flex; align-items: center; gap: clamp(8px, 1vw, 14px);
+  background: rgba(14,16,19,.94); border: 1px solid #2b2f35; border-left: 4px solid var(--series-b);
+  border-radius: 8px; padding: clamp(9px, 1.2vh, 14px) clamp(12px, 1.4vw, 20px);
+  box-shadow: 0 18px 44px rgba(0,0,0,.55); }
+.st-cta-chip { display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--h); text-transform: uppercase; letter-spacing: .1em;
+  font-size: clamp(.78rem, 1.35vw, 1.15rem); color: #d6d8dc;
+  border: 1px solid #33373d; border-radius: 4px; padding: 6px clamp(8px, 1vw, 14px); }
+.st-cta-chip svg { width: 1.15em; height: 1.15em; fill: currentColor; flex: none; }
+.st-cta-chip b { font-weight: 600; }
+.st-cta-chip.go { color: #0b0c0d; background: var(--series-b); border-color: var(--series-b); }
+.st-cta-tag { font-family: var(--h); text-transform: uppercase; letter-spacing: .16em;
+  font-size: clamp(.55rem, .8vw, .72rem); color: #7c8088; margin-top: 7px; padding-left: 5px; }
+
+.st-cta.on .st-cta-chip { animation: bcbPop .42s cubic-bezier(.2,.9,.3,1.4) both;
+  animation-delay: calc(.12s + var(--i, 0) * .11s); }
+.st-cta.on .st-cta-chip.go {
+  animation: bcbPop .42s cubic-bezier(.2,.9,.3,1.4) calc(.12s + var(--i, 0) * .11s) both,
+             ctaPulse 1.15s ease-in-out .75s 2; }
+.st-cta.on .st-cta-chip.ring svg { animation: ctaRing 1s ease-in-out .95s 2; transform-origin: 50% 15%; }
+@keyframes ctaPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(235,104,52,0); }
+  45% { box-shadow: 0 0 0 7px rgba(235,104,52,.30); } }
+@keyframes ctaRing { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-16deg); }
+  35% { transform: rotate(13deg); } 55% { transform: rotate(-8deg); } 75% { transform: rotate(5deg); } }
+
+/* The vertical frame keeps it clear of the caption block and the button
+   rail the platform draws over the bottom and right edges. */
+.st-stage.st-three .st-cta { left: 5.6%; bottom: 21vh; }
+.st-stage.st-three .st-cta-plate { gap: 1vh; padding: 1.1vh 1.4vh; border-radius: 6px; border-left-width: 3px; }
+.st-stage.st-three .st-cta-chip { font-size: 1.5vh; padding: .6vh 1vh; letter-spacing: .08em; gap: .6vh; }
+.st-stage.st-three .st-cta-tag { font-size: 1vh; margin-top: .7vh; letter-spacing: .12em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-cta { transition: opacity .2s ease; transform: none; }
+  .st-cta.on .st-cta-chip, .st-cta.on .st-cta-chip.go, .st-cta.on .st-cta-chip.ring svg { animation: none; }
+}
 
 </style>
 <header class="hdr no-print">
@@ -8029,6 +8084,7 @@ body.st-on { overflow: hidden; }
   var overlay = null;
   var bgLayer = null;
   var featureLayer = null;
+  var ctaLayer = null;     /* the like / subscribe / bell card */
   var mediaIdx = 0;        /* which of the slide's pictures is showing */
   var bgCycles = false;    /* the background is playing that same list */
   var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
@@ -8167,6 +8223,49 @@ body.st-on { overflow: hidden; }
       ['main', 'Instead of the chart'], ['fill', 'Fills the frame'], ['none', 'Not shown']]]
   ];
 
+  /* =====================================================================
+     LIKE, SUBSCRIBE, BELL
+     A card that rides over whatever is on screen for five seconds and
+     leaves again, so the ask can land in the middle of a sentence
+     without taking a slide away from the numbers. Built from the same
+     parts as the ladder on the intro card - condensed caps in bordered
+     rungs, the one that matters filled orange - so it reads as the same
+     show rather than a stock YouTube sticker.
+     ===================================================================== */
+  var CTA_SECONDS = 5;
+  var CTA_ICONS = {
+    like: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 10.5h3.8V21H2.5z"/>' +
+      '<path d="M7.3 10.2 12 2.4c1.7.1 2.6 1.2 2.2 2.9l-.8 3.3h6.4c1.3 0 2.1 1 1.9 2.3l-1.6 8c-.2 1.1-1.1 1.9-2.2 1.9H7.3z"/></svg>',
+    sub: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 5.4 19 12 8.6 18.6z"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2a6.2 6.2 0 0 0-6.2 6.2v3.9L3.6 16v1.1h16.8V16l-2.2-3.7V8.4A6.2 6.2 0 0 0 12 2.2z"/>' +
+      '<path d="M9.4 18.6a2.6 2.6 0 0 0 5.2 0z"/></svg>'
+  };
+  function buildCta() {
+    var el = document.createElement('div');
+    el.className = 'st-cta';
+    el.innerHTML =
+      '<div class="st-cta-plate">' +
+        '<span class="st-cta-chip" style="--i:0">' + CTA_ICONS.like + '<b>Like</b></span>' +
+        '<span class="st-cta-chip go" style="--i:1">' + CTA_ICONS.sub + '<b>Subscribe</b></span>' +
+        '<span class="st-cta-chip ring" style="--i:2">' + CTA_ICONS.bell + '<b>Bell</b></span>' +
+      '</div>' +
+      '<div class="st-cta-tag">A new matchup every episode</div>';
+    return el;
+  }
+  /* On screen from the second it is placed at, for five seconds. Driven
+     by the beat's own clock, so it lands in the same place on every take
+     and in the recording. */
+  function tickCta() {
+    if (!ctaLayer || !script) { return; }
+    var b = beat();
+    if (!b) { ctaLayer.classList.remove('on'); return; }
+    var o = optsFor(b);
+    if (!o.cta) { ctaLayer.classList.remove('on'); return; }
+    var elapsed = Math.max(0, b.seconds - remaining);
+    var at = Math.max(0, +o.ctaAt || 0);
+    ctaLayer.classList.toggle('on', elapsed >= at && elapsed < at + CTA_SECONDS);
+  }
+
   /* One picture or clip. */
   function mediaNode(asset) {
     var el;
@@ -8206,7 +8305,17 @@ body.st-on { overflow: hidden; }
     var incoming = slots[next], outgoing = slots[next ? 0 : 1];
     incoming.innerHTML = '';
     var el = mediaNode(asset);
-    el.addEventListener('error', function () { incoming.classList.remove('on'); });
+    /* A picture that never arrives - a dead link, no network - must not
+       leave an empty bordered frame sitting on the slide. Fall back to
+       whatever was showing, or take the frame away. */
+    el.addEventListener('error', function () {
+      incoming.classList.remove('on');
+      if (outgoing.firstChild) { outgoing.classList.add('on'); }
+      else { host.classList.add('empty'); }
+    });
+    var arrived = function () { host.classList.remove('empty'); };
+    el.addEventListener('load', arrived);
+    el.addEventListener('loadeddata', arrived);
     incoming.appendChild(el);
     incoming.classList.add('on');
     outgoing.classList.remove('on');
@@ -8709,7 +8818,10 @@ body.st-on { overflow: hidden; }
        the vertical frame for Studio Three, the stage otherwise. */
     featureLayer = document.createElement('div');
     featureLayer.className = 'st-feature';
-    (overlay.querySelector('.st-frame') || overlay).appendChild(featureLayer);
+    var inner = overlay.querySelector('.st-frame') || overlay;
+    inner.appendChild(featureLayer);
+    ctaLayer = buildCta();
+    inner.appendChild(ctaLayer);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
     BCB.media.load().then(function () { paintBackground(); });
@@ -8766,6 +8878,7 @@ body.st-on { overflow: hidden; }
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
     featureLayer = null;
+    ctaLayer = null;
     document.body.classList.remove('st-on');
     mountCam();   /* put the camera tile back on the studio tab */
   }
@@ -8841,6 +8954,7 @@ body.st-on { overflow: hidden; }
     if (prefs.mode === 'three') { overlay.classList.toggle('guides-on', !playing); }
     paintBackground();
     tickClock();
+    tickCta();
   }
 
   /* Which career's imagery belongs behind this beat. Beats that are
@@ -8915,6 +9029,7 @@ body.st-on { overflow: hidden; }
       remaining -= 0.25;
       tickClock();
       cycleMedia();
+      tickCta();
       scrollPrompter();
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
@@ -9151,6 +9266,23 @@ body.st-on { overflow: hidden; }
       'Files and links are kept in this browser only: a different computer, or a cleared browser, starts from the library again.</p>';
   }
 
+  /* The like / subscribe / bell button, and where in the section it
+     plays. Kept next to the pictures because it is the same kind of
+     decision: what is on screen, and when. */
+  function ctaRowMarkup(id, b) {
+    var o = prefs.beatOpts[id] || {};
+    var on = !!o.cta;
+    var at = Math.max(0, +o.ctaAt || 0);
+    return '<div class="cta-row">' +
+      '<button type="button" class="btn btn-sm ' + (on ? '' : 'btn-o') + '" data-cta="' + esc(id) + '">' +
+        (on ? '\u2713 Like, subscribe, bell' : 'Add like, subscribe, bell') + '</button>' +
+      (on
+        ? '<label class="cta-at">plays at <input type="number" min="0" max="' + (b ? b.seconds : 60) +
+          '" step="1" value="' + at + '" data-ctaat="' + esc(id) + '"> seconds in, for five seconds</label>'
+        : '<span class="cta-note">Five seconds over whatever is on screen.</span>') +
+      '</div>';
+  }
+
   function beatById(id) {
     if (!script) { return null; }
     for (var i = 0; i < script.beats.length; i++) {
@@ -9205,6 +9337,7 @@ body.st-on { overflow: hidden; }
       '<label class="btn btn-o btn-sm pic-upload">Add files<input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
       (list.length ? '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Clear</button>' : '') +
       '</div><div class="hint">' + esc(coverageHint(b, list)) + '</div>' +
+      ctaRowMarkup(id, b) +
       '<div class="beat-opts">' +
       SLIDE_OPTS.map(function (o) {
         var cur = (prefs.beatOpts[id] || {})[o[0]] || '';
@@ -9564,7 +9697,9 @@ body.st-on { overflow: hidden; }
     /* Caption on while you are setting up, off once you are rolling. */
     d.body.classList.toggle('aligning', !playing);
     d.getElementById('pEye').style.top = P.readingLine + 'vh';
-    d.getElementById('pBeat').textContent = b ? b.title : '-';
+    var cue = b && (prefs.beatOpts[b.id] || {}).cta;
+    d.getElementById('pBeat').textContent = (b ? b.title : '-') +
+      (cue ? '   \u25cf like / subscribe / bell' : '');
     d.getElementById('pPos').textContent = script ? (idx + 1) + ' / ' + script.beats.length : '';
     d.getElementById('pClock').textContent = mmss(remaining) + (playing ? '' : '  (paused)');
     d.querySelector('[data-p="play"]').textContent = playing ? 'Pause' : 'Play';
@@ -9826,6 +9961,26 @@ body.st-on { overflow: hidden; }
       bfiles.reduce(function (chain, f) {
         return chain.then(function () { return BCB.media.addBeatFile(bid, f); });
       }, Promise.resolve()).then(function () { redrawBeatSlot(bid); });
+      return;
+    }
+    var ctaBtn = t.closest && t.closest('[data-cta]');
+    if (ctaBtn && ev.type === 'click') {
+      var cbid = ctaBtn.dataset.cta;
+      var cslot = prefs.beatOpts[cbid] || (prefs.beatOpts[cbid] = {});
+      if (cslot.cta) { delete cslot.cta; delete cslot.ctaAt; }
+      else { cslot.cta = 1; }
+      if (!Object.keys(cslot).length) { delete prefs.beatOpts[cbid]; }
+      savePrefs();
+      redrawBeatSlot(cbid);
+      return;
+    }
+    if (t.dataset && t.dataset.ctaat && ev.type === 'input') {
+      var av = parseFloat(t.value);
+      if (!isFinite(av) || av < 0) { return; }
+      var aslot = prefs.beatOpts[t.dataset.ctaat] || (prefs.beatOpts[t.dataset.ctaat] = {});
+      aslot.ctaAt = av;
+      savePrefs();
+      if (overlay) { tickCta(); }
       return;
     }
     var bdel = t.closest && t.closest('[data-beatdel]');

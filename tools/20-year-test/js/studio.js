@@ -34,6 +34,7 @@
   var overlay = null;
   var bgLayer = null;
   var featureLayer = null;
+  var ctaLayer = null;     /* the like / subscribe / bell card */
   var mediaIdx = 0;        /* which of the slide's pictures is showing */
   var bgCycles = false;    /* the background is playing that same list */
   var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
@@ -172,6 +173,49 @@
       ['main', 'Instead of the chart'], ['fill', 'Fills the frame'], ['none', 'Not shown']]]
   ];
 
+  /* =====================================================================
+     LIKE, SUBSCRIBE, BELL
+     A card that rides over whatever is on screen for five seconds and
+     leaves again, so the ask can land in the middle of a sentence
+     without taking a slide away from the numbers. Built from the same
+     parts as the ladder on the intro card - condensed caps in bordered
+     rungs, the one that matters filled orange - so it reads as the same
+     show rather than a stock YouTube sticker.
+     ===================================================================== */
+  var CTA_SECONDS = 5;
+  var CTA_ICONS = {
+    like: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 10.5h3.8V21H2.5z"/>' +
+      '<path d="M7.3 10.2 12 2.4c1.7.1 2.6 1.2 2.2 2.9l-.8 3.3h6.4c1.3 0 2.1 1 1.9 2.3l-1.6 8c-.2 1.1-1.1 1.9-2.2 1.9H7.3z"/></svg>',
+    sub: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 5.4 19 12 8.6 18.6z"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2a6.2 6.2 0 0 0-6.2 6.2v3.9L3.6 16v1.1h16.8V16l-2.2-3.7V8.4A6.2 6.2 0 0 0 12 2.2z"/>' +
+      '<path d="M9.4 18.6a2.6 2.6 0 0 0 5.2 0z"/></svg>'
+  };
+  function buildCta() {
+    var el = document.createElement('div');
+    el.className = 'st-cta';
+    el.innerHTML =
+      '<div class="st-cta-plate">' +
+        '<span class="st-cta-chip" style="--i:0">' + CTA_ICONS.like + '<b>Like</b></span>' +
+        '<span class="st-cta-chip go" style="--i:1">' + CTA_ICONS.sub + '<b>Subscribe</b></span>' +
+        '<span class="st-cta-chip ring" style="--i:2">' + CTA_ICONS.bell + '<b>Bell</b></span>' +
+      '</div>' +
+      '<div class="st-cta-tag">A new matchup every episode</div>';
+    return el;
+  }
+  /* On screen from the second it is placed at, for five seconds. Driven
+     by the beat's own clock, so it lands in the same place on every take
+     and in the recording. */
+  function tickCta() {
+    if (!ctaLayer || !script) { return; }
+    var b = beat();
+    if (!b) { ctaLayer.classList.remove('on'); return; }
+    var o = optsFor(b);
+    if (!o.cta) { ctaLayer.classList.remove('on'); return; }
+    var elapsed = Math.max(0, b.seconds - remaining);
+    var at = Math.max(0, +o.ctaAt || 0);
+    ctaLayer.classList.toggle('on', elapsed >= at && elapsed < at + CTA_SECONDS);
+  }
+
   /* One picture or clip. */
   function mediaNode(asset) {
     var el;
@@ -211,7 +255,17 @@
     var incoming = slots[next], outgoing = slots[next ? 0 : 1];
     incoming.innerHTML = '';
     var el = mediaNode(asset);
-    el.addEventListener('error', function () { incoming.classList.remove('on'); });
+    /* A picture that never arrives - a dead link, no network - must not
+       leave an empty bordered frame sitting on the slide. Fall back to
+       whatever was showing, or take the frame away. */
+    el.addEventListener('error', function () {
+      incoming.classList.remove('on');
+      if (outgoing.firstChild) { outgoing.classList.add('on'); }
+      else { host.classList.add('empty'); }
+    });
+    var arrived = function () { host.classList.remove('empty'); };
+    el.addEventListener('load', arrived);
+    el.addEventListener('loadeddata', arrived);
     incoming.appendChild(el);
     incoming.classList.add('on');
     outgoing.classList.remove('on');
@@ -714,7 +768,10 @@
        the vertical frame for Studio Three, the stage otherwise. */
     featureLayer = document.createElement('div');
     featureLayer.className = 'st-feature';
-    (overlay.querySelector('.st-frame') || overlay).appendChild(featureLayer);
+    var inner = overlay.querySelector('.st-frame') || overlay;
+    inner.appendChild(featureLayer);
+    ctaLayer = buildCta();
+    inner.appendChild(ctaLayer);
     document.body.appendChild(overlay);
     document.body.classList.add('st-on');
     BCB.media.load().then(function () { paintBackground(); });
@@ -771,6 +828,7 @@
     document.removeEventListener('keydown', onKey);
     if (overlay) { overlay.remove(); overlay = null; }
     featureLayer = null;
+    ctaLayer = null;
     document.body.classList.remove('st-on');
     mountCam();   /* put the camera tile back on the studio tab */
   }
@@ -846,6 +904,7 @@
     if (prefs.mode === 'three') { overlay.classList.toggle('guides-on', !playing); }
     paintBackground();
     tickClock();
+    tickCta();
   }
 
   /* Which career's imagery belongs behind this beat. Beats that are
@@ -920,6 +979,7 @@
       remaining -= 0.25;
       tickClock();
       cycleMedia();
+      tickCta();
       scrollPrompter();
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
@@ -1156,6 +1216,23 @@
       'Files and links are kept in this browser only: a different computer, or a cleared browser, starts from the library again.</p>';
   }
 
+  /* The like / subscribe / bell button, and where in the section it
+     plays. Kept next to the pictures because it is the same kind of
+     decision: what is on screen, and when. */
+  function ctaRowMarkup(id, b) {
+    var o = prefs.beatOpts[id] || {};
+    var on = !!o.cta;
+    var at = Math.max(0, +o.ctaAt || 0);
+    return '<div class="cta-row">' +
+      '<button type="button" class="btn btn-sm ' + (on ? '' : 'btn-o') + '" data-cta="' + esc(id) + '">' +
+        (on ? '\u2713 Like, subscribe, bell' : 'Add like, subscribe, bell') + '</button>' +
+      (on
+        ? '<label class="cta-at">plays at <input type="number" min="0" max="' + (b ? b.seconds : 60) +
+          '" step="1" value="' + at + '" data-ctaat="' + esc(id) + '"> seconds in, for five seconds</label>'
+        : '<span class="cta-note">Five seconds over whatever is on screen.</span>') +
+      '</div>';
+  }
+
   function beatById(id) {
     if (!script) { return null; }
     for (var i = 0; i < script.beats.length; i++) {
@@ -1210,6 +1287,7 @@
       '<label class="btn btn-o btn-sm pic-upload">Add files<input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
       (list.length ? '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Clear</button>' : '') +
       '</div><div class="hint">' + esc(coverageHint(b, list)) + '</div>' +
+      ctaRowMarkup(id, b) +
       '<div class="beat-opts">' +
       SLIDE_OPTS.map(function (o) {
         var cur = (prefs.beatOpts[id] || {})[o[0]] || '';
@@ -1569,7 +1647,9 @@
     /* Caption on while you are setting up, off once you are rolling. */
     d.body.classList.toggle('aligning', !playing);
     d.getElementById('pEye').style.top = P.readingLine + 'vh';
-    d.getElementById('pBeat').textContent = b ? b.title : '-';
+    var cue = b && (prefs.beatOpts[b.id] || {}).cta;
+    d.getElementById('pBeat').textContent = (b ? b.title : '-') +
+      (cue ? '   \u25cf like / subscribe / bell' : '');
     d.getElementById('pPos').textContent = script ? (idx + 1) + ' / ' + script.beats.length : '';
     d.getElementById('pClock').textContent = mmss(remaining) + (playing ? '' : '  (paused)');
     d.querySelector('[data-p="play"]').textContent = playing ? 'Pause' : 'Play';
@@ -1831,6 +1911,26 @@
       bfiles.reduce(function (chain, f) {
         return chain.then(function () { return BCB.media.addBeatFile(bid, f); });
       }, Promise.resolve()).then(function () { redrawBeatSlot(bid); });
+      return;
+    }
+    var ctaBtn = t.closest && t.closest('[data-cta]');
+    if (ctaBtn && ev.type === 'click') {
+      var cbid = ctaBtn.dataset.cta;
+      var cslot = prefs.beatOpts[cbid] || (prefs.beatOpts[cbid] = {});
+      if (cslot.cta) { delete cslot.cta; delete cslot.ctaAt; }
+      else { cslot.cta = 1; }
+      if (!Object.keys(cslot).length) { delete prefs.beatOpts[cbid]; }
+      savePrefs();
+      redrawBeatSlot(cbid);
+      return;
+    }
+    if (t.dataset && t.dataset.ctaat && ev.type === 'input') {
+      var av = parseFloat(t.value);
+      if (!isFinite(av) || av < 0) { return; }
+      var aslot = prefs.beatOpts[t.dataset.ctaat] || (prefs.beatOpts[t.dataset.ctaat] = {});
+      aslot.ctaAt = av;
+      savePrefs();
+      if (overlay) { tickCta(); }
       return;
     }
     var bdel = t.closest && t.closest('[data-beatdel]');
