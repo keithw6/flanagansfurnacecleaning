@@ -6253,6 +6253,30 @@ body.st-on { overflow: hidden; }
 
   /* Swap in a new background. Returns quietly when there is nothing to
      show, leaving the procedural ground in place. */
+  /* ---------------------------------------------------------------
+     LETTING GO OF A VIDEO
+     A <video> that is merely detached from the page keeps its decoder
+     until the collector gets round to it, and a browser has only so
+     many. An episode that swaps a clip every few seconds runs the pool
+     dry, and the symptom is not an error: it is torn frames and a
+     picture that stops moving. So every clip we replace is stopped and
+     emptied on the spot.
+     --------------------------------------------------------------- */
+  function release(root) {
+    if (!root || !root.querySelectorAll) { return; }
+    Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { /* already gone */ }
+    });
+  }
+  /* Out of sight but still decoding is waste too. Paused rather than
+     emptied, because this one may fade back in. */
+  function pauseMedia(root) {
+    if (!root || !root.querySelectorAll) { return; }
+    Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+      try { v.pause(); } catch (e) { /* fine */ }
+    });
+  }
+
   function setBackground(layer, asset, intensity, reduceMotion) {
     if (!layer) { return; }
     var next = layer.__slot === 'a' ? 'b' : 'a';
@@ -6268,6 +6292,7 @@ body.st-on { overflow: hidden; }
       return;
     }
     layer.classList.remove('bare');
+    release(incoming);
     incoming.innerHTML = '';
 
     /* An asset that fails to arrive - an expired link, no network, a
@@ -6301,6 +6326,10 @@ body.st-on { overflow: hidden; }
     }
     incoming.style.opacity = intensity;
     outgoing.style.opacity = 0;
+    /* Once it has finished fading it is not being watched, so stop it
+       decoding. It is emptied outright when this slot is reused. */
+    if (layer.__fade) { clearTimeout(layer.__fade); }
+    layer.__fade = setTimeout(function () { pauseMedia(outgoing); }, 1000);
     layer.__slot = next;
   }
 
@@ -6311,6 +6340,8 @@ body.st-on { overflow: hidden; }
     intensityFor: intensityFor,
     createLayer: createLayer,
     setBackground: setBackground,
+    release: release,
+    pauseMedia: pauseMedia,
     overrides: overrides,
     setOverride: setOverride,
     setFile: setFile,
@@ -7942,7 +7973,18 @@ body.st-on { overflow: hidden; }
       if (!ok) { return false; }
       return getMic().then(function (micStream) {
         var vt = display.getVideoTracks()[0];
-        var videoTrackP = opts.cropTo ? cropTo(opts.cropTo, vt) : Promise.resolve(vt);
+        /* The share can be stopped from the browser's own bar between
+           arming and rolling. */
+        if (!vt) { emit('error', 'The screen share ended before the take started.'); return false; }
+        /* Cropping needs a hidden video to play, and a browser is within
+           its rights to refuse. Losing the crop is worth a warning; it is
+           not worth losing the take. */
+        var videoTrackP = opts.cropTo
+          ? cropTo(opts.cropTo, vt).catch(function () {
+              emit('warn', 'Could not crop to the vertical frame, so the whole tab is being recorded.');
+              return vt;
+            })
+          : Promise.resolve(vt);
         return videoTrackP.then(function (videoTrack) {
           var tracks = [videoTrack];
           if (micStream) { tracks = tracks.concat(micStream.getAudioTracks()); }
@@ -7966,6 +8008,15 @@ body.st-on { overflow: hidden; }
           return true;
         });
       });
+    }).catch(function (err) {
+      /* Whatever went wrong, this resolves to false rather than
+         rejecting. A caller that is waiting on it to decide whether the
+         episode may begin must never be left waiting. */
+      recorder = null;
+      if (raf) { global.cancelAnimationFrame(raf); raf = 0; }
+      canvas = null;
+      emit('error', 'Could not start recording: ' + (err && err.message ? err.message : err));
+      return false;
     });
   }
 
@@ -8316,6 +8367,10 @@ body.st-on { overflow: hidden; }
     var next = host.dataset.slot === 'a' ? 1 : 0;
     host.dataset.slot = next ? 'b' : 'a';
     var incoming = slots[next], outgoing = slots[next ? 0 : 1];
+    /* This slot last held the picture from two swaps ago. Emptying it
+       properly is what keeps the number of live clips at two per place
+       rather than one for every swap in the episode. */
+    BCB.media.release(incoming);
     incoming.innerHTML = '';
     var el = mediaNode(asset);
     /* A picture that never arrives - a dead link, no network - must not
@@ -8332,11 +8387,18 @@ body.st-on { overflow: hidden; }
     incoming.appendChild(el);
     incoming.classList.add('on');
     outgoing.classList.remove('on');
+    if (host.__fade) { clearTimeout(host.__fade); }
+    host.__fade = setTimeout(function () {
+      if (!outgoing.classList.contains('on')) { BCB.media.pauseMedia(outgoing); }
+    }, 700);
   }
 
   /* How long each item in a slide's list holds the screen. */
   function holdFor(asset) {
-    return asset.kind === 'clip' ? (prefs.media.clipHold || 10) : (prefs.media.imageHold || 5);
+    var h = asset.kind === 'clip' ? (prefs.media.clipHold || 10) : (prefs.media.imageHold || 5);
+    /* A hold of zero would leave the schedule below stepping through
+       time without ever advancing. */
+    return Math.max(1, h);
   }
   /* Which item should be showing this far into the slide. The list
      repeats, so a short list still covers a long section. */
@@ -8375,6 +8437,7 @@ body.st-on { overflow: hidden; }
   /* The full-frame layer. */
   function paintFeature(lay, b) {
     if (!featureLayer) { return; }
+    BCB.media.release(featureLayer);
     featureLayer.innerHTML = '';
     if (lay !== 'fill') { return; }
     var list = BCB.media.beatAssets(b.id);
@@ -8885,6 +8948,9 @@ body.st-on { overflow: hidden; }
 
   function closePresentation() {
     stop();
+    /* Hand every decoder back before the stage goes, rather than waiting
+       for the collector to notice. */
+    if (overlay) { BCB.media.release(overlay); }
     /* Leaving the stage ends the take and lets go of the screen share,
        so the browser's "sharing this tab" bar goes away with it. */
     if (BCB.recorder) { BCB.recorder.disarm(); }
@@ -8951,6 +9017,7 @@ body.st-on { overflow: hidden; }
     overlay.querySelector('#stKick').textContent = b.kicker || '';
     overlay.querySelector('#stTitle').textContent = b.title;
     var host = overlay.querySelector('#stVis');
+    BCB.media.release(host);
     host.innerHTML = '';
     var inset = insetFor(b);
     if (inset) { host.appendChild(inset); }
@@ -8982,6 +9049,7 @@ body.st-on { overflow: hidden; }
     var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
     /* A picture filling the frame already is the background. */
     if (bgFor(b) === 'none' || fgFor(b) === 'fill') {
+      bgCycles = false;
       BCB.media.setBackground(bgLayer, null, 0, reduce);
       return;
     }
@@ -9066,6 +9134,13 @@ body.st-on { overflow: hidden; }
         armingRec = false;
         if (ok) { beginPlay(); }
         else { recDeclined = true; }
+      }).catch(function () {
+        /* Never leave the flag set. It gates Play, so a rejection that
+           is not caught here stops the episode from ever starting again
+           without a reload. */
+        armingRec = false;
+        recDeclined = true;
+        beginPlay();
       });
       return;
     }
@@ -9121,7 +9196,9 @@ body.st-on { overflow: hidden; }
     armingRec = true;
     recDeclined = false;
     var frame = prefs.mode === 'three' ? overlay.querySelector('.st-frame') : null;
-    R.start({ cropTo: frame }).then(function () { armingRec = false; });
+    R.start({ cropTo: frame })
+      .then(function () { armingRec = false; })
+      .catch(function () { armingRec = false; recDeclined = true; });
   }
   function endTake() {
     var R = BCB.recorder;
