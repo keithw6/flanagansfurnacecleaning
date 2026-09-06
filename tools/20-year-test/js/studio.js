@@ -62,7 +62,7 @@
     beatOpts: {},
     /* How long one picture, and one clip, hold the screen before the
        next takes over. A slide's list repeats until its script is read. */
-    media: { imageHold: 5, clipHold: 10 }
+    media: { imageHold: 5, clipHold: 10, fillInset: 5 }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -877,6 +877,7 @@
     var b = beat();
     if (!b) { return; }
     mediaIdx = 0;
+    overlay.style.setProperty('--fill-inset', (prefs.media.fillInset || 0) + '%');
     var fg = fgFor(b);
     overlay.classList.toggle('lay-fill', fg === 'fill');
     overlay.classList.toggle('lay-main', fg === 'main');
@@ -1203,13 +1204,16 @@
           '</div></div>';
       }).join('') +
       '</div>' +
-      '<div class="field-row" style="margin-top:14px">' +
+      '<div class="field-row" style="margin-top:14px;grid-template-columns:repeat(3,minmax(0,1fr))">' +
       '<div class="field"><label for="holdPic">Hold each picture</label>' +
       '<input type="number" id="holdPic" min="2" max="30" step="1" value="' + prefs.media.imageHold + '">' +
       '<div class="hint">Seconds before the next one takes over. Around five keeps a viewer with you.</div></div>' +
       '<div class="field"><label for="holdClip">Hold each clip</label>' +
       '<input type="number" id="holdClip" min="3" max="60" step="1" value="' + prefs.media.clipHold + '">' +
       '<div class="hint">Seconds. A clip carries its own movement, so it can hold longer than a still.</div></div>' +
+      '<div class="field"><label for="fillInset">Margin when a picture fills the frame</label>' +
+      '<input type="number" id="fillInset" min="0" max="20" step="1" value="' + prefs.media.fillInset + '">' +
+      '<div class="hint">% in from the edge. The whole picture is shown inside it, so nothing runs off screen.</div></div>' +
       '</div>' +
       '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box or press Remove to go back to the library. ' +
       'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
@@ -1981,6 +1985,14 @@
         t.value = '';
         redrawBeatSlot(t.dataset.beatadd);
       }
+      return;
+    }
+    if (t.id === 'fillInset' && ev.type === 'input') {
+      var fv = parseFloat(t.value);
+      if (!isFinite(fv) || fv < 0) { return; }
+      prefs.media.fillInset = fv;
+      savePrefs();
+      if (overlay) { overlay.style.setProperty('--fill-inset', fv + '%'); }
       return;
     }
     if ((t.id === 'holdPic' || t.id === 'holdClip') && ev.type === 'input') {
