@@ -42,6 +42,7 @@
   var recTimer = null;
   var recMessage = '';
   var recAlarm = '';       /* a capture that stopped sending pictures */
+  var recTest = null;      /* the result of the five second check */
 
   var prefs = {
     cam: { on: false, corner: 'br', size: 22, shape: 'rounded', mirror: true, deviceId: '', placeholder: true },
@@ -1207,6 +1208,12 @@
       '<p class="hint" style="color:var(--muted);font-size:.8rem">The Studio Three take is cropped to the vertical frame on the way ' +
       'through, so it comes out 9:16. The take lives in the browser\u2019s memory until you save it: reloading the page loses it. ' +
       'Recording works from the local file and the GitHub Pages link, not inside an embedded preview.</p>';
+    html += '<div class="field-inline" style="gap:10px;margin-top:12px;flex-wrap:wrap">' +
+      '<button class="btn btn-o btn-sm" data-rec="test">Test the setup</button>' +
+      '<span class="hint" style="color:var(--muted)">Records five seconds, then reads the file back and tells you ' +
+      'what landed. Worth doing before an episode rather than after one.</span></div>' +
+      '<div id="recTestOut" class="rec-test' + (recTest ? ' ' + recTest.cls : '') + '"' + (recTest ? '' : ' hidden') + '>' +
+      (recTest ? esc(recTest.text) : '') + '</div>';
     if (recMessage) { html += '<p class="hint" style="color:var(--series-b)">' + esc(recMessage) + '</p>'; }
     if (take) {
       html += '<div class="callout" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
@@ -1949,6 +1956,20 @@
     if (recBtn && ev.type === 'click' && BCB.recorder) {
       if (recBtn.dataset.rec === 'save') { BCB.recorder.saveAs(); }
       else if (recBtn.dataset.rec === 'clear') { BCB.recorder.clearTake(); renderRecState(); }
+      else if (recBtn.dataset.rec === 'test') {
+        recTest = { cls: 'busy', text: 'Recording five seconds\u2026 choose this tab if the picker appears.' };
+        var card = document.getElementById('recCard');
+        if (card) { card.innerHTML = recCardMarkup(); listMics(); }
+        BCB.recorder.selfTest().then(function (r) {
+          recTest = {
+            cls: r.ok ? 'good' : 'bad',
+            text: (r.ok ? 'Ready. ' : 'Not ready. ') + r.why +
+              '  Capturing: ' + (r.surface || 'nothing') + '. Video: ' + r.got + 's of 5. Sound: ' + (r.audio ? 'yes' : 'no') + '.'
+          };
+          var c2 = document.getElementById('recCard');
+          if (c2) { c2.innerHTML = recCardMarkup(); listMics(); }
+        });
+      }
       return;
     }
     if (t.dataset && t.dataset.picfile && ev.type === 'change') {
