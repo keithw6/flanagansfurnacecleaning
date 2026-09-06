@@ -770,6 +770,18 @@ body.st-on { overflow: hidden; }
 .pic-upload { cursor: pointer; white-space: nowrap; display: inline-block; flex: none; }
 .pic-upload input { display: none; }
 .beat-pic .pic-row { max-width: 640px; }
+.pic-list { list-style: none; margin: 0 0 8px; padding: 0; max-width: 640px;
+  display: flex; flex-direction: column; gap: 4px; }
+.pic-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+  background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 5px; font-size: .8rem; }
+.pic-kind { font-family: var(--h); text-transform: uppercase; letter-spacing: .08em; font-size: .6rem;
+  padding: 2px 6px; border-radius: 3px; background: var(--surface-3); color: var(--muted); flex: none; }
+.pic-kind.clip { background: var(--series-b); color: #fff; }
+.pic-item .pic-file { flex: 1; min-width: 0; }
+.pic-secs { color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
+.pic-x { background: none; border: 0; color: var(--muted); font-size: 1.05rem; line-height: 1;
+  cursor: pointer; padding: 0 3px; flex: none; }
+.pic-x:hover { color: var(--critical); }
 
 .st-vs { display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
   gap: clamp(10px, 2vw, 26px); font-family: var(--h); text-transform: uppercase;
@@ -847,11 +859,9 @@ body.st-on { overflow: hidden; }
 .st-stage.st-two .st-cols, .st-stage.st-two .st-scores { gap: clamp(10px, 1.6vw, 22px); }
 
 /* The picture as content rather than backdrop. */
-.st-inset { width: 100%; max-height: 26vh; border-radius: 10px; overflow: hidden;
-  border: 1px solid #2b2f35; flex: none; line-height: 0; animation: bcbFade .7s ease-out both; }
-.st-stage:not(.st-two):not(.st-three) .st-inset { max-width: 680px; max-height: 22vh; margin: 0 auto 1.2vh; }
-.st-stage:not(.st-two):not(.st-three) .st-inset img { max-height: 22vh; }
-.st-inset img { width: 100%; height: 100%; max-height: 26vh; object-fit: cover; display: block; }
+.st-mediahost.as-inset { width: 100%; aspect-ratio: 16 / 9; max-height: 26vh; border-radius: 10px;
+  border: 1px solid #2b2f35; flex: none; animation: bcbFade .7s ease-out both; }
+.st-stage:not(.st-two):not(.st-three) .st-mediahost.as-inset { max-width: 680px; max-height: 22vh; margin: 0 auto 1.2vh; }
 
 /* The camera column. object-fit: cover crops a 16:9 webcam to this tall
    frame, which is the framing a presenter column wants anyway. */
@@ -1005,8 +1015,7 @@ body.st-on { overflow: hidden; }
 .st-stage.st-three .st-ladder { gap: .6vh; }
 .st-stage.st-three .st-rung { font-size: 1.2vh; padding: .7vh 1.4vh; }
 .st-stage.st-three .st-vs { font-size: 2.8vh; gap: 1.6vh; }
-.st-stage.st-three .st-inset { max-height: 11vh; }
-.st-stage.st-three .st-inset img { max-height: 11vh; }
+.st-stage.st-three .st-mediahost.as-inset { max-height: 11vh; }
 
 .st-stage.st-three .st-progress { grid-row: 3; height: .5vh; margin: 0 0 1.4vh; padding: 0 5.6%;
   position: absolute; left: 0; right: 0; bottom: 0; }
@@ -1056,7 +1065,7 @@ body.st-on { overflow: hidden; }
    ===================================================================== */
 .st-feature { position: absolute; inset: 0; z-index: 2; display: none; background: #000; overflow: hidden; }
 .st-stage.lay-fill .st-feature { display: block; }
-.st-feature .st-mediabox { width: 100%; height: 100%; border-radius: 0; border: 0; }
+.st-feature .st-mediahost.as-feature { border-radius: 0; border: 0; }
 .st-feature img, .st-feature video { width: 100%; height: 100%; object-fit: cover; display: block;
   animation: bcbFade .5s ease-out both; }
 
@@ -1103,21 +1112,20 @@ body.st-on { overflow: hidden; }
 .st-stage.st-three.no-cam .st-stat .v { font-size: 4.4vh; }
 .st-stage.st-three.no-cam .st-hero-num { font-size: 10vh; }
 
-/* The picture in place of the chart or the numbers. */
-.st-mediabox { width: 100%; overflow: hidden; border-radius: 12px; line-height: 0;
-  background: #0b0c0d; border: 1px solid #2b2f35; }
-.st-mediabox img, .st-mediabox video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Pictures play in a host with two slots, so one fades up as the last
+   fades out. The host carries the size, so a picture of a different
+   shape never makes the words below it jump. */
+.st-mediahost { position: relative; overflow: hidden; background: #0b0c0d; }
+.st-mediaslot { position: absolute; inset: 0; opacity: 0; transition: opacity .55s ease; }
+.st-mediaslot.on { opacity: 1; }
+.st-mediaslot img, .st-mediaslot video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-mediahost.as-feature { position: absolute; inset: 0; }
+.st-mediahost.as-main { width: 100%; aspect-ratio: 16 / 9; max-height: 58vh;
+  border-radius: 12px; border: 1px solid #2b2f35; animation: bcbFade .6s ease-out both; }
 .st-stage .st-visual.st-mediaonly { justify-content: center; }
-.st-stage .st-visual.st-mediaonly .st-mediabox,
-.st-stage .st-visual.st-mediaonly .st-mediabox img,
-.st-stage .st-visual.st-mediaonly .st-mediabox video { max-height: 58vh; }
-.st-stage .st-visual.st-mediaonly .st-mediabox { animation: bcbFade .6s ease-out both; }
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox video { max-height: 48vh; }
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox video { max-height: 32vh; }
+.st-stage.st-two .st-mediahost.as-main { max-height: 48vh; }
+.st-stage.st-three .st-mediahost.as-main { max-height: 32vh; }
+@media (prefers-reduced-motion: reduce) { .st-mediaslot { transition: none; } }
 
 /* The three per-slide controls in the script editor. */
 .beat-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -5979,16 +5987,53 @@ body.st-on { overflow: hidden; }
   function saveOverrides() { try { localStorage.setItem(OKEY, JSON.stringify(overrides)); } catch (e) { /* fine */ } }
   function setOverride(scope, key, field, value) {
     value = (value || '').trim();
-    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    var slot = overrides[scope][key] || (overrides[scope][key] = {});
+    var prev = slot[field];
     if (prev && /^file:/.test(prev) && prev !== value) { removeFile(prev.slice(5)); }
-    if (scope === 'beats') {
-      if (value) { overrides.beats[key] = value; } else { delete overrides.beats[key]; }
-    } else {
-      var slot = overrides[scope][key] || (overrides[scope][key] = {});
-      if (value) { slot[field] = value; } else { delete slot[field]; }
-      if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
-    }
+    if (value) { slot[field] = value; } else { delete slot[field]; }
+    if (!slot.still && !slot.clip) { delete overrides[scope][key]; }
     saveOverrides();
+  }
+
+  /* ---------------------------------------------------------------
+     A SLIDE'S OWN PICTURES
+     A slide holds a list rather than one picture, so a run of them can
+     be played in turn to fill the time the script takes to speak. A
+     bare string from an earlier version reads as a list of one.
+     --------------------------------------------------------------- */
+  function beatList(id) {
+    var v = overrides.beats[id];
+    if (!v) { return []; }
+    return Array.isArray(v) ? v.slice() : [v];
+  }
+  function setBeatList(id, list) {
+    if (list && list.length) { overrides.beats[id] = list; }
+    else { delete overrides.beats[id]; }
+    saveOverrides();
+  }
+  function addBeatMedia(id, value) {
+    value = (value || '').trim();
+    if (!value) { return false; }
+    var list = beatList(id);
+    list.push(value);
+    setBeatList(id, list);
+    return true;
+  }
+  function addBeatFile(id, file) {
+    /* Each upload gets its own key, so adding a second picture to a
+       slide does not overwrite the first. */
+    var fid = 'beat|' + id + '|' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    return putFile(fid, file).then(function (ref) { addBeatMedia(id, ref); return ref; });
+  }
+  function removeBeatMedia(id, i) {
+    var list = beatList(id);
+    var gone = list.splice(i, 1)[0];
+    setBeatList(id, list);
+    if (gone && /^file:/.test(gone)) { removeFile(gone.slice(5)); }
+  }
+  function clearBeatMedia(id) {
+    beatList(id).forEach(function (v) { if (/^file:/.test(v)) { removeFile(v.slice(5)); } });
+    setBeatList(id, []);
   }
   function libraryEntry(scope, key) {
     var base = scope === 'brand'
@@ -5999,16 +6044,22 @@ body.st-on { overflow: hidden; }
     return { still: still, clip: clip, stillUrl: still ? resolve(still) : null, clipUrl: clip ? resolve(clip) : null,
       ownStill: own.still || '', ownClip: own.clip || '', label: base.label || key };
   }
-  /* A picture pinned to one slide wins over everything else. A video
-     link counts as a clip; anything else is treated as a still. */
-  function beatAsset(beatId) {
-    var v = overrides.beats[beatId];
-    if (!v) { return null; }
+  /* A picture pinned to a slide wins over everything else. A video link
+     counts as a clip; anything else is treated as a still. */
+  function assetFromRef(v) {
     var src = resolve(v);
     if (!src) { return null; }
     var f = fileInfo(v);
-    return { kind: f ? f.kind : (/\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still'), src: src };
+    return {
+      kind: f ? f.kind : (/\.(mp4|webm|mov)(\?|$)/i.test(v) ? 'clip' : 'still'),
+      src: src, ref: v,
+      name: f ? (f.name || 'uploaded file') : v.replace(/[?#].*$/, '').replace(/^.*\//, '').slice(0, 44) || v
+    };
   }
+  function beatAssets(beatId) {
+    return beatList(beatId).map(assetFromRef).filter(Boolean);
+  }
+  function beatAsset(beatId) { return beatAssets(beatId)[0] || null; }
 
   function assetFor(careerOrKey, prefer) {
     var entry;
@@ -6105,11 +6156,11 @@ body.st-on { overflow: hidden; }
   }
   function fileInfo(v) { return /^file:/.test(v || '') ? (files[v.slice(5)] || null) : null; }
 
-  /* Store a chosen file against a slot and point the override at it.
-     scope 'beats' uses key as the beat id; otherwise scope|key|field. */
+  /* Store a chosen file against a library slot and point the override
+     at it. Slides use addBeatFile instead, since they hold a list. */
   function setFile(scope, key, field, file) {
-    var id = scope === 'beats' ? ('beat|' + key) : (scope + '|' + key + '|' + field);
-    var prev = scope === 'beats' ? overrides.beats[key] : ((overrides[scope][key] || {})[field]);
+    var id = scope + '|' + key + '|' + field;
+    var prev = (overrides[scope][key] || {})[field];
     var p = putFile(id, file).then(function (ref) { setOverride(scope, key, field, ref); return ref; });
     if (prev && /^file:/.test(prev) && prev.slice(5) !== id) { removeFile(prev.slice(5)); }
     return p;
@@ -6196,6 +6247,12 @@ body.st-on { overflow: hidden; }
     setOverride: setOverride,
     setFile: setFile,
     fileInfo: fileInfo,
+    beatList: beatList,
+    beatAssets: beatAssets,
+    addBeatMedia: addBeatMedia,
+    addBeatFile: addBeatFile,
+    removeBeatMedia: removeBeatMedia,
+    clearBeatMedia: clearBeatMedia,
     libraryEntry: libraryEntry,
     beatAsset: beatAsset,
     get manifest() { return manifest; }
@@ -7972,6 +8029,8 @@ body.st-on { overflow: hidden; }
   var overlay = null;
   var bgLayer = null;
   var featureLayer = null;
+  var mediaIdx = 0;        /* which of the slide's pictures is showing */
+  var bgCycles = false;    /* the background is playing that same list */
   var recDeclined = false;    /* they cancelled the share picker: Space plays without recording */
   var armingRec = false;
   var recTimer = null;
@@ -7994,7 +8053,10 @@ body.st-on { overflow: hidden; }
     split: { camHeight: 62, camWidth: 26, align: 'center' },
     /* Per-slide layout overrides, keyed by beat id, so a format
        decision made once holds for every episode. */
-    beatOpts: {}
+    beatOpts: {},
+    /* How long one picture, and one clip, hold the screen before the
+       next takes over. A slide's list repeats until its script is read. */
+    media: { imageHold: 5, clipHold: 10 }
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -8008,6 +8070,7 @@ body.st-on { overflow: hidden; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
       if (p.beatOpts) { prefs.beatOpts = p.beatOpts; }
+      if (p.media) { Object.assign(prefs.media, p.media); }
       /* The single layout dropdown this replaced bundled three separate
          choices into one. Unpack an older setting rather than losing it. */
       if (p.beatLayout) {
@@ -8104,10 +8167,8 @@ body.st-on { overflow: hidden; }
       ['main', 'Instead of the chart'], ['fill', 'Fills the frame'], ['none', 'Not shown']]]
   ];
 
-  /* One picture or clip, ready to drop into a slide. */
+  /* One picture or clip. */
   function mediaNode(asset) {
-    var box = document.createElement('div');
-    box.className = 'st-mediabox';
     var el;
     if (asset.kind === 'clip') {
       el = document.createElement('video');
@@ -8117,29 +8178,89 @@ body.st-on { overflow: hidden; }
       el.alt = '';
     }
     el.setAttribute('aria-hidden', 'true');
-    el.addEventListener('error', function () { box.remove(); });
     el.src = asset.src;
-    box.appendChild(el);
     if (el.play) {
       var pr = el.play();
       if (pr && pr.catch) { pr.catch(function () { /* autoplay refusal is not a failure */ }); }
     }
-    return box;
+    return el;
   }
 
-  /* The full-frame layer. Rebuilt only when the source changes, so a
-     looping clip is not restarted by every redraw that passes through. */
+  /* A place on the slide where pictures play, with two slots so one can
+     fade up as the last fades out. The host carries the size, so a
+     picture of a different shape never makes the words jump. */
+  function mediaHost(kind) {
+    var host = document.createElement('div');
+    host.className = 'st-mediahost as-' + kind;
+    host.innerHTML = '<div class="st-mediaslot"></div><div class="st-mediaslot"></div>';
+    host.dataset.slot = 'b';
+    return host;
+  }
+  function showInHost(host, asset) {
+    if (!host || !asset) { return; }
+    if (host.dataset.src === asset.src) { return; }
+    host.dataset.src = asset.src;
+    var slots = host.querySelectorAll('.st-mediaslot');
+    var next = host.dataset.slot === 'a' ? 1 : 0;
+    host.dataset.slot = next ? 'b' : 'a';
+    var incoming = slots[next], outgoing = slots[next ? 0 : 1];
+    incoming.innerHTML = '';
+    var el = mediaNode(asset);
+    el.addEventListener('error', function () { incoming.classList.remove('on'); });
+    incoming.appendChild(el);
+    incoming.classList.add('on');
+    outgoing.classList.remove('on');
+  }
+
+  /* How long each item in a slide's list holds the screen. */
+  function holdFor(asset) {
+    return asset.kind === 'clip' ? (prefs.media.clipHold || 10) : (prefs.media.imageHold || 5);
+  }
+  /* Which item should be showing this far into the slide. The list
+     repeats, so a short list still covers a long section. */
+  function mediaIndexAt(list, elapsed) {
+    if (list.length < 2) { return 0; }
+    var t = 0, i = 0;
+    while (i < 500) {
+      t += holdFor(list[i % list.length]);
+      if (elapsed < t) { return i % list.length; }
+      i++;
+    }
+    return 0;
+  }
+  function beatCoverage(list) {
+    return list.reduce(function (t, a) { return t + holdFor(a); }, 0);
+  }
+
+  /* Walk every place on this slide that plays pictures on to the item
+     the clock has reached. Only the picture changes; the chart, the
+     headline and the numbers are left alone. */
+  function cycleMedia() {
+    if (!overlay || !script) { return; }
+    var b = beat();
+    if (!b) { return; }
+    var list = BCB.media.beatAssets(b.id);
+    if (list.length < 2) { return; }
+    var i = mediaIndexAt(list, Math.max(0, b.seconds - remaining));
+    if (i === mediaIdx) { return; }
+    mediaIdx = i;
+    Array.prototype.forEach.call(overlay.querySelectorAll('.st-mediahost[data-cycles]'), function (h) {
+      showInHost(h, list[i]);
+    });
+    if (bgCycles) { paintBackground(); }
+  }
+
+  /* The full-frame layer. */
   function paintFeature(lay, b) {
     if (!featureLayer) { return; }
-    var asset = lay === 'fill' ? BCB.media.beatAsset(b.id) : null;
-    if (!asset) {
-      if (featureLayer.dataset.src) { featureLayer.innerHTML = ''; delete featureLayer.dataset.src; }
-      return;
-    }
-    if (featureLayer.dataset.src === asset.src) { return; }
-    featureLayer.dataset.src = asset.src;
     featureLayer.innerHTML = '';
-    featureLayer.appendChild(mediaNode(asset));
+    if (lay !== 'fill') { return; }
+    var list = BCB.media.beatAssets(b.id);
+    if (!list.length) { return; }
+    var host = mediaHost('feature');
+    if (list.length > 1) { host.dataset.cycles = '1'; }
+    featureLayer.appendChild(host);
+    showInHost(host, list[Math.min(mediaIdx, list.length - 1)]);
   }
 
   /* =====================================================================
@@ -8208,7 +8329,11 @@ body.st-on { overflow: hidden; }
     wrap.className = 'st-visual';
 
     if (fgFor(b) === 'main') {
-      wrap.appendChild(mediaNode(BCB.media.beatAsset(b.id)));
+      var mine = BCB.media.beatAssets(b.id);
+      var mhost = mediaHost('main');
+      if (mine.length > 1) { mhost.dataset.cycles = '1'; }
+      showInHost(mhost, mine[Math.min(mediaIdx, mine.length - 1)]);
+      wrap.appendChild(mhost);
       wrap.classList.add('wide', 'st-mediaonly');
       return wrap;
     }
@@ -8660,7 +8785,8 @@ body.st-on { overflow: hidden; }
        is for the slides that are otherwise only type and a few numbers. */
     if (fg !== 'card' && prefs.mode === 'one' && !ONE_INSET[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
-    var asset = BCB.media.beatAsset(b.id);
+    var own = BCB.media.beatAssets(b.id);
+    var asset = own[Math.min(mediaIdx, own.length - 1)] || null;
     if (asset) { /* pinned to this slide */ }
     else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'still'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'still'); }
@@ -8673,15 +8799,12 @@ body.st-on { overflow: hidden; }
       asset = BCB.media.assetFor(which.career, 'still');
     }
     if (!asset) { return null; }
-    var fig = document.createElement('div');
-    fig.className = 'st-inset';
-    var img = document.createElement('img');
-    img.alt = '';
-    img.setAttribute('aria-hidden', 'true');
-    img.addEventListener('error', function () { fig.remove(); });
-    img.src = asset.src;
-    fig.appendChild(img);
-    return fig;
+    var host = mediaHost('inset');
+    /* Only a list the slide owns cycles; a career photograph is one
+       picture and stays put. */
+    if (own.length > 1) { host.dataset.cycles = '1'; }
+    showInHost(host, asset);
+    return host;
   }
 
   var ONE_INSET = { setup: 1, education: 1, business: 1, dependency: 1, hours: 1, freedom: 1,
@@ -8690,6 +8813,7 @@ body.st-on { overflow: hidden; }
     if (!overlay) { return; }
     var b = beat();
     if (!b) { return; }
+    mediaIdx = 0;
     var fg = fgFor(b);
     overlay.classList.toggle('lay-fill', fg === 'fill');
     overlay.classList.toggle('lay-main', fg === 'main');
@@ -8735,7 +8859,9 @@ body.st-on { overflow: hidden; }
     }
     /* 'career' keeps the library photograph behind the slide even when
        this slide has its own picture playing somewhere in front. */
-    var asset = bgFor(b) === 'career' ? null : BCB.media.beatAsset(b.id);
+    var own = bgFor(b) === 'career' ? [] : BCB.media.beatAssets(b.id);
+    bgCycles = own.length > 1;
+    var asset = own[Math.min(mediaIdx, own.length - 1)] || null;
 
     if (asset) { /* pinned to this slide on the Studio tab */ }
     else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
@@ -8788,6 +8914,7 @@ body.st-on { overflow: hidden; }
     ticker = setInterval(function () {
       remaining -= 0.25;
       tickClock();
+      cycleMedia();
       scrollPrompter();
       if (remaining <= 0) {
         if (!prefs.autoAdvance) { remaining = 0; return; }
@@ -9011,22 +9138,73 @@ body.st-on { overflow: hidden; }
           '</div></div>';
       }).join('') +
       '</div>' +
+      '<div class="field-row" style="margin-top:14px">' +
+      '<div class="field"><label for="holdPic">Hold each picture</label>' +
+      '<input type="number" id="holdPic" min="2" max="30" step="1" value="' + prefs.media.imageHold + '">' +
+      '<div class="hint">Seconds before the next one takes over. Around five keeps a viewer with you.</div></div>' +
+      '<div class="field"><label for="holdClip">Hold each clip</label>' +
+      '<input type="number" id="holdClip" min="3" max="60" step="1" value="' + prefs.media.clipHold + '">' +
+      '<div class="hint">Seconds. A clip carries its own movement, so it can hold longer than a still.</div></div>' +
+      '</div>' +
       '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box or press Remove to go back to the library. ' +
       'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
       'Files and links are kept in this browser only: a different computer, or a cleared browser, starts from the library again.</p>';
   }
 
+  function beatById(id) {
+    if (!script) { return null; }
+    for (var i = 0; i < script.beats.length; i++) {
+      if (script.beats[i].id === id) { return script.beats[i]; }
+    }
+    return null;
+  }
+  /* A chart or a table is the slide; pictures play behind it rather
+     than taking its place. */
+  function isCharty(b) {
+    var HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1 };
+    return !!b && (b.kind.indexOf('chart:') === 0 || HEAVY[b.kind]);
+  }
+  /* What this slide's list covers against what the script needs. */
+  function coverageHint(b, list) {
+    if (!b) { return ''; }
+    var pic = prefs.media.imageHold || 5, clip = prefs.media.clipHold || 10;
+    var tail = isCharty(b) ? ' On this slide they play behind the chart rather than in place of it.' : '';
+    if (!list.length) {
+      return b.seconds + 's of script. About ' + Math.ceil(b.seconds / pic) + ' pictures, or ' +
+        Math.ceil(b.seconds / clip) + ' clips, would fill it.' + tail;
+    }
+    var covers = beatCoverage(list);
+    var pics = list.filter(function (a) { return a.kind !== 'clip'; }).length;
+    var clips = list.length - pics;
+    var have = pics + (pics === 1 ? ' picture' : ' pictures') +
+      (clips ? ' and ' + clips + (clips === 1 ? ' clip' : ' clips') : '');
+    if (covers >= b.seconds) {
+      return b.seconds + 's of script, ' + have + ' covering ' + covers + 's. Filled.' + tail;
+    }
+    return b.seconds + 's of script, ' + have + ' covering ' + covers + 's. ' +
+      Math.ceil((b.seconds - covers) / pic) + ' more would reach the end; otherwise the list starts over.' + tail;
+  }
+
   function beatPicMarkup(id) {
-    var own = BCB.media.overrides.beats[id] || '';
-    var f = BCB.media.fileInfo(own) || (/^file:/.test(own) ? { name: 'uploaded file', size: 0 } : null);
-    return '<div class="field beat-pic" style="margin-top:8px" data-beatslot="' + esc(id) + '"><label>Picture or clip for this slide</label>' +
+    var b = beatById(id);
+    var list = BCB.media.beatAssets(id);
+    return '<div class="field beat-pic" style="margin-top:8px" data-beatslot="' + esc(id) + '">' +
+      '<label>Pictures and clips for this slide</label>' +
+      (list.length
+        ? '<ol class="pic-list">' + list.map(function (a, i) {
+            return '<li class="pic-item"><span class="pic-kind ' + a.kind + '">' +
+              (a.kind === 'clip' ? 'clip' : 'still') + '</span>' +
+              '<span class="pic-file" title="' + esc(a.name) + '">' + esc(a.name) + '</span>' +
+              '<span class="pic-secs">' + holdFor(a) + 's</span>' +
+              '<button type="button" class="pic-x" data-beatdel="' + esc(id) + '|' + i +
+              '" title="Remove">&times;</button></li>';
+          }).join('') + '</ol>'
+        : '') +
       '<div class="pic-row">' +
-      (f
-        ? '<span class="pic-file" title="' + esc(f.name) + '">' + esc(f.name || 'uploaded file') + ' \u00b7 ' + fmtBytes(f.size) + '</span>' +
-          '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Remove</button>'
-        : '<input type="url" data-beatpic="' + esc(id) + '" placeholder="Paste an image or video link" value="' + esc(own) + '">') +
-      '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
-      '</div><div class="hint">Optional. Wins over the library for this one slide.</div>' +
+      '<input type="url" data-beatadd="' + esc(id) + '" placeholder="Paste a picture or clip link">' +
+      '<label class="btn btn-o btn-sm pic-upload">Add files<input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
+      (list.length ? '<button type="button" class="btn btn-o btn-sm" data-beatclear="' + esc(id) + '">Clear</button>' : '') +
+      '</div><div class="hint">' + esc(coverageHint(b, list)) + '</div>' +
       '<div class="beat-opts">' +
       SLIDE_OPTS.map(function (o) {
         var cur = (prefs.beatOpts[id] || {})[o[0]] || '';
@@ -9037,7 +9215,12 @@ body.st-on { overflow: hidden; }
           }).join('') + '</select></div>';
       }).join('') +
       '</div><div class="hint">Hide the camera and the slide fills the screen on its own. The picture settings ' +
-      'need a picture or clip above; without one the slide keeps its normal layout.</div></div>';
+      'need at least one picture above; without one the slide keeps its normal layout.</div></div>';
+  }
+  function redrawBeatSlot(id) {
+    var slot = document.querySelector('[data-beatslot="' + id + '"]');
+    if (slot) { slot.outerHTML = beatPicMarkup(id); }
+    if (overlay) { renderStage(); }
   }
   function refreshPicSlot(scope, key) {
     /* Redraw one library slot in place rather than the whole card. */
@@ -9635,14 +9818,21 @@ body.st-on { overflow: hidden; }
       return;
     }
     if (t.dataset && t.dataset.beatfile && ev.type === 'change') {
-      var bfile = t.files && t.files[0];
-      if (!bfile) { return; }
+      var bfiles = Array.prototype.slice.call(t.files || []);
+      if (!bfiles.length) { return; }
       var bid = t.dataset.beatfile;
-      BCB.media.setFile('beats', bid, null, bfile).then(function () {
-        var slot = document.querySelector('[data-beatslot="' + bid + '"]');
-        if (slot) { slot.outerHTML = beatPicMarkup(bid); }
-        if (overlay) { renderStage(); }
-      });
+      /* One at a time and in order, so the list reads the way they were
+         chosen rather than the order the writes happened to finish. */
+      bfiles.reduce(function (chain, f) {
+        return chain.then(function () { return BCB.media.addBeatFile(bid, f); });
+      }, Promise.resolve()).then(function () { redrawBeatSlot(bid); });
+      return;
+    }
+    var bdel = t.closest && t.closest('[data-beatdel]');
+    if (bdel && ev.type === 'click') {
+      var dparts = bdel.dataset.beatdel.split('|');
+      BCB.media.removeBeatMedia(dparts[0], +dparts[1]);
+      redrawBeatSlot(dparts[0]);
       return;
     }
     var clearBtn = t.closest && t.closest('[data-picclear]');
@@ -9655,11 +9845,8 @@ body.st-on { overflow: hidden; }
     }
     var bclear = t.closest && t.closest('[data-beatclear]');
     if (bclear && ev.type === 'click') {
-      var cid = bclear.dataset.beatclear;
-      BCB.media.setOverride('beats', cid, null, '');
-      var bslot = document.querySelector('[data-beatslot="' + cid + '"]');
-      if (bslot) { bslot.outerHTML = beatPicMarkup(cid); }
-      if (overlay) { renderStage(); }
+      BCB.media.clearBeatMedia(bclear.dataset.beatclear);
+      redrawBeatSlot(bclear.dataset.beatclear);
       return;
     }
     if (t.dataset && t.dataset.pic && ev.type === 'change') {
@@ -9684,8 +9871,22 @@ body.st-on { overflow: hidden; }
       if (overlay) { renderStage(); }
       return;
     }
-    if (t.dataset && t.dataset.beatpic && ev.type === 'change') {
-      BCB.media.setOverride('beats', t.dataset.beatpic, null, t.value);
+    if (t.dataset && t.dataset.beatadd && ev.type === 'change') {
+      if (BCB.media.addBeatMedia(t.dataset.beatadd, t.value)) {
+        t.value = '';
+        redrawBeatSlot(t.dataset.beatadd);
+      }
+      return;
+    }
+    if ((t.id === 'holdPic' || t.id === 'holdClip') && ev.type === 'input') {
+      var hv = parseFloat(t.value);
+      if (!isFinite(hv) || hv < 1) { return; }
+      prefs.media[t.id === 'holdPic' ? 'imageHold' : 'clipHold'] = hv;
+      savePrefs();
+      /* Every slide's coverage line depends on these two numbers. */
+      Array.prototype.forEach.call(document.querySelectorAll('[data-beatslot]'), function (el) {
+        el.outerHTML = beatPicMarkup(el.dataset.beatslot);
+      });
       if (overlay) { renderStage(); }
       return;
     }
