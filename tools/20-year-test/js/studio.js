@@ -56,7 +56,7 @@
     split: { camHeight: 62, camWidth: 26, align: 'center' },
     /* Per-slide layout overrides, keyed by beat id, so a format
        decision made once holds for every episode. */
-    beatLayout: {}
+    beatOpts: {}
   };
   var PREF_KEY = 'bcb-20-year-test-v1-studio';
   try {
@@ -69,7 +69,16 @@
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
-      if (p.beatLayout) { prefs.beatLayout = p.beatLayout; }
+      if (p.beatOpts) { prefs.beatOpts = p.beatOpts; }
+      /* The single layout dropdown this replaced bundled three separate
+         choices into one. Unpack an older setting rather than losing it. */
+      if (p.beatLayout) {
+        var MIG = { full: { fg: 'fill', cam: 'off' }, fullcam: { fg: 'fill', cam: 'on' }, media: { fg: 'main' } };
+        Object.keys(p.beatLayout).forEach(function (k) {
+          var m = MIG[p.beatLayout[k]];
+          if (m && !prefs.beatOpts[k]) { prefs.beatOpts[k] = Object.assign({}, m); }
+        });
+      }
       prefs.cam.wanted = !!(p.cam && (p.cam.wanted || p.cam.on));
       prefs.cam.on = false;   /* never auto-open the camera on load */
     }
@@ -131,17 +140,30 @@
      layouts is about that pinned media, so a slide without any falls
      back to the studio's normal layout rather than cutting to black.
      ===================================================================== */
-  function layoutFor(b) {
-    if (!b) { return ''; }
-    var v = prefs.beatLayout[b.id] || '';
-    if (!v) { return ''; }
+  function optsFor(b) { return (b && prefs.beatOpts[b.id]) || {}; }
+
+  /* Where this slide's own picture plays. Every setting here is about
+     that picture, so a slide without one falls back to the studio's
+     normal layout rather than cutting to black. */
+  function fgFor(b) {
+    var v = optsFor(b).fg || '';
+    if (!v || v === 'none') { return v; }
     return BCB.media.beatAsset(b.id) ? v : '';
   }
-  var LAYOUTS = [
-    ['', 'Default for this studio'],
-    ['full', 'Fills the frame, nothing else'],
-    ['fullcam', 'Fills the frame, camera over the top'],
-    ['media', 'Is the slide, with the title and camera']
+  function bgFor(b) { return optsFor(b).bg || ''; }
+  function camFor(b) {
+    var v = optsFor(b).cam;
+    if (v) { return v; }
+    /* A picture filling the frame is the whole slide, so the camera sits
+       it out unless you ask for it back. */
+    return fgFor(b) === 'fill' ? 'off' : '';
+  }
+
+  var SLIDE_OPTS = [
+    ['cam', 'Camera', [['', 'Default'], ['on', 'Show it'], ['off', 'Hide it']]],
+    ['bg', 'Background', [['', 'Default'], ['career', 'Career picture'], ['none', 'Plain, no picture']]],
+    ['fg', 'This slide\u2019s picture', [['', 'Default'], ['card', 'Above the words'],
+      ['main', 'Instead of the chart'], ['fill', 'Fills the frame'], ['none', 'Not shown']]]
   ];
 
   /* One picture or clip, ready to drop into a slide. */
@@ -171,7 +193,7 @@
      looping clip is not restarted by every redraw that passes through. */
   function paintFeature(lay, b) {
     if (!featureLayer) { return; }
-    var asset = (lay === 'full' || lay === 'fullcam') ? BCB.media.beatAsset(b.id) : null;
+    var asset = lay === 'fill' ? BCB.media.beatAsset(b.id) : null;
     if (!asset) {
       if (featureLayer.dataset.src) { featureLayer.innerHTML = ''; delete featureLayer.dataset.src; }
       return;
@@ -247,7 +269,7 @@
     var wrap = document.createElement('div');
     wrap.className = 'st-visual';
 
-    if (layoutFor(b) === 'media') {
+    if (fgFor(b) === 'main') {
       wrap.appendChild(mediaNode(BCB.media.beatAsset(b.id)));
       wrap.classList.add('wide', 'st-mediaonly');
       return wrap;
@@ -690,12 +712,15 @@
      carry their own visual keep it; the rest get the career photograph
      as an inset card above the words. */
   function insetFor(b) {
-    if (layoutFor(b)) { return null; }   /* the media is the slide already */
+    var fg = fgFor(b);
+    /* 'card' asks for the inset in every studio; the rest either place
+       the picture elsewhere or take it off the slide entirely. */
+    if (fg === 'none' || fg === 'fill' || fg === 'main') { return null; }
     var VISUAL_HEAVY = { radar: 1, columns: 1, scores: 1, categories: 1, scenarios: 1, compound: 1, versus: 1, close: 1 };
     if (b.kind.indexOf('chart:') === 0 || VISUAL_HEAVY[b.kind]) { return null; }
     /* Studio One carries the picture as the background; an inset there
        is for the slides that are otherwise only type and a few numbers. */
-    if (prefs.mode === 'one' && !ONE_INSET[b.kind]) { return null; }
+    if (fg !== 'card' && prefs.mode === 'one' && !ONE_INSET[b.kind]) { return null; }
     var sim = BCB.app.getLast().sim;
     var asset = BCB.media.beatAsset(b.id);
     if (asset) { /* pinned to this slide */ }
@@ -727,11 +752,11 @@
     if (!overlay) { return; }
     var b = beat();
     if (!b) { return; }
-    var lay = layoutFor(b);
-    overlay.classList.toggle('lay-full', lay === 'full');
-    overlay.classList.toggle('lay-fullcam', lay === 'fullcam');
-    overlay.classList.toggle('lay-media', lay === 'media');
-    paintFeature(lay, b);
+    var fg = fgFor(b);
+    overlay.classList.toggle('lay-fill', fg === 'fill');
+    overlay.classList.toggle('lay-main', fg === 'main');
+    overlay.classList.toggle('no-cam', camFor(b) === 'off');
+    paintFeature(fg, b);
     mountCam();      /* a feature slide takes the camera away and gives it back */
     overlay.classList.toggle('chart', b.kind.indexOf('chart:') === 0 || b.kind === 'radar');
     overlay.querySelector('#stKick').textContent = b.kicker || '';
@@ -765,7 +790,14 @@
     if (!b) { return; }
     var L = BCB.app.getLast(), sim = L.sim;
     var reduce = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var asset = BCB.media.beatAsset(b.id);
+    /* A picture filling the frame already is the background. */
+    if (bgFor(b) === 'none' || fgFor(b) === 'fill') {
+      BCB.media.setBackground(bgLayer, null, 0, reduce);
+      return;
+    }
+    /* 'career' keeps the library photograph behind the slide even when
+       this slide has its own picture playing somewhere in front. */
+    var asset = bgFor(b) === 'career' ? null : BCB.media.beatAsset(b.id);
 
     if (asset) { /* pinned to this slide on the Studio tab */ }
     else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
@@ -1057,14 +1089,17 @@
         : '<input type="url" data-beatpic="' + esc(id) + '" placeholder="Paste an image or video link" value="' + esc(own) + '">') +
       '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" data-beatfile="' + esc(id) + '" hidden></label>' +
       '</div><div class="hint">Optional. Wins over the library for this one slide.</div>' +
-      '<div class="field" style="margin-top:8px"><label for="lay-' + esc(id) + '">Layout for this slide</label>' +
-      '<select id="lay-' + esc(id) + '" data-beatlayout="' + esc(id) + '">' +
-      LAYOUTS.map(function (o) {
-        return '<option value="' + o[0] + '"' + ((prefs.beatLayout[id] || '') === o[0] ? ' selected' : '') +
-          '>' + esc(o[1]) + '</option>';
+      '<div class="beat-opts">' +
+      SLIDE_OPTS.map(function (o) {
+        var cur = (prefs.beatOpts[id] || {})[o[0]] || '';
+        return '<div class="field"><label for="' + o[0] + '-' + esc(id) + '">' + esc(o[1]) + '</label>' +
+          '<select id="' + o[0] + '-' + esc(id) + '" data-beatopt="' + o[0] + '|' + esc(id) + '">' +
+          o[2].map(function (v) {
+            return '<option value="' + v[0] + '"' + (cur === v[0] ? ' selected' : '') + '>' + esc(v[1]) + '</option>';
+          }).join('') + '</select></div>';
       }).join('') +
-      '</select><div class="hint">Needs a picture or clip above. Without one the slide keeps the studio\u2019s ' +
-      'normal layout.</div></div></div>';
+      '</div><div class="hint">Hide the camera and the slide fills the screen on its own. The picture settings ' +
+      'need a picture or clip above; without one the slide keeps its normal layout.</div></div>';
   }
   function refreshPicSlot(scope, key) {
     /* Redraw one library slot in place rather than the whole card. */
@@ -1141,7 +1176,7 @@
     var ghost = placeholderNode();
     if (ghost.parentNode) { ghost.remove(); }
     /* A feature slide is the picture and nothing else. */
-    if (overlay && layoutFor(beat()) === 'full') {
+    if (overlay && camFor(beat()) === 'off') {
       if (w.parentNode) { w.remove(); }
       return;
     }
@@ -1580,6 +1615,10 @@
           '<div class="hint">One line per sentence. Blank lines are ignored.</div>' +
           beatPicMarkup(b.id) + '</details>';
       }).join('') +
+      '<div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:12px">' +
+        '<button class="btn btn-o btn-sm" data-st="camoff">Hide the camera on every slide</button>' +
+        '<button class="btn btn-o btn-sm" data-st="slidereset">Reset every slide to the studio default</button>' +
+      '</div>' +
       '<button class="btn btn-o btn-sm" data-st="reshuffle" style="margin-top:10px">Reshuffle the wording</button>' +
       '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
       '<span class="hint" style="margin-left:10px;color:var(--muted)">Both discard your edits. Reshuffle keeps the facts and ' +
@@ -1621,6 +1660,17 @@
       else if (btn.dataset.mode) { /* handled below */ }
       else if (act === 'prompter') { openPrompter(); }
       else if (act === 'cam') { toggleCam(); }
+      else if (act === 'camoff') {
+        script.beats.forEach(function (bb) {
+          var slot = prefs.beatOpts[bb.id] || (prefs.beatOpts[bb.id] = {});
+          slot.cam = 'off';
+        });
+        savePrefs(); renderStudio(); if (overlay) { renderStage(); }
+      }
+      else if (act === 'slidereset') {
+        prefs.beatOpts = {};
+        savePrefs(); renderStudio(); if (overlay) { renderStage(); }
+      }
       else if (act === 'regen') { script = null; build(); renderStudio(); renderPrompter(); }
       else if (act === 'reshuffle') {
         var st = BCB.app.getState();
@@ -1687,9 +1737,11 @@
       if (overlay) { renderStage(); }
       return;
     }
-    if (t.dataset && t.dataset.beatlayout != null && ev.type === 'change') {
-      if (t.value) { prefs.beatLayout[t.dataset.beatlayout] = t.value; }
-      else { delete prefs.beatLayout[t.dataset.beatlayout]; }
+    if (t.dataset && t.dataset.beatopt && ev.type === 'change') {
+      var parts = t.dataset.beatopt.split('|'), key = parts[0], bid = parts[1];
+      var slot = prefs.beatOpts[bid] || (prefs.beatOpts[bid] = {});
+      if (t.value) { slot[key] = t.value; } else { delete slot[key]; }
+      if (!Object.keys(slot).length) { delete prefs.beatOpts[bid]; }
       savePrefs();
       if (overlay) { renderStage(); }
       return;
