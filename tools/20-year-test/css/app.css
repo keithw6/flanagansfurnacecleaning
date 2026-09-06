@@ -594,6 +594,13 @@ body.st-on { overflow: hidden; }
   text-transform: uppercase; font-size: .74rem; letter-spacing: .06em; padding: 6px 12px; border-radius: 16px;
   cursor: pointer; flex: none; }
 .st-take button:hover { background: #33373d; }
+/* A capture that has stopped sending pictures. Loud, central and it does
+   not hide with the controls, because the whole take is being lost. */
+.st-alarm { position: fixed; left: 50%; top: 8vh; transform: translateX(-50%); z-index: 99;
+  max-width: min(90vw, 640px); background: rgba(120,26,20,.96); border: 1px solid #d03b3b;
+  border-radius: 8px; padding: 12px 18px; color: #fff; font-size: .92rem; line-height: 1.4;
+  box-shadow: 0 18px 44px rgba(0,0,0,.55); text-align: center; }
+.st-alarm[hidden] { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .st-progress i.now::after, .st-controls { transition: none; }

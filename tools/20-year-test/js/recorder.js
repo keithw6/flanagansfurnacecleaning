@@ -31,6 +31,10 @@
   var startedAt = 0;
   var canvas = null, raf = 0;
   var lastTake = null;     /* { blob, url, seconds, bytes, name, ext } */
+  var lastData = 0;        /* when the encoder last handed us anything */
+  var hadAudio = false;
+  var stallWatch = null;
+  var warnedStall = false;
   var listeners = [];
   var takeNo = 0;
 
@@ -39,7 +43,8 @@
     includeMic: true,
     micDeviceId: '',
     fps: 30,
-    bitrate: 10            /* Mbps */
+    bitrate: 10,           /* Mbps */
+    format: 'auto'         /* auto | mp4 | webm */
   };
   var KEY = 'bcb-20-year-test-v1-recorder';
   try {
@@ -58,22 +63,34 @@
      H.264 MP4 on most platforms now; WebM is the universal fallback and
      YouTube takes it directly. */
   function pickMime() {
-    /* A bare "video/mp4" can come back as VP9 inside an MP4 box, which
-       YouTube accepts and some editors do not, so it ranks below WebM. */
-    var candidates = [
-      ['video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'mp4'],
-      ['video/mp4;codecs="avc1.42E01E,opus"', 'mp4'],
-      ['video/webm;codecs=vp9,opus', 'webm'],
-      ['video/webm;codecs=vp8,opus', 'webm'],
-      ['video/mp4', 'mp4'],
-      ['video/webm', 'webm']
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      try { if (MediaRecorder.isTypeSupported(candidates[i][0])) { return { mime: candidates[i][0], ext: candidates[i][1] }; } }
+    var pick = prefs.format === 'webm' ? firstOf(WEBM)
+      : prefs.format === 'mp4' ? (firstOf(MP4_ANY) || firstOf(WEBM))
+      : firstOf(MP4.concat(WEBM));
+    /* Nothing on the list: let the browser choose and take what it gives. */
+    return pick || { mime: '', ext: 'webm' };
+  }
+  function firstOf(list) {
+    for (var i = 0; i < list.length; i++) {
+      try { if (MediaRecorder.isTypeSupported(list[i][0])) { return { mime: list[i][0], ext: list[i][1] }; } }
       catch (e) { /* keep looking */ }
     }
-    return { mime: '', ext: 'webm' };
+    return null;
   }
+  /* Asking for MP4 without naming the codec can hand back VP9 inside an
+     MP4 box. It carries the .mp4 name an editor trusts and then will not
+     open, so it is never chosen on our own initiative - only when MP4 is
+     asked for outright, where a container that plays somewhere beats one
+     that does not exist. */
+  var MP4 = [
+    ['video/mp4;codecs="avc1.42E01E,mp4a.40.2"', 'mp4'],
+    ['video/mp4;codecs="avc1.42E01E,opus"', 'mp4']
+  ];
+  var MP4_ANY = MP4.concat([['video/mp4', 'mp4']]);
+  var WEBM = [
+    ['video/webm;codecs=vp9,opus', 'webm'],
+    ['video/webm;codecs=vp8,opus', 'webm'],
+    ['video/webm', 'webm']
+  ];
 
   /* Ask for the screen once, ahead of the take, so the picker does not
      appear on top of the first slide. Resolves true if armed. */
@@ -94,7 +111,17 @@
       display = stream;
       /* If they stop sharing from the browser's own bar, end the take. */
       var vt = stream.getVideoTracks()[0];
-      if (vt) { vt.addEventListener('ended', function () { if (recorder) { stop(); } display = null; emit('disarmed'); }); }
+      if (vt) {
+        vt.addEventListener('ended', function () { if (recorder) { stop(); } display = null; emit('disarmed'); });
+        /* A tab or window capture goes muted when the surface stops being
+           drawn - minimised, covered, moved to another desktop. The take
+           keeps running and records nothing, which is exactly the failure
+           worth shouting about rather than discovering hours later. */
+        vt.addEventListener('mute', function () {
+          if (recorder) { emit('stall', 'The screen being captured stopped sending pictures. Bring that window back to the front.'); }
+        });
+        vt.addEventListener('unmute', function () { if (recorder) { emit('resumed'); } });
+      }
       emit('armed', trackInfo());
       return true;
     }).catch(function (err) {
@@ -181,11 +208,22 @@
           if (recorder.mimeType) { m = { mime: recorder.mimeType, ext: /mp4/.test(recorder.mimeType) ? 'mp4' : 'webm' }; }
           chunks = [];
           takeNo++;
+          hadAudio = !!(micStream && micStream.getAudioTracks().length);
+          lastData = Date.now();
+          warnedStall = false;
           recorder.__ext = m.ext;
-          recorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) { chunks.push(ev.data); } };
+          recorder.ondataavailable = function (ev) {
+            lastData = Date.now();
+            if (ev.data && ev.data.size) { chunks.push(ev.data); }
+          };
           recorder.onstop = function () { finish(); };
           recorder.onerror = function (ev) { emit('error', 'Recording error: ' + (ev.error && ev.error.message ? ev.error.message : 'unknown')); };
-          recorder.start(1000);        /* a chunk a second - a crash loses one second, not the take */
+          /* WebM is built to be flushed on an interval, so a crash costs a
+             second rather than the take. The MP4 muxer is not, and asking
+             it to flush has produced files holding a fraction of what was
+             recorded, so that one is written in one piece at the end. */
+          if (m.ext === 'mp4') { recorder.start(); } else { recorder.start(1000); }
+          watchForStall(videoTrack);
           startedAt = Date.now();
           emit('start', { take: takeNo, mime: m.mime, ext: m.ext, info: trackInfo() });
           return true;
@@ -203,15 +241,58 @@
     });
   }
 
+  /* Two ways a take can be silently empty: the source stops drawing, or
+     the encoder stops handing anything back. Both are checked while the
+     take runs, so it is caught in seconds rather than at the end. */
+  function watchForStall(track) {
+    clearInterval(stallWatch);
+    stallWatch = setInterval(function () {
+      if (!recorder) { clearInterval(stallWatch); stallWatch = null; return; }
+      if (warnedStall) { return; }
+      var dead = track && (track.readyState !== 'live' || track.muted);
+      var quiet = recorder.__ext !== 'mp4' && Date.now() - lastData > 8000;
+      if (dead || quiet) {
+        warnedStall = true;
+        emit('stall', dead
+          ? 'The screen being captured stopped sending pictures. Bring that window back to the front.'
+          : 'Nothing has been written for several seconds. The take may be recording an empty picture.');
+      }
+    }, 2000);
+  }
+
   function stop() {
     if (!recorder) { return; }
     try { recorder.stop(); } catch (e) { finish(); }
+  }
+
+  /* How much video the file actually holds, which is not the same thing
+     as how long the take ran. */
+  function measure(blob) {
+    return new Promise(function (res) {
+      var v = document.createElement('video');
+      var url = URL.createObjectURL(blob);
+      var done = function (d) { try { URL.revokeObjectURL(url); } catch (e) { /* fine */ } res(d || 0); };
+      var t = setTimeout(function () { done(0); }, 4000);
+      v.preload = 'metadata';
+      v.onloadedmetadata = function () {
+        if (v.duration === Infinity || isNaN(v.duration)) {
+          /* Some containers only settle on a duration once seeked. */
+          v.ontimeupdate = function () { v.ontimeupdate = null; clearTimeout(t); done(v.duration); };
+          v.currentTime = 1e9;
+          return;
+        }
+        clearTimeout(t); done(v.duration);
+      };
+      v.onerror = function () { clearTimeout(t); done(0); };
+      v.src = url;
+    });
   }
 
   function finish() {
     var ext = (recorder && recorder.__ext) || 'webm';
     var seconds = (Date.now() - startedAt) / 1000;
     recorder = null;
+    clearInterval(stallWatch); stallWatch = null;
     if (raf) { global.cancelAnimationFrame(raf); raf = 0; }
     canvas = null;
     if (!chunks.length) { emit('stop', null); return; }
@@ -223,8 +304,21 @@
     var name = (opts_name() || '20-year-test') + '-take-' + takeNo + '-' +
       stamp.getFullYear() + pad(stamp.getMonth() + 1) + pad(stamp.getDate()) + '-' + pad(stamp.getHours()) + pad(stamp.getMinutes()) +
       '.' + ext;
-    lastTake = { blob: blob, url: URL.createObjectURL(blob), seconds: seconds, bytes: blob.size, name: name, ext: ext, take: takeNo };
+    lastTake = { blob: blob, url: URL.createObjectURL(blob), seconds: seconds, bytes: blob.size,
+      name: name, ext: ext, take: takeNo, audio: hadAudio, mediaSeconds: null };
     emit('stop', lastTake);
+    /* Then check what landed. A file far shorter than the take is the
+       failure worth naming, and it is invisible until someone plays it. */
+    measure(blob).then(function (d) {
+      if (!lastTake || lastTake.blob !== blob) { return; }
+      lastTake.mediaSeconds = d;
+      emit('measured', lastTake);
+      if (d > 0 && seconds > 5 && d < seconds * 0.8) {
+        emit('short', 'This take ran ' + Math.round(seconds) + ' seconds but the file holds only ' +
+          Math.round(d) + '. The screen being captured stopped sending pictures part way through.');
+      }
+      if (!hadAudio) { emit('warn', 'There is no sound in this take. The microphone was not recording.'); }
+    });
   }
   var nameFn = null;
   function opts_name() { return nameFn ? nameFn() : ''; }
