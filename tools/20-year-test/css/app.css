@@ -671,47 +671,6 @@ body.st-on { overflow: hidden; }
   .st-bg-art { transition: none; }
 }
 
-/* =====================================================================
-   PER-SLIDE LAYOUTS
-   A slide can hand its whole frame to the picture or clip pinned to it.
-   Every rule here is gated on a lay- class that only appears when a
-   slide has been set to one of these, so a slide left on Default is
-   reached by none of it and the three studios keep the layouts they had.
-   ===================================================================== */
-.st-feature { position: absolute; inset: 0; z-index: 2; display: none; background: #000; overflow: hidden; }
-.st-stage.lay-full .st-feature, .st-stage.lay-fullcam .st-feature { display: block; }
-.st-feature .st-mediabox { width: 100%; height: 100%; border-radius: 0; }
-.st-feature img, .st-feature video { width: 100%; height: 100%; object-fit: cover; display: block;
-  animation: bcbFade .5s ease-out both; }
-
-/* Nothing else on a feature slide. The prompter window still carries the
-   beat name, the clock and the position, so nothing is actually lost. */
-.st-stage.lay-full > .st-top, .st-stage.lay-full > .st-body, .st-stage.lay-full > .st-progress,
-.st-stage.lay-fullcam > .st-top, .st-stage.lay-fullcam > .st-body, .st-stage.lay-fullcam > .st-progress,
-.st-stage.lay-full .st-frame > .st-top, .st-stage.lay-full .st-frame > .st-body,
-.st-stage.lay-full .st-frame > .st-progress, .st-stage.lay-fullcam .st-frame > .st-top,
-.st-stage.lay-fullcam .st-frame > .st-body, .st-stage.lay-fullcam .st-frame > .st-progress { display: none; }
-.st-stage.lay-full .st-camcol { display: none; }
-/* Keeping the camera means lifting its column over the feature. */
-.st-stage.lay-fullcam .st-camcol { z-index: 3; }
-.st-stage.st-two.lay-fullcam > .st-camcol::before { background: none; }
-
-/* The picture as the slide's visual, with the headline and camera kept. */
-.st-mediabox { width: 100%; overflow: hidden; border-radius: 12px; line-height: 0;
-  background: #0b0c0d; border: 1px solid #2b2f35; }
-.st-mediabox img, .st-mediabox video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.st-stage .st-visual.st-mediaonly { justify-content: center; }
-.st-stage .st-visual.st-mediaonly .st-mediabox,
-.st-stage .st-visual.st-mediaonly .st-mediabox img,
-.st-stage .st-visual.st-mediaonly .st-mediabox video { max-height: 58vh; }
-.st-stage .st-visual.st-mediaonly .st-mediabox { animation: bcbFade .6s ease-out both; }
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-two .st-visual.st-mediaonly .st-mediabox video { max-height: 48vh; }
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox img,
-.st-stage.st-three .st-visual.st-mediaonly .st-mediabox video { max-height: 32vh; }
-
 /* ---------- the camera stand-in ---------- */
 .st-cam-ghost { display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; background: rgba(20,22,26,.55); color: #6d737b;
@@ -1083,3 +1042,80 @@ body.st-on { overflow: hidden; }
 .dia-three::after  { left: 8px; right: 8px; bottom: 8px; height: 42%; background: var(--line); }
 .st-modes { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 1000px) { .st-modes { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   PER-SLIDE LAYOUTS
+   A slide can hand its whole frame to the picture or clip pinned to it.
+   Every rule here is gated on a lay- class that only appears when a
+   slide has been set to one of these, so a slide left on Default is
+   reached by none of it and the three studios keep the layouts they had.
+   ===================================================================== */
+.st-feature { position: absolute; inset: 0; z-index: 2; display: none; background: #000; overflow: hidden; }
+.st-stage.lay-fill .st-feature { display: block; }
+.st-feature .st-mediabox { width: 100%; height: 100%; border-radius: 0; border: 0; }
+.st-feature img, .st-feature video { width: 100%; height: 100%; object-fit: cover; display: block;
+  animation: bcbFade .5s ease-out both; }
+
+/* Nothing else on a slide the picture fills. The prompter window still
+   carries the beat name, the clock and the position, so nothing is lost. */
+.st-stage.lay-fill > .st-top, .st-stage.lay-fill > .st-body, .st-stage.lay-fill > .st-progress,
+.st-stage.lay-fill .st-frame > .st-top, .st-stage.lay-fill .st-frame > .st-body,
+.st-stage.lay-fill .st-frame > .st-progress { display: none; }
+/* Keeping the camera on a filled slide means lifting it over the picture. */
+.st-stage.lay-fill .st-camcol { z-index: 3; }
+.st-stage.st-two.lay-fill > .st-camcol::before { background: none; }
+
+/* Camera off. Studio Two and Three give the column back to the slide, so
+   the numbers get the whole frame while you talk through them. */
+.st-stage.no-cam .st-camcol { display: none; }
+.st-stage.st-two.no-cam { grid-template-columns: 1fr; grid-template-areas: "top" "body" "prog"; }
+.st-stage.st-three.no-cam .st-frame { grid-template-rows: 1fr auto; }
+/* The body is pinned to the second row so it sits under the camera band.
+   With the band gone it has to move up, or an empty first row keeps the
+   height the camera used to have. The extra top padding clears the brand
+   bar, which floats over the top of the frame rather than taking a row. */
+.st-stage.st-three.no-cam .st-body { grid-row: 1; padding-top: 7vh; }
+
+/* With the camera gone the explainer column is the whole frame, so the
+   content goes back to full-frame sizing rather than staying squeezed
+   into the width a column beside a camera needed. */
+.st-stage.st-two.no-cam h1 { font-size: clamp(2rem, 5.2vw, 4.4rem); }
+.st-stage.st-two.no-cam.chart h1 { font-size: clamp(1.3rem, 2.9vw, 2.3rem); }
+.st-stage.st-two.no-cam .st-visual { max-width: 1020px; margin: 0 auto; }
+.st-stage.st-two.no-cam .st-visual.wide { max-width: 1280px; }
+.st-stage.st-two.no-cam .st-stats { max-width: 900px; }
+.st-stage.st-two.no-cam .st-stat .v { font-size: clamp(1.6rem, 4vw, 3.2rem); }
+.st-stage.st-two.no-cam .st-stat .k { font-size: clamp(.62rem, .95vw, .8rem); margin-bottom: 6px; }
+.st-stage.st-two.no-cam .st-hero-num { font-size: clamp(3rem, 11vw, 9rem); }
+.st-stage.st-two.no-cam .bcb-chart { height: 56vh; width: auto; max-height: none; }
+.st-stage.st-two.no-cam .bcb-radar { height: 52vh; }
+
+/* Same in the vertical frame: the explainer gets the height the camera
+   band was using, so the type and the charts grow into it. */
+.st-stage.st-three.no-cam h1 { font-size: 5vh; }
+.st-stage.st-three.no-cam.chart h1 { font-size: 4vh; }
+.st-stage.st-three.no-cam .bcb-chart { max-height: 40vh; }
+.st-stage.st-three.no-cam .bcb-radar { max-height: 40vh; }
+.st-stage.st-three.no-cam .st-stat .v { font-size: 4.4vh; }
+.st-stage.st-three.no-cam .st-hero-num { font-size: 10vh; }
+
+/* The picture in place of the chart or the numbers. */
+.st-mediabox { width: 100%; overflow: hidden; border-radius: 12px; line-height: 0;
+  background: #0b0c0d; border: 1px solid #2b2f35; }
+.st-mediabox img, .st-mediabox video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-stage .st-visual.st-mediaonly { justify-content: center; }
+.st-stage .st-visual.st-mediaonly .st-mediabox,
+.st-stage .st-visual.st-mediaonly .st-mediabox img,
+.st-stage .st-visual.st-mediaonly .st-mediabox video { max-height: 58vh; }
+.st-stage .st-visual.st-mediaonly .st-mediabox { animation: bcbFade .6s ease-out both; }
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox,
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox img,
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox video { max-height: 48vh; }
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox,
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox img,
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox video { max-height: 32vh; }
+
+/* The three per-slide controls in the script editor. */
+.beat-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px; margin-top: 10px; }
+.beat-opts .field { margin-bottom: 0; }
