@@ -671,6 +671,47 @@ body.st-on { overflow: hidden; }
   .st-bg-art { transition: none; }
 }
 
+/* =====================================================================
+   PER-SLIDE LAYOUTS
+   A slide can hand its whole frame to the picture or clip pinned to it.
+   Every rule here is gated on a lay- class that only appears when a
+   slide has been set to one of these, so a slide left on Default is
+   reached by none of it and the three studios keep the layouts they had.
+   ===================================================================== */
+.st-feature { position: absolute; inset: 0; z-index: 2; display: none; background: #000; overflow: hidden; }
+.st-stage.lay-full .st-feature, .st-stage.lay-fullcam .st-feature { display: block; }
+.st-feature .st-mediabox { width: 100%; height: 100%; border-radius: 0; }
+.st-feature img, .st-feature video { width: 100%; height: 100%; object-fit: cover; display: block;
+  animation: bcbFade .5s ease-out both; }
+
+/* Nothing else on a feature slide. The prompter window still carries the
+   beat name, the clock and the position, so nothing is actually lost. */
+.st-stage.lay-full > .st-top, .st-stage.lay-full > .st-body, .st-stage.lay-full > .st-progress,
+.st-stage.lay-fullcam > .st-top, .st-stage.lay-fullcam > .st-body, .st-stage.lay-fullcam > .st-progress,
+.st-stage.lay-full .st-frame > .st-top, .st-stage.lay-full .st-frame > .st-body,
+.st-stage.lay-full .st-frame > .st-progress, .st-stage.lay-fullcam .st-frame > .st-top,
+.st-stage.lay-fullcam .st-frame > .st-body, .st-stage.lay-fullcam .st-frame > .st-progress { display: none; }
+.st-stage.lay-full .st-camcol { display: none; }
+/* Keeping the camera means lifting its column over the feature. */
+.st-stage.lay-fullcam .st-camcol { z-index: 3; }
+.st-stage.st-two.lay-fullcam > .st-camcol::before { background: none; }
+
+/* The picture as the slide's visual, with the headline and camera kept. */
+.st-mediabox { width: 100%; overflow: hidden; border-radius: 12px; line-height: 0;
+  background: #0b0c0d; border: 1px solid #2b2f35; }
+.st-mediabox img, .st-mediabox video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-stage .st-visual.st-mediaonly { justify-content: center; }
+.st-stage .st-visual.st-mediaonly .st-mediabox,
+.st-stage .st-visual.st-mediaonly .st-mediabox img,
+.st-stage .st-visual.st-mediaonly .st-mediabox video { max-height: 58vh; }
+.st-stage .st-visual.st-mediaonly .st-mediabox { animation: bcbFade .6s ease-out both; }
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox,
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox img,
+.st-stage.st-two .st-visual.st-mediaonly .st-mediabox video { max-height: 48vh; }
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox,
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox img,
+.st-stage.st-three .st-visual.st-mediaonly .st-mediabox video { max-height: 32vh; }
+
 /* ---------- the camera stand-in ---------- */
 .st-cam-ghost { display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; background: rgba(20,22,26,.55); color: #6d737b;
@@ -1033,7 +1074,7 @@ body.st-on { overflow: hidden; }
    silently reverted the brand bar to relative - which dropped it to the
    bottom of the grid. Same class of collision as the control pill in
    Studio One. */
-.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe) { position: relative; z-index: 1; }
+.st-stage.st-three .st-frame > *:not(.st-top):not(.st-safe):not(.st-feature) { position: relative; z-index: 1; }
 
 @media (prefers-reduced-motion: reduce) { .st-safe { transition: none; } }
 
