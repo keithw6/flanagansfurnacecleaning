@@ -163,8 +163,8 @@
   oneFile.hidden = true;
   document.body.appendChild(oneFile);
 
-  function photoFor(id) {
-    if (EDCImages.isMine(id)) {
+  function photoFor(id, replace) {
+    if (EDCImages.isMine(id) && !replace) {
       EDCImages.clear(id);
       renderAll();
       return;
@@ -433,6 +433,87 @@
     })();
   }
 
+  /* ---- straight off a maker's site --------------------------------------
+     An image address is the obvious route and the unreliable one: reading
+     the pixels back out of another site's image needs that site to send
+     CORS headers, and plenty do not. The clipboard has no such problem -
+     the bytes are already local by the time they arrive - so copy-and-paste
+     is the route that always works, and it is the one the panel leads with. */
+  function fillPasteTarget() {
+    const sel = $('#pasteTarget');
+    const keep = sel.value;
+    sel.textContent = '';
+    const first = document.createElement('option');
+    first.value = ''; first.textContent = 'Pick the product this picture is of…';
+    sel.appendChild(first);
+
+    const pack = new Set(state.items);
+    const groups = [
+      { label: 'In your pack', list: PRODUCTS.filter(p => pack.has(p.id)) },
+      { label: 'Everything else', list: PRODUCTS.filter(p => !pack.has(p.id)) }
+    ];
+    groups.forEach(g => {
+      if (!g.list.length) return;
+      const og = document.createElement('optgroup');
+      og.label = g.label;
+      g.list.slice().sort(SORTS.cat).forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = p.brand + ' ' + p.name + (EDCImages.isMine(p.id) ? ' — has one' : '');
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    });
+    if (keep && BY_ID[keep]) sel.value = keep;
+  }
+
+  /* After one lands, move to the next thing in the pack still without a
+     picture, so a whole loadout can be done without touching the list. */
+  function advanceTarget(afterId) {
+    const queue = state.items.filter(id => id !== afterId && !EDCImages.isMine(id));
+    $('#pasteTarget').value = queue.length ? queue[0] : '';
+    return queue.length ? BY_ID[queue[0]] : null;
+  }
+
+  function takeOne(file, id, msgEl) {
+    if (!BY_ID[id]) { say(msgEl, 'Pick which product it is first.', true); return; }
+    const p = BY_ID[id];
+    EDCImages.fromFile(file, picOpts())
+      .then(res => {
+        EDCImages.set(id, res.data);
+        const next = advanceTarget(id);
+        say(msgEl, 'Added to ' + p.brand + ' ' + p.name + '. ' + describe(res) +
+          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''));
+        renderAll();
+      })
+      .catch(err => say(msgEl, 'Could not use that: ' + err.message, true));
+  }
+
+  document.addEventListener('paste', e => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    let file = null;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { file = items[i].getAsFile(); break; }
+    }
+    if (!file) return;
+    e.preventDefault();
+    showTab('build');
+    const id = $('#pasteTarget').value;
+    if (!id) {
+      say($('#pasteMsg'), 'Got the image. Now pick which product it is, just above, and paste again.', true);
+      $('#pasteTarget').focus();
+      return;
+    }
+    takeOne(file, id, $('#pasteMsg'));
+  });
+
+  $('#pasteFile').addEventListener('click', () => {
+    const id = $('#pasteTarget').value;
+    if (!id) return say($('#pasteMsg'), 'Pick the product first.', true);
+    photoFor(id, true);
+  });
+
   $('#bulkFiles').addEventListener('change', e => {
     if (e.target.files && e.target.files.length) takeFiles(e.target.files);
     e.target.value = '';
@@ -445,7 +526,29 @@
     e.preventDefault(); dz.classList.remove('over');
   }));
   dz.addEventListener('drop', e => {
-    if (e.dataTransfer && e.dataTransfer.files.length) takeFiles(e.dataTransfer.files);
+    const dt = e.dataTransfer;
+    if (!dt) return;
+    if (dt.files && dt.files.length) return takeFiles(dt.files);
+
+    /* Dragged out of another tab: what arrives is the address, not the
+       image, so it can only work if that site lets this page read it. */
+    const url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').trim();
+    if (!url) return;
+    const id = $('#pasteTarget').value;
+    if (!id) return say($('#picsMsg'),
+      'That is an image address rather than a file. Pick the product in the panel above first, ' +
+      'then drop it again — or copy the image and paste it, which always works.', true);
+    say($('#picsMsg'), 'Fetching that image…');
+    EDCImages.fromUrl(url, picOpts())
+      .then(res => {
+        EDCImages.set(id, res.data);
+        const next = advanceTarget(id);
+        say($('#picsMsg'), 'Added to ' + BY_ID[id].brand + ' ' + BY_ID[id].name + '. ' + describe(res) +
+          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''));
+        renderAll();
+      })
+      .catch(err => say($('#picsMsg'), 'Could not use that address: ' + err.message +
+        ' Copy the image itself and paste it instead — that always works.', true));
   });
   $('#picsExport').addEventListener('click', () => {
     if (!EDCImages.count()) return say($('#picsMsg'), 'No pictures of your own to save yet.', true);
@@ -790,6 +893,7 @@
   /* ---- go ---------------------------------------------------------------- */
   function renderAll() {
     picsCount();
+    fillPasteTarget();
     renderMine();
     renderCatalog();
     renderPack();

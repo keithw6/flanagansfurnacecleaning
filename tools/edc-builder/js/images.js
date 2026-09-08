@@ -188,8 +188,8 @@ const EDCImages = (function () {
       let data;
       try { data = ctx.getImageData(0, 0, c.width, c.height); }
       catch (e) {
-        throw new Error('that image is served by a site that will not let this page read it. ' +
-          'Download it and pick the file instead.');
+        throw new Error('that site does not let another page read its images. ' +
+          'Copy the image itself and paste it in, or save it and pick the file.');
       }
 
       const knocked = wantKnock ? knockOut(data, c.width, c.height, EDGE_TOLERANCE) : false;
@@ -223,10 +223,30 @@ const EDCImages = (function () {
     r.readAsDataURL(file);
   });
 
+  /* An image address fails two very different ways and the difference is
+     the whole of the advice. With crossOrigin set, a server that sends no
+     CORS headers fails the LOAD outright - it never reaches the canvas -
+     so the common case would otherwise report "would not load", which
+     sounds like a broken link and is not. Retrying without crossOrigin
+     tells the two apart: if it loads that way, the address is fine and
+     the site simply will not be read by another page. */
   const fromUrl = (raw, opts) => {
     const u = EDCShare.safeUrl(raw);
-    return u ? process(u, opts, true)
-             : Promise.reject(new Error('that is not a usable image address'));
+    if (!u) return Promise.reject(new Error('that is not a usable image address'));
+    return process(u, opts, true).catch(err => {
+      if (!/would not load/.test(err.message)) throw err;
+      return load(u, false).then(
+        () => {
+          throw new Error('that site does not let another page read its images. ' +
+            'Copy the image itself and paste it in — that always works — or save it ' +
+            'and pick the file.');
+        },
+        () => {
+          throw new Error('nothing loaded from that address. Check it points straight at ' +
+            'an image file, or copy the image and paste it instead.');
+        }
+      );
+    });
   };
 
   /* ---- matching a filename to a product ------------------------------

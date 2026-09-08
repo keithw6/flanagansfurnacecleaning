@@ -151,6 +151,20 @@
         <span class="dz-small">or click to choose files</span>
       </label>
 
+
+      <fieldset class="pastebox">
+        <legend>Straight off a maker&rsquo;s site</legend>
+        <p class="hint" style="margin-top:0">On the product page, right-click the photo and
+          <b>Copy image</b>. Come back, pick the product below, and press <kbd>Ctrl</kbd>+<kbd>V</kbd>
+          (<kbd>&#8984;</kbd>+<kbd>V</kbd> on a Mac). The picture never goes through another site, so it
+          works where an image address does not.</p>
+        <div class="picrow">
+          <select id="pasteTarget" aria-label="Product to paste a picture onto"></select>
+          <button class="btn btn-o btn-sm" id="pasteFile" type="button">or choose a file</button>
+        </div>
+        <p class="hint" id="pasteMsg"></p>
+      </fieldset>
+
       <div class="field-inline" style="flex-wrap:wrap;gap:14px;margin-top:12px">
         <label class="chk"><input type="checkbox" id="optKnock" checked> Take the background off</label>
         <label class="chk"><input type="checkbox" id="optTrim" checked> Trim to the object</label>

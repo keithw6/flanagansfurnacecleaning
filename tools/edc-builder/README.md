@@ -42,6 +42,23 @@ and your own alike. **Build → Real pictures** takes a drop of image files and
 matches each to a product by filename; **Photo** on a single card does one at a
 time.
 
+### Taking one off a maker's site
+
+Right-click the photo on the product page, **Copy image**, come back, pick the
+product in the panel, and paste. Then keep pasting: the selector moves itself to
+the next thing in your pack that has no picture, so a whole loadout goes in
+without touching the list.
+
+Paste rather than an image address, and the reason is worth knowing. Reading the
+pixels back out of another site's image needs that site to send CORS headers,
+and plenty do not - so an address works on some makers' sites and fails on
+others, for a reason that has nothing to do with you. The clipboard has no such
+problem: the bytes are already local by the time they arrive. An address is
+still accepted (drag an image onto the drop zone with a product selected), and
+when it fails the message says which of the two failures it was - a site that
+will not be read, or an address with nothing behind it - because the fix is
+different each time.
+
 Filenames are matched four ways, in order: the product id (`bm535.png`), the
 brand and name (`benchmade-bugout-535.jpg`), the name alone (`Bugout 535.webp`),
 or a product id sitting as its own word inside a longer name

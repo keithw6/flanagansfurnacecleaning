@@ -417,3 +417,18 @@ code {
 .dz-small { font-size: .82rem; color: var(--muted); }
 .gear-acts .pic { flex: none; }
 .gear-acts { flex-wrap: wrap; }
+
+.pastebox {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px 14px; margin-top: 14px;
+}
+.pastebox legend {
+  font-size: .74rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); padding: 0 6px;
+}
+.pastebox select { flex: 1; }
+kbd {
+  font-family: var(--mono); font-size: .8em;
+  background: var(--surface-3); border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px;
+}
