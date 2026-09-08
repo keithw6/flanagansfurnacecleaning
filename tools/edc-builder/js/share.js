@@ -212,12 +212,53 @@ const EDCShare = (function () {
     });
   }
 
+  /* Handing over a file, two ways.
+
+     A page opened from disk or off a normal web server saves through an
+     anchor, which is all it has and all it needs. A page running inside
+     the claude.ai artifact viewer is not allowed to: an anchor there is
+     silently inert, which would make Download PNG look like it worked
+     and do nothing. That host offers a "downloads" capability instead,
+     reached through claude.use, so ask for it if it is there and fall
+     back to the anchor if it is not.
+
+     Asked for once, at load, because a host that never answers takes ten
+     seconds to say so and that is not a wait to spend after a click. */
+  let hostSave;
+  function hostDownloads() {
+    if (hostSave !== undefined) return Promise.resolve(hostSave);
+    if (!(window.claude && typeof window.claude.use === 'function')) {
+      hostSave = null;
+      return Promise.resolve(null);
+    }
+    return window.claude.use('downloads').then(
+      ns => (hostSave = ns || null),
+      () => (hostSave = null)
+    );
+  }
+  hostDownloads();
+
+  /* Resolves 'saved' when the host confirms it, 'browser' when the file
+     went to an anchor and we cannot know, or 'declined' if the viewer
+     said no. Anything else rejects. */
   function download(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return hostDownloads().then(ns => {
+      if (ns) {
+        return ns.save({ filename: filename, data: blob }).then(
+          () => 'saved',
+          err => {
+            if (err && err.code === 'declined') return 'declined';
+            throw err;
+          }
+        );
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      return 'browser';
+    });
   }
 
   function slug(s, fallback) {

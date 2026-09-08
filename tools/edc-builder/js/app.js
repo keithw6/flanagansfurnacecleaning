@@ -346,7 +346,7 @@
   });
 
   /* ---- the pack sidebar ------------------------------------------------- */
-  function renderPack() {
+  let renderPack = function () {
     const items = picked(), t = EDCBoard.totals(items);
     $('#toteCost').textContent = money(t.price);
     $('#toteWeight').textContent = grams(t.grams);
@@ -369,7 +369,7 @@
       $('.x', li).addEventListener('click', () => toggle(p.id));
       ul.appendChild(li);
     });
-  }
+  };
 
   function verdict(g) {
     if (g < 300)  return 'you would forget it was on you';
@@ -503,10 +503,15 @@
     msg.className = 'hint';
     msg.textContent = 'Rendering…';
     EDCShare.toPNG(lastBoard.svg, lastBoard.width, lastBoard.height, 2)
-      .then(blob => {
-        EDCShare.download(blob, EDCShare.slug(state.title || state.owner, 'edc') + '-board.png');
-        msg.textContent = 'Saved as a PNG, ' + (lastBoard.width * 2) + ' pixels wide.';
-      })
+      .then(blob => EDCShare.download(blob, EDCShare.slug(state.title || state.owner, 'edc') + '-board.png')
+        .then(how => {
+          const px = lastBoard.width * 2;
+          msg.textContent =
+            how === 'saved'   ? 'Saved. ' + px + ' pixels wide.' :
+            how === 'declined' ? 'Left it, then. Nothing was saved.' :
+            'PNG made, ' + px + ' pixels wide, and handed to the browser. If nothing arrived, ' +
+            'this page is somewhere that blocks downloads — Print / PDF works either way.';
+        }))
       .catch(err => { msg.className = 'hint warn'; msg.textContent = 'Could not export: ' + err.message; });
   });
   $('#printBtn').addEventListener('click', () => window.print());
@@ -617,10 +622,23 @@
     $('#shareMsg').textContent = 'Loaded the saved pack.';
   });
   $('#exportBtn').addEventListener('click', () => {
+    const json = EDCShare.toJSON(state);
     $('#exportBox').hidden = false;
-    $('#exportText').value = EDCShare.toJSON(state);
-    EDCShare.download(new Blob([EDCShare.toJSON(state)], { type: 'application/json' }),
-      EDCShare.slug(state.title || state.owner, 'edc') + '-pack.json');
+    $('#exportText').value = json;      /* always shown, so the file is never the only copy */
+    EDCShare.download(new Blob([json], { type: 'application/json' }),
+      EDCShare.slug(state.title || state.owner, 'edc') + '-pack.json')
+      .then(how => {
+        $('#shareMsg').className = 'hint';
+        $('#shareMsg').textContent =
+          how === 'saved'    ? 'Saved the JSON file.' :
+          how === 'declined' ? 'Not saved. The JSON is below either way — copy it from there.' :
+          'JSON handed to the browser. It is also below, so copy it from there if no file arrived.';
+      })
+      .catch(err => {
+        $('#shareMsg').className = 'hint warn';
+        $('#shareMsg').textContent = 'Could not save the file: ' + err.message +
+          ' The JSON is below — copy it from there.';
+      });
   });
   $('#importFile').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
@@ -663,13 +681,40 @@
   renderChips();
   renderLoadouts();
 
+  /* Open on something. An empty board teaches nobody what this is, and
+     the first frame is what a shared link and a skim both get. Only on a
+     genuinely first visit though: a link, a saved pack, or a pack the
+     user emptied on purpose all outrank it. */
   const incoming = EDCShare.fromLocation();
+  const saved = EDCShare.load();
+  let seeded = null;
+
   if (incoming && incoming.items.length) {
     adopt(incoming);
     showTab('board');
+  } else if (saved && saved.items.length) {
+    adopt(saved);
   } else {
+    const start = LOADOUTS[2];                 /* City every day */
+    seeded = start.items.slice();
+    state.items = seeded.slice();
+    state.title = start.name;
+    $('#boardTitle').value = state.title;
     renderAll();
   }
+
+  /* The note goes the moment the pack stops being the sample, so nobody
+     is told they are looking at an example when they are not. */
+  function seedNote() {
+    const el = $('#seedNote');
+    if (!el) return;
+    const same = seeded && seeded.length === state.items.length &&
+      seeded.every(id => state.items.indexOf(id) >= 0);
+    el.hidden = !same;
+  }
+  const _renderPack = renderPack;
+  renderPack = function () { _renderPack(); seedNote(); };
+  seedNote();
 
   window.addEventListener('hashchange', () => {
     const st = EDCShare.fromLocation();

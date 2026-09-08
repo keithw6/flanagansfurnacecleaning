@@ -197,10 +197,17 @@ document wrapper for hosts that supply their own. Both are checked in for the
 same reason `tools/20-year-test/dist/` is: they are generated, but they are also
 the thing a non-developer is meant to download.
 
-The bundle inlines everything and makes no network requests at all. One
-consequence worth knowing: some embedded contexts block downloads a page starts
-itself, so **Download PNG** may do nothing in an iframe host. Print to PDF works
-there, and the local copy works everywhere.
+The bundle inlines everything and makes no network requests at all.
+
+**Saving files works two ways**, because one way is not enough. A page opened
+from disk or off a web server saves through an anchor, which is all it has. A
+page inside a host that blocks page-initiated downloads — the claude.ai artifact
+viewer does — would find that anchor silently inert, and **Download PNG** would
+look like it worked while doing nothing. So `share.js` asks the host for a
+`downloads` capability first (`claude.use('downloads')`) and falls back to the
+anchor when there is none. The message afterwards says which happened rather
+than claiming success it cannot verify, and JSON export always prints into the
+page as well so a blocked file is never the only copy.
 
 ## Relationship to the rest of this repository
 
