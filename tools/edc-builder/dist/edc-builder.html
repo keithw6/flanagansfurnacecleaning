@@ -348,6 +348,67 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
   @page { margin: 10mm; }
 }
 
+/* ---- adding your own ------------------------------------------------- */
+.addcard { padding: 0; }
+.addcard > summary {
+  list-style: none; cursor: pointer; padding: 20px;
+  display: block; position: relative;
+}
+.addcard > summary::-webkit-details-marker { display: none; }
+.addcard > summary::after {
+  content: '+'; position: absolute; right: 20px; top: 17px;
+  font-family: var(--h); font-size: 1.7rem; line-height: 1; color: var(--muted);
+}
+.addcard[open] > summary::after { content: '\2212'; }
+.addcard > summary h2 { display: inline-block; }
+.addcard > summary .sub { display: block; padding-right: 30px; }
+.addcard > summary:hover h2 { color: var(--link); }
+.addbody { padding: 0 20px 20px; border-top: 1px solid var(--line-soft); padding-top: 16px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; }
+.urlrow { display: flex; gap: 8px; }
+.urlrow input { flex: 1; }
+.urlrow .btn { flex: none; }
+
+.picsource {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px 14px; margin-top: 14px;
+}
+.picsource legend {
+  font-size: .74rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); padding: 0 6px;
+}
+.picsource .chk { margin-right: 16px; }
+.picrow { display: flex; gap: 8px; margin-top: 10px; }
+.picrow input[type=url] { flex: 1; }
+.picprev {
+  margin-top: 10px; background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-radius: 8px; padding: 8px; display: inline-block;
+}
+.picprev img { display: block; max-width: 190px; max-height: 130px; }
+
+.gear-art { position: relative; }
+.yours {
+  position: absolute; top: 6px; right: 6px;
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .03em;
+  background: var(--accent); color: var(--on-accent);
+  border-radius: 999px; padding: 2px 8px; opacity: .88;
+}
+.mine { list-style: none; margin-top: 12px; }
+.mine li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--line-soft);
+}
+.mine-acts { display: flex; gap: 6px; flex: none; }
+code {
+  font-family: var(--mono); font-size: .82em;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-radius: 4px; padding: 1px 5px;
+}
+@media (max-width: 560px) {
+  .urlrow, .picrow { flex-wrap: wrap; }
+  .mine li { flex-wrap: wrap; }
+}
+
 </style>
 </head>
 <body>
@@ -402,6 +463,82 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
 
       <div id="catChips" class="chips" role="group" aria-label="Filter by category"></div>
       <p class="hint" id="resultCount"></p>
+    </div>
+
+
+    <details class="card addcard" id="addCard">
+      <summary><h2>Add a product you found</h2>
+        <span class="sub">Paste a link, fill in the cost and weight, pick a category. It joins the catalogue and stays in this browser.</span>
+      </summary>
+
+      <div class="addbody">
+        <label class="fld"><span>Product link</span>
+          <div class="urlrow">
+            <input type="url" id="npUrl" placeholder="https://www.maker.com/products/the-thing" maxlength="200">
+            <button class="btn btn-o btn-sm" id="npRead" type="button">Read the link</button>
+          </div></label>
+        <p class="hint" id="npUrlMsg">The page itself cannot be read from here &mdash; another site will not allow it &mdash; so
+          the cost and weight are yours to fill in. The brand and product name are guessed from the address.</p>
+
+        <div class="grid3" style="margin-top:12px">
+          <label class="fld"><span>Brand</span><input type="text" id="npBrand" maxlength="28" placeholder="Maker"></label>
+          <label class="fld"><span>Product name</span><input type="text" id="npName" maxlength="40" placeholder="The thing"></label>
+          <label class="fld"><span>Category</span><select id="npCat"></select></label>
+        </div>
+
+        <div class="grid4" style="margin-top:12px">
+          <label class="fld"><span>Cost, US$</span><input type="number" id="npPrice" min="0" max="100000" step="1" placeholder="0"></label>
+          <label class="fld"><span>Weight, grams</span><input type="number" id="npGrams" min="0" max="50000" step="1" placeholder="0"></label>
+          <label class="fld"><span>Length, mm</span><input type="number" id="npW" min="3" max="2000" step="1"></label>
+          <label class="fld"><span>Width, mm</span><input type="number" id="npH" min="3" max="2000" step="1"></label>
+        </div>
+        <p class="hint">Weight in ounces? Type it in grams &mdash; 1 oz is 28.3 g. The two size figures are the
+          footprint as the thing lies on a board, and they are what puts it at the right size next to everything else.</p>
+
+        <label class="fld" style="margin-top:12px"><span>One line about it (optional)</span>
+          <input type="text" id="npNote" maxlength="140" placeholder="Why you carry it"></label>
+
+        <fieldset class="picsource">
+          <legend>Picture</legend>
+          <label class="chk"><input type="radio" name="npPic" value="none" checked> Draw a stand-in</label>
+          <label class="chk"><input type="radio" name="npPic" value="file"> Use an image file</label>
+          <label class="chk"><input type="radio" name="npPic" value="url"> Use an image address</label>
+          <div class="picrow" id="npPicFile" hidden>
+            <input type="file" id="npFile" accept="image/*">
+          </div>
+          <div class="picrow" id="npPicUrl" hidden>
+            <input type="url" id="npImgUrl" placeholder="https://&hellip;/photo.png" maxlength="300">
+            <button class="btn btn-o btn-sm" id="npFetch" type="button">Load it</button>
+          </div>
+          <p class="hint" id="npPicMsg">Without a picture it is drawn in the same style as everything else, at the size you gave.
+            A cut-out image on a white or transparent background sits best.</p>
+          <div class="picprev" id="npPrev" hidden></div>
+        </fieldset>
+
+        <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+          <button class="btn" id="npAdd" type="button">Add to the catalogue</button>
+          <button class="btn btn-o" id="npClear" type="button">Clear the form</button>
+          <span class="hint" id="npMsg" style="margin:0"></span>
+        </div>
+      </div>
+    </details>
+
+    <div class="card" id="mineCard" hidden>
+      <h2>Your products</h2>
+      <p class="sub">Kept in this browser. They travel in a share link, but their pictures do not &mdash;
+        export the JSON to move those to another machine.</p>
+      <ul class="mine" id="mineList"></ul>
+      <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn btn-o btn-sm" id="briefBtn" type="button">Image brief for the ones with no picture</button>
+      </div>
+      <div id="briefBox" hidden style="margin-top:10px">
+        <label class="fld"><span>Hand this to an image generator</span>
+          <textarea id="briefText" rows="10" readonly spellcheck="false"></textarea></label>
+        <p class="hint">Generate one image per product, cut the background out, save each as
+          <code>media/stills/&lt;id&gt;.png</code>, and add it to <code>media/manifest.js</code>.
+          A generated image is a likeness, not a photograph of the real article, and the app labels it that way.</p>
+        <button class="btn btn-o btn-sm" id="briefCopy" type="button">Copy the brief</button>
+      </div>
     </div>
 
     <div id="catalog" class="catalog"></div>
@@ -572,6 +709,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible,
    off the disk cannot fetch a local .json, and this tool is meant to
    work by double-clicking index.html.
 
+   Products you add yourself in the app put their picture into this same
+   table at runtime, so there is one code path for both. Moving one of
+   those into the repo - drop the file in media/stills/ and add a line
+   here - is what turns it from something only your browser knows about
+   into something everyone you share the board with can see.
+
    Empty is the normal state. Nothing here is required.
    ===================================================================== */
 window.EDC_MEDIA = {};
@@ -608,25 +751,25 @@ window.EDC_MEDIA = {};
    ===================================================================== */
 
 const CATS = [
-  { id: 'knife',    label: 'Knives',        blurb: 'Folders and fixed blades.' },
-  { id: 'multi',    label: 'Multi-tools',   blurb: 'Pliers, drivers and the Swiss Army end of things.' },
-  { id: 'light',    label: 'Lights',        blurb: 'Pocket, keychain and headlamps.' },
-  { id: 'pen',      label: 'Pens',          blurb: 'Something to write with that survives a pocket.' },
-  { id: 'wallet',   label: 'Wallets',       blurb: 'Cards and cash.' },
-  { id: 'watch',    label: 'Watches',       blurb: 'Time without unlocking a phone.' },
-  { id: 'keys',     label: 'Keys',          blurb: 'Organisers, rings and clips.' },
-  { id: 'pry',      label: 'Pry and drive', blurb: 'Small metal for the jobs a knife should not do.' },
-  { id: 'fire',     label: 'Fire',          blurb: 'Lighters and sparks.' },
-  { id: 'tech',     label: 'Tech',          blurb: 'Power, cable, trackers, audio.' },
-  { id: 'paper',    label: 'Paper',         blurb: 'Notebooks and cards.' },
-  { id: 'bottle',   label: 'Water',         blurb: 'Bottles and flasks.' },
-  { id: 'med',      label: 'Medical',       blurb: 'Boo-boo kit through to bleeding control.' },
-  { id: 'pouch',    label: 'Pouches',       blurb: 'What holds the rest of it.' },
-  { id: 'eyewear',  label: 'Eyewear',       blurb: 'Sun and safety.' },
-  { id: 'belt',     label: 'Belts',         blurb: 'Load-bearing waistline.' },
-  { id: 'cord',     label: 'Cord and tape', blurb: 'Line, ties and a flat pack of tape.' },
-  { id: 'nav',      label: 'Navigation',    blurb: 'Compass and signal.' },
-  { id: 'fidget',   label: 'Fidget',        blurb: 'Pocket toys, for the record.' }
+  { id: 'knife',    label: 'Knives', one: 'folding or fixed knife',        blurb: 'Folders and fixed blades.' },
+  { id: 'multi',    label: 'Multi-tools', one: 'multi-tool',   blurb: 'Pliers, drivers and the Swiss Army end of things.' },
+  { id: 'light',    label: 'Lights', one: 'flashlight',        blurb: 'Pocket, keychain and headlamps.' },
+  { id: 'pen',      label: 'Pens', one: 'pen',          blurb: 'Something to write with that survives a pocket.' },
+  { id: 'wallet',   label: 'Wallets', one: 'wallet',       blurb: 'Cards and cash.' },
+  { id: 'watch',    label: 'Watches', one: 'wristwatch',       blurb: 'Time without unlocking a phone.' },
+  { id: 'keys',     label: 'Keys', one: 'key organiser',          blurb: 'Organisers, rings and clips.' },
+  { id: 'pry',      label: 'Pry and drive', one: 'pry bar or driver', blurb: 'Small metal for the jobs a knife should not do.' },
+  { id: 'fire',     label: 'Fire', one: 'lighter or fire starter',          blurb: 'Lighters and sparks.' },
+  { id: 'tech',     label: 'Tech', one: 'piece of carry tech',          blurb: 'Power, cable, trackers, audio.' },
+  { id: 'paper',    label: 'Paper', one: 'pocket notebook',         blurb: 'Notebooks and cards.' },
+  { id: 'bottle',   label: 'Water', one: 'water bottle',         blurb: 'Bottles and flasks.' },
+  { id: 'med',      label: 'Medical', one: 'first aid or trauma item',       blurb: 'Boo-boo kit through to bleeding control.' },
+  { id: 'pouch',    label: 'Pouches', one: 'pouch or organiser',       blurb: 'What holds the rest of it.' },
+  { id: 'eyewear',  label: 'Eyewear', one: 'pair of sunglasses',       blurb: 'Sun and safety.' },
+  { id: 'belt',     label: 'Belts', one: 'belt',         blurb: 'Load-bearing waistline.' },
+  { id: 'cord',     label: 'Cord and tape', one: 'length of cord or tape', blurb: 'Line, ties and a flat pack of tape.' },
+  { id: 'nav',      label: 'Navigation', one: 'compass or signalling item',    blurb: 'Compass and signal.' },
+  { id: 'fidget',   label: 'Fidget', one: 'fidget toy',        blurb: 'Pocket toys, for the record.' }
 ];
 
 /* Shared colourways. Keeping the palette in one place is most of the
@@ -2322,7 +2465,7 @@ const EDCBoard = (function () {
 
 const EDCShare = (function () {
 
-  const VERSION = '1';
+  const VERSION = '2';        /* 2 added the custom-product field; 1 still reads */
   const MAX_ITEMS = 60;
   const LIMITS = { title: 48, owner: 40, url: 200 };
   const LAYOUTS = ['knoll', 'grid', 'loadout'];
@@ -2359,6 +2502,27 @@ const EDCShare = (function () {
      newline breaking a label, the second stops a pasted essay. */
   const clamp = (v, n) => String(v == null ? '' : v)
     .replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, n);
+  const enc = v => encodeURIComponent(clamp(v, 60));
+
+  /* Products someone added themselves are not in anyone else's
+     catalogue, so the link has to carry their definitions or the board
+     arrives full of holes. Their pictures do not travel: a data URI is
+     tens of kilobytes and a URL has to stay a URL. The recipient sees
+     the drawn stand-in, which is the honest outcome - and the way to
+     make a custom product properly shareable is to give it art in
+     media/ and put it in the catalogue, which is a repo change, not a
+     link. */
+  function packCustom(p) {
+    return [p.id, enc(p.name), enc(p.brand), p.cat,
+            Math.round(p.price), Math.round(p.grams),
+            Math.round(p.mm[0]), Math.round(p.mm[1]), enc(p.url)].join('^');
+  }
+  function unpackCustom(str) {
+    const f = String(str).split('^');
+    if (f.length < 9 || !/^u_[a-z0-9]{4,10}$/.test(f[0])) return null;
+    return { id: f[0], name: dec(f[1]), brand: dec(f[2]), cat: f[3],
+             price: f[4], grams: f[5], w: f[6], h: f[7], url: dec(f[8]) };
+  }
   const pick = (v, allowed) => allowed.indexOf(v) >= 0 ? v : allowed[0];
   const knownSurface = v => Object.prototype.hasOwnProperty.call(EDCBoard.SURFACES, v) ? v : 'slate';
 
@@ -2373,7 +2537,10 @@ const EDCShare = (function () {
       encodeURIComponent(clamp(st.title, LIMITS.title)),
       encodeURIComponent(clamp(st.owner, LIMITS.owner)),
       encodeURIComponent(safeUrl(st.url)),
-      (st.items || []).slice(0, MAX_ITEMS).join(',')
+      (st.items || []).slice(0, MAX_ITEMS).join(','),
+      (st.items || []).slice(0, MAX_ITEMS)
+        .map(id => BY_ID[id]).filter(p => p && p.custom)
+        .map(packCustom).join(';')
     ];
     return b64e(f.join('|'));
   }
@@ -2381,7 +2548,16 @@ const EDCShare = (function () {
   function decode(code) {
     let f;
     try { f = b64d(String(code)).split('|'); } catch (e) { return null; }
-    if (f.length < 9 || f[0] !== VERSION) return null;
+    if (f.length < 9 || (f[0] !== VERSION && f[0] !== '1')) return null;
+
+    /* Custom definitions have to be taken on before the item list is
+       filtered, or every one of them would be dropped as unknown. Done
+       here rather than by the caller so that every route in - a link,
+       a JSON file, this browser's own storage - is vetted identically. */
+    if (f[9] && typeof EDCCustom !== 'undefined') {
+      EDCCustom.adopt(f[9].split(';').map(unpackCustom).filter(Boolean));
+    }
+
     const seen = new Set();
     const ids = (f[8] || '').split(',')
       .filter(id => BY_ID[id] && !seen.has(id) && seen.add(id))   /* unknown ids just vanish */
@@ -2428,7 +2604,10 @@ const EDCShare = (function () {
                surface: st.surface, labels: st.labels, ruler: !!st.ruler },
       totals: EDCBoard.totals(items),
       items: items.map(p => ({ id: p.id, brand: p.brand, name: p.name, category: p.cat,
-                               priceUsd: p.price, weightGrams: p.grams, url: p.url }))
+                               priceUsd: p.price, weightGrams: p.grams, url: p.url,
+                               mm: p.mm, note: p.note,
+                               yours: !!p.custom || undefined,
+                               image: p.custom && p.img ? p.img : undefined }))
     }, null, 2);
   }
 
@@ -2436,6 +2615,15 @@ const EDCShare = (function () {
     let o;
     try { o = JSON.parse(text); } catch (e) { return null; }
     const b = (o && o.board) || {};
+    /* JSON is the only route that carries pictures, so adopt from it
+       directly rather than going round through the link format. */
+    if (Array.isArray(o && o.items) && typeof EDCCustom !== 'undefined') {
+      EDCCustom.adopt(o.items.filter(i => i && i.yours).map(i => ({
+        id: i.id, name: i.name, brand: i.brand, cat: i.category,
+        price: i.priceUsd, grams: i.weightGrams, url: i.url, note: i.note,
+        w: i.mm && i.mm[0], h: i.mm && i.mm[1], img: i.image
+      })));
+    }
     return decode(encode({
       layout: b.layout, surface: b.surface, labels: b.labels, ruler: !!b.ruler,
       title: b.title, owner: b.owner, url: b.url,
@@ -2487,6 +2675,318 @@ const EDCShare = (function () {
 
   return { encode, decode, linkFor, fromLocation, save, load, toJSON, fromJSON,
            toPNG, download, safeUrl, slug, LIMITS, MAX_ITEMS, LAYOUTS, LABELS };
+})();
+
+</script>
+<script>
+/* =====================================================================
+   EDC Builder - products you add yourself
+   ---------------------------------------------------------------------
+   Paste the URL of something you found, fill in what it costs and what
+   it weighs, and it joins the catalogue.
+
+   Two things the browser genuinely cannot do here, and pretending
+   otherwise would just produce a form that lies:
+
+   - It cannot read the product page. A page on another site is not
+     fetchable from this one, so price and weight have to be typed. What
+     it CAN do is read the URL itself, and a maker's URL almost always
+     carries the brand in the hostname and the product in the last path
+     segment, so those two are guessed and left editable.
+   - It cannot call an image generator. There is no server and no key,
+     and a key in a public page is not a key. So art comes from one of
+     three places: a file you pick, an image URL, or - by default - the
+     drawing generators, which give the thing a stand-in in the house
+     style immediately. See brief() for the fourth way.
+
+   Custom products register themselves into PRODUCTS and BY_ID at load,
+   so every other module treats them as ordinary catalogue entries and
+   none of them needed changing. Their ids carry a "u_" prefix, which is
+   what keeps them from ever colliding with a real one.
+   ===================================================================== */
+
+const EDCCustom = (function () {
+
+  window.EDC_MEDIA = window.EDC_MEDIA || {};   /* manifest.js normally did this */
+
+  const KEY = 'edc-builder-custom-v1';
+  const MAX = 40;                  /* localStorage is small and images are not */
+  const IMG_MAX_PX = 600;          /* longest side, before storing */
+
+  /* A custom product with no image still has to sit on the board next
+     to the drawn ones, so each category lends it a generator and a
+     neutral colourway. A grey stand-in in the right shape beats a
+     placeholder box, and it beats an empty space. */
+  const STANDIN = {
+    knife:   { kind: 'folder',      body: '#8a8f96', scale: '#c3c8ce', clip: 1 },
+    multi:   { kind: 'multitool',   body: '#c3c8ce', handle: '#9aa1a9' },
+    light:   { kind: 'lightTube',   body: '#7f858c', bezel: '#c3c8ce', clip: 1 },
+    pen:     { kind: 'pen',         body: '#9aa1a9', tip: '#7f858c', clip: 1 },
+    wallet:  { kind: 'walletCard',  body: '#8a8f96', band: '#5a5f66', metal: 1 },
+    watch:   { kind: 'watchDigital', body: '#7f858c', face: '#5c6265', band: '#7f858c' },
+    keys:    { kind: 'keyOrg',      body: '#8a8f96', keys: '#c3c8ce' },
+    pry:     { kind: 'pry',         body: '#9aa1a9' },
+    fire:    { kind: 'lighterBic',  body: '#9aa1a9' },
+    tech:    { kind: 'powerBank',   body: '#7f858c', accent: '#9aa1a9' },
+    paper:   { kind: 'notebook',    body: '#b6b2a8', band: '#7f7b72' },
+    bottle:  { kind: 'bottle',      body: '#8a8f96', cap: '#5a5f66' },
+    med:     { kind: 'medPack',     body: '#b6b2a8', accent: '#7f7b72' },
+    pouch:   { kind: 'pouch',       body: '#7f858c', zip: '#c3c8ce' },
+    eyewear: { kind: 'shades',      body: '#7f858c', lens: '#5c6265' },
+    belt:    { kind: 'belt',        body: '#7f858c', buckle: '#c3c8ce' },
+    cord:    { kind: 'cordHank',    body: '#8a8f96' },
+    nav:     { kind: 'compass',     body: '#7f858c', dial: '#e8e6e1' },
+    fidget:  { kind: 'spinner',     body: '#9aa1a9' }
+  };
+
+  /* Typical footprints, so nobody has to go and measure something to
+     get it onto a board. Editable like everything else. */
+  const SIZES = {
+    knife: [110, 30], multi: [100, 32], light: [95, 20], pen: [140, 11],
+    wallet: [95, 65], watch: [42, 74], keys: [85, 25], pry: [95, 14],
+    fire: [70, 24], tech: [100, 55], paper: [89, 140], bottle: [80, 200],
+    med: [140, 80], pouch: [180, 120], eyewear: [140, 48], belt: [125, 125],
+    cord: [90, 35], nav: [60, 50], fidget: [60, 45]
+  };
+
+  let list = [];
+
+  /* ---- reading a URL --------------------------------------------------- */
+  /* Not a fetch - just what the string itself gives up, which is more
+     than you would think. */
+  const TITLE_CASE = s => s.replace(/\b[a-z]/g, c => c.toUpperCase());
+
+  function guess(rawUrl) {
+    const url = EDCShare.safeUrl(rawUrl);
+    if (!url) return null;
+    let u;
+    try { u = new URL(url); } catch (e) { return null; }
+
+    /* the brand out of the hostname */
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    const parts = host.split('.');
+    const drop = { co: 1, com: 1, net: 1, org: 1, store: 1, shop: 1, gear: 1, us: 1, uk: 1, ca: 1, eu: 1, de: 1, au: 1 };
+    let brand = parts.filter(p => !drop[p]).pop() || parts[0];
+    brand = TITLE_CASE(brand.replace(/[-_]+/g, ' ')).trim();
+
+    /* the product out of the last meaningful path segment */
+    const segs = u.pathname.split('/').filter(Boolean)
+      .filter(s => !/^(products?|p|item|shop|store|collections?|catalog|en|us|gb|dp|gp)$/i.test(s));
+    let name = segs.pop() || '';
+    name = name.replace(/\.(html?|php|aspx?)$/i, '')
+               .replace(/[-_+]+/g, ' ')
+               .replace(/\b(b0[a-z0-9]{8,})\b/ig, '')      /* marketplace SKUs */
+               .replace(/\s{2,}/g, ' ').trim();
+    if (name.length > 48) name = name.slice(0, 48).trim();
+    name = TITLE_CASE(name);
+
+    /* a brand repeated in the product name reads badly on a label */
+    if (brand && name.toLowerCase().startsWith(brand.toLowerCase() + ' '))
+      name = name.slice(brand.length).trim();
+
+    return { url, brand, name, host };
+  }
+
+  /* ---- pictures ---------------------------------------------------------
+     Anything that ends up as art is re-encoded through a canvas first.
+     That downscales it so localStorage can hold it, and it turns a
+     remote image into local pixels, which matters more than the size
+     does: a remote image taints the export canvas and breaks Download
+     PNG, and a local data URI does not. */
+  function shrink(src, crossOrigin) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      if (crossOrigin) img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const k = Math.min(1, IMG_MAX_PX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * k));
+        c.height = Math.max(1, Math.round(img.height * k));
+        try {
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve({ data: c.toDataURL('image/png'), w: img.width, h: img.height });
+        } catch (e) {
+          reject(new Error('that image is served by a site that will not let this page ' +
+            'read it, so it cannot be stored or exported. Download it and pick the file instead.'));
+        }
+      };
+      img.onerror = () => reject(new Error('that image would not load'));
+      img.src = src;
+    });
+  }
+
+  const fromFile = file => new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type)) return reject(new Error('that is not an image file'));
+    const r = new FileReader();
+    r.onload = () => shrink(String(r.result), false).then(resolve, reject);
+    r.onerror = () => reject(new Error('that file would not read'));
+    r.readAsDataURL(file);
+  });
+
+  const fromUrl = raw => {
+    const u = EDCShare.safeUrl(raw);
+    return u ? shrink(u, true) : Promise.reject(new Error('that is not a usable image address'));
+  };
+
+  /* ---- the records -------------------------------------------------------- */
+  function newId() {
+    let id;
+    do {
+      id = 'u_' + Math.random().toString(36).slice(2, 8);
+    } while (BY_ID[id]);
+    return id;
+  }
+
+  const num = (v, min, max, dflt) => {
+    const n = parseFloat(v);
+    return isFinite(n) && n >= min && n <= max ? n : dflt;
+  };
+
+  /* Build a clean record from whatever the form (or a share link, or
+     storage) had. Size arrives two ways and both have to be understood:
+     the form sends w and h, while a record that has been round-tripped
+     through storage or JSON sends the mm pair it was saved as. Reading
+     only one of them silently reset every custom product to its
+     category default on reload, which is a quiet way to lose work. */
+  function make(input) {
+    const cat = CAT_BY_ID[input.cat] ? input.cat : 'knife';
+    const size = SIZES[cat] || [100, 40];
+    const mm = Array.isArray(input.mm) ? input.mm : [];
+    const w = input.w != null && input.w !== '' ? input.w : mm[0];
+    const h = input.h != null && input.h !== '' ? input.h : mm[1];
+    const p = {
+      id: input.id && /^u_[a-z0-9]{4,10}$/.test(input.id) ? input.id : newId(),
+      name:  (input.name  || 'Untitled').toString().slice(0, 40).trim() || 'Untitled',
+      brand: (input.brand || 'Unbranded').toString().slice(0, 28).trim() || 'Unbranded',
+      cat: cat,
+      price: num(input.price, 0, 100000, 0),
+      grams: num(input.grams, 0, 50000, 0),
+      mm: [num(w, 3, 2000, size[0]), num(h, 3, 2000, size[1])],
+      url: EDCShare.safeUrl(input.url),
+      note: (input.note || '').toString().slice(0, 140).trim(),
+      tags: ['yours'],
+      custom: true,
+      img: typeof input.img === 'string' && /^data:image\//.test(input.img) ? input.img : ''
+    };
+    p.art = Object.assign({}, STANDIN[cat] || STANDIN.knife);
+    if (!p.note) p.note = 'Added by you from ' + (p.url ? new URL(p.url).hostname.replace(/^www\./, '') : 'your own notes') + '.';
+    return p;
+  }
+
+  /* Registering is what makes the rest of the app treat these as normal
+     catalogue entries. PRODUCTS and BY_ID are the two things every other
+     module reads, so they are the two things kept true. */
+  function register(p) {
+    if (BY_ID[p.id]) unregister(p.id);
+    BY_ID[p.id] = p;
+    PRODUCTS.push(p);
+    if (p.img) window.EDC_MEDIA[p.id] = p.img;
+    return p;
+  }
+  function unregister(id) {
+    const i = PRODUCTS.findIndex(p => p.id === id);
+    if (i >= 0) PRODUCTS.splice(i, 1);
+    delete BY_ID[id];
+    delete window.EDC_MEDIA[id];
+  }
+
+  /* ---- storage -------------------------------------------------------------- */
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(list)); return true; }
+    catch (e) { return false; }        /* quota, or storage switched off */
+  }
+  function restore() {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { return; }
+    if (!raw) return;
+    let arr;
+    try { arr = JSON.parse(raw); } catch (e) { return; }
+    if (!Array.isArray(arr)) return;
+    arr.slice(0, MAX).forEach(o => { const p = make(o); list.push(p); register(p); });
+  }
+
+  function add(input) {
+    if (list.length >= MAX) throw new Error('that is ' + MAX + ' of your own products, which is the limit.');
+    const p = make(input);
+    list.push(p);
+    register(p);
+    persist();
+    return p;
+  }
+  function update(id, input) {
+    const i = list.findIndex(p => p.id === id);
+    if (i < 0) return null;
+    const p = make(Object.assign({}, list[i], input, { id: id }));
+    list[i] = p;
+    register(p);
+    persist();
+    return p;
+  }
+  function remove(id) {
+    const i = list.findIndex(p => p.id === id);
+    if (i < 0) return false;
+    list.splice(i, 1);
+    unregister(id);
+    persist();
+    return true;
+  }
+  const all = () => list.slice();
+  const isCustom = id => /^u_/.test(String(id));
+
+  /* Take on custom products that arrived in a share link or a JSON file.
+     Anything already here under the same id wins, so importing someone
+     else's board never quietly overwrites your own entry. */
+  function adopt(defs) {
+    (defs || []).forEach(d => {
+      if (!d || !isCustom(d.id) || BY_ID[d.id]) return;
+      if (list.length >= MAX) return;
+      const p = make(d);
+      list.push(p);
+      register(p);
+    });
+    persist();
+  }
+
+  /* ---- the generation brief ---------------------------------------------------
+     The fourth way to get art, and the good one: hand this to an image
+     model, put the result in media/, and the product is drawn like
+     everything else. The wording is not decorative - square-on, top
+     left light, no shadow and no background are exactly the four things
+     that decide whether the result sits with the drawings or floats
+     over them looking like a sticker. */
+  function brief(p) {
+    const cat = CAT_BY_ID[p.cat];
+    return [
+      'Product image of the ' + p.brand + ' ' + p.name + ', a ' + cat.one + '.',
+      'One single object, centred, shown square-on from directly above, filling the frame',
+      'with a small even margin. Pure white background. Soft even studio light from the',
+      'top left, no cast shadow, no reflections, no gradient backdrop.',
+      'No props, no hands, no packaging, no text, no logo lettering, no watermark.',
+      'Realistic materials and true proportions: the object is about ' +
+        p.mm[0] + ' by ' + p.mm[1] + ' millimetres.',
+      p.url ? 'Reference: ' + p.url : ''
+    ].filter(Boolean).join(' ');
+  }
+
+  function briefAll(items) {
+    const want = (items || list).filter(p => !p.img);
+    if (!want.length) return '';
+    return [
+      'Generate one image per product below.',
+      'For each: generate, then remove the background, then save it as',
+      'tools/edc-builder/media/stills/<id>.png and add "<id>": "stills/<id>.png"',
+      'to tools/edc-builder/media/manifest.js.',
+      '',
+      'These are likenesses for a layout board, not photographs of the real',
+      'article, and they should be labelled that way wherever they are shown.',
+      ''
+    ].join('\n') + want.map(p => '--- ' + p.id + ' ---\n' + brief(p)).join('\n\n');
+  }
+
+  restore();
+
+  return { add, update, remove, all, adopt, guess, fromFile, fromUrl, make,
+           brief, briefAll, isCustom, SIZES, STANDIN, MAX };
 })();
 
 </script>
@@ -2583,8 +3083,21 @@ const EDCShare = (function () {
     $('.k-weight', el).textContent = grams(p.grams);
     $('.k-size', el).textContent = p.mm[0] + ' × ' + p.mm[1] + ' mm';
     $('.add', el).textContent = has(p.id) ? 'Remove' : 'Add';
-    $('.mk', el).href = p.url;
-    $('.mk', el).title = 'Open ' + p.brand + '’s site in a new tab';
+    if (p.url) {
+      $('.mk', el).href = p.url;
+      $('.mk', el).title = 'Open ' + p.brand + '’s site in a new tab';
+    } else {
+      $('.mk', el).remove();
+    }
+    if (p.custom) {
+      const tag = document.createElement('span');
+      tag.className = 'yours';
+      tag.textContent = p.img ? 'yours · image' : 'yours · stand-in art';
+      tag.title = p.img
+        ? 'Your own entry, using the picture you gave it.'
+        : 'Your own entry. No picture yet, so it is drawn in the house style at the size you set.';
+      $('.gear-art', el).appendChild(tag);
+    }
     return el;
   }
 
@@ -2669,6 +3182,160 @@ const EDCShare = (function () {
     ui.cats.clear(); ui.search = ''; ui.sort = 'cat';
     $('#search').value = ''; $('#sortBy').value = 'cat';
     renderChips(); renderCatalog();
+  });
+
+  /* ---- adding your own -------------------------------------------------- */
+  const np = {
+    url: $('#npUrl'), brand: $('#npBrand'), name: $('#npName'), cat: $('#npCat'),
+    price: $('#npPrice'), grams: $('#npGrams'), w: $('#npW'), h: $('#npH'),
+    note: $('#npNote'), msg: $('#npMsg'), prev: $('#npPrev')
+  };
+  let npImage = '';          /* the data URI, once a picture has been accepted */
+
+  CATS.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.label;
+    np.cat.appendChild(o);
+  });
+
+  function npSizeDefaults() {
+    const d = EDCCustom.SIZES[np.cat.value] || [100, 40];
+    np.w.placeholder = d[0]; np.h.placeholder = d[1];
+  }
+  np.cat.addEventListener('change', npSizeDefaults);
+  npSizeDefaults();
+
+  function say(el, text, bad) {
+    el.className = 'hint' + (bad ? ' warn' : '');
+    el.textContent = text;
+  }
+
+  $('#npRead').addEventListener('click', () => {
+    const g = EDCCustom.guess(np.url.value);
+    if (!g) return say($('#npUrlMsg'), 'That is not a web address this can read. It needs to look like https://maker.com/…', true);
+    if (g.brand && !np.brand.value.trim()) np.brand.value = g.brand;
+    if (g.name && !np.name.value.trim()) np.name.value = g.name;
+    np.url.value = g.url;
+    say($('#npUrlMsg'), 'Read ' + g.host + '. Check the brand and name, then fill in the cost and weight — ' +
+      'those are on the page, which this cannot open.');
+  });
+
+  /* picture source */
+  $$('input[name="npPic"]').forEach(r => r.addEventListener('change', () => {
+    const v = $$('input[name="npPic"]').find(x => x.checked).value;
+    $('#npPicFile').hidden = v !== 'file';
+    $('#npPicUrl').hidden = v !== 'url';
+    if (v === 'none') { npImage = ''; np.prev.hidden = true; np.prev.textContent = ''; }
+  }));
+
+  function tookPicture(res) {
+    npImage = res.data;
+    np.prev.hidden = false;
+    np.prev.textContent = '';
+    const i = new Image();
+    i.src = npImage;
+    np.prev.appendChild(i);
+    say($('#npPicMsg'), 'Picture accepted, ' + res.w + '×' + res.h + ' and stored at a smaller size. ' +
+      'It is held in this browser, so exporting the board still works.');
+  }
+  function pictureFailed(err) {
+    npImage = '';
+    np.prev.hidden = true;
+    say($('#npPicMsg'), 'Could not use that: ' + err.message, true);
+  }
+  $('#npFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) EDCCustom.fromFile(f).then(tookPicture, pictureFailed);
+  });
+  $('#npFetch').addEventListener('click', () => {
+    say($('#npPicMsg'), 'Loading…');
+    EDCCustom.fromUrl($('#npImgUrl').value).then(tookPicture, pictureFailed);
+  });
+
+  function npReset() {
+    [np.url, np.brand, np.name, np.price, np.grams, np.w, np.h, np.note, $('#npImgUrl')]
+      .forEach(el => { el.value = ''; });
+    $('#npFile').value = '';
+    $$('input[name="npPic"]').forEach(r => { r.checked = r.value === 'none'; });
+    $('#npPicFile').hidden = true; $('#npPicUrl').hidden = true;
+    npImage = ''; np.prev.hidden = true; np.prev.textContent = '';
+    np.msg.textContent = '';
+    $('#npAdd').textContent = 'Add to the catalogue';
+    delete $('#npAdd').dataset.editing;
+  }
+  $('#npClear').addEventListener('click', npReset);
+
+  $('#npAdd').addEventListener('click', () => {
+    if (!np.name.value.trim() && !np.url.value.trim())
+      return say(np.msg, 'It needs at least a name or a link.', true);
+    const input = {
+      url: np.url.value, brand: np.brand.value, name: np.name.value, cat: np.cat.value,
+      price: np.price.value, grams: np.grams.value,
+      w: np.w.value || np.w.placeholder, h: np.h.value || np.h.placeholder,
+      note: np.note.value, img: npImage
+    };
+    const editing = $('#npAdd').dataset.editing;
+    try {
+      const p = editing ? EDCCustom.update(editing, input) : EDCCustom.add(input);
+      if (!p) return say(np.msg, 'That product is no longer here to edit.', true);
+      if (!editing && !has(p.id)) state.items = state.items.concat(p.id);
+      npReset();
+      say(np.msg, (editing ? 'Updated ' : 'Added ') + p.brand + ' ' + p.name + '.');
+      renderAll();
+    } catch (err) { say(np.msg, err.message, true); }
+  });
+
+  function editCustom(p) {
+    np.url.value = p.url; np.brand.value = p.brand; np.name.value = p.name;
+    np.cat.value = p.cat; np.price.value = p.price; np.grams.value = p.grams;
+    np.w.value = p.mm[0]; np.h.value = p.mm[1]; np.note.value = p.note;
+    npImage = p.img || '';
+    np.prev.hidden = !npImage;
+    np.prev.textContent = '';
+    if (npImage) { const i = new Image(); i.src = npImage; np.prev.appendChild(i); }
+    $$('input[name="npPic"]').forEach(r => { r.checked = r.value === (npImage ? 'file' : 'none'); });
+    $('#npPicFile').hidden = !npImage;
+    $('#npAdd').textContent = 'Save the changes';
+    $('#npAdd').dataset.editing = p.id;
+    $('#addCard').open = true;
+    $('#addCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderMine() {
+    const mine = EDCCustom.all();
+    $('#mineCard').hidden = !mine.length;
+    const ul = $('#mineList');
+    ul.textContent = '';
+    mine.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pk-art">${EDCArt.thumb(p, 52, 34)}</span>
+        <span class="pk-txt"><b></b><small></small></span>
+        <span class="mine-acts">
+          <button class="btn btn-o btn-sm ed" type="button">Edit</button>
+          <button class="btn btn-o btn-sm rm" type="button">Delete</button></span>`;
+      $('b', li).textContent = p.brand + ' ' + p.name;
+      $('small', li).textContent = CAT_BY_ID[p.cat].label + ' · ' + money(p.price) + ' · ' +
+        grams(p.grams) + ' · ' + (p.img ? 'your picture' : 'stand-in art');
+      $('.ed', li).addEventListener('click', () => editCustom(p));
+      $('.rm', li).addEventListener('click', () => {
+        if (!confirm('Delete ' + p.brand + ' ' + p.name + '? This cannot be undone.')) return;
+        EDCCustom.remove(p.id);
+        state.items = state.items.filter(x => x !== p.id);
+        renderAll();
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  $('#briefBtn').addEventListener('click', () => {
+    const text = EDCCustom.briefAll();
+    if (!text) return say(np.msg, 'Every one of your products already has a picture.', false);
+    $('#briefBox').hidden = false;
+    $('#briefText').value = text;
+  });
+  $('#briefCopy').addEventListener('click', () => {
+    $('#briefText').select();
+    if (navigator.clipboard) navigator.clipboard.writeText($('#briefText').value).catch(() => {});
   });
 
   /* ---- the pack sidebar ------------------------------------------------- */
@@ -2978,6 +3645,7 @@ const EDCShare = (function () {
 
   /* ---- go ---------------------------------------------------------------- */
   function renderAll() {
+    renderMine();
     renderCatalog();
     renderPack();
     renderBoard();

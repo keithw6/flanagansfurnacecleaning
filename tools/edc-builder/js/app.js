@@ -90,8 +90,21 @@
     $('.k-weight', el).textContent = grams(p.grams);
     $('.k-size', el).textContent = p.mm[0] + ' × ' + p.mm[1] + ' mm';
     $('.add', el).textContent = has(p.id) ? 'Remove' : 'Add';
-    $('.mk', el).href = p.url;
-    $('.mk', el).title = 'Open ' + p.brand + '’s site in a new tab';
+    if (p.url) {
+      $('.mk', el).href = p.url;
+      $('.mk', el).title = 'Open ' + p.brand + '’s site in a new tab';
+    } else {
+      $('.mk', el).remove();
+    }
+    if (p.custom) {
+      const tag = document.createElement('span');
+      tag.className = 'yours';
+      tag.textContent = p.img ? 'yours · image' : 'yours · stand-in art';
+      tag.title = p.img
+        ? 'Your own entry, using the picture you gave it.'
+        : 'Your own entry. No picture yet, so it is drawn in the house style at the size you set.';
+      $('.gear-art', el).appendChild(tag);
+    }
     return el;
   }
 
@@ -176,6 +189,160 @@
     ui.cats.clear(); ui.search = ''; ui.sort = 'cat';
     $('#search').value = ''; $('#sortBy').value = 'cat';
     renderChips(); renderCatalog();
+  });
+
+  /* ---- adding your own -------------------------------------------------- */
+  const np = {
+    url: $('#npUrl'), brand: $('#npBrand'), name: $('#npName'), cat: $('#npCat'),
+    price: $('#npPrice'), grams: $('#npGrams'), w: $('#npW'), h: $('#npH'),
+    note: $('#npNote'), msg: $('#npMsg'), prev: $('#npPrev')
+  };
+  let npImage = '';          /* the data URI, once a picture has been accepted */
+
+  CATS.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.label;
+    np.cat.appendChild(o);
+  });
+
+  function npSizeDefaults() {
+    const d = EDCCustom.SIZES[np.cat.value] || [100, 40];
+    np.w.placeholder = d[0]; np.h.placeholder = d[1];
+  }
+  np.cat.addEventListener('change', npSizeDefaults);
+  npSizeDefaults();
+
+  function say(el, text, bad) {
+    el.className = 'hint' + (bad ? ' warn' : '');
+    el.textContent = text;
+  }
+
+  $('#npRead').addEventListener('click', () => {
+    const g = EDCCustom.guess(np.url.value);
+    if (!g) return say($('#npUrlMsg'), 'That is not a web address this can read. It needs to look like https://maker.com/…', true);
+    if (g.brand && !np.brand.value.trim()) np.brand.value = g.brand;
+    if (g.name && !np.name.value.trim()) np.name.value = g.name;
+    np.url.value = g.url;
+    say($('#npUrlMsg'), 'Read ' + g.host + '. Check the brand and name, then fill in the cost and weight — ' +
+      'those are on the page, which this cannot open.');
+  });
+
+  /* picture source */
+  $$('input[name="npPic"]').forEach(r => r.addEventListener('change', () => {
+    const v = $$('input[name="npPic"]').find(x => x.checked).value;
+    $('#npPicFile').hidden = v !== 'file';
+    $('#npPicUrl').hidden = v !== 'url';
+    if (v === 'none') { npImage = ''; np.prev.hidden = true; np.prev.textContent = ''; }
+  }));
+
+  function tookPicture(res) {
+    npImage = res.data;
+    np.prev.hidden = false;
+    np.prev.textContent = '';
+    const i = new Image();
+    i.src = npImage;
+    np.prev.appendChild(i);
+    say($('#npPicMsg'), 'Picture accepted, ' + res.w + '×' + res.h + ' and stored at a smaller size. ' +
+      'It is held in this browser, so exporting the board still works.');
+  }
+  function pictureFailed(err) {
+    npImage = '';
+    np.prev.hidden = true;
+    say($('#npPicMsg'), 'Could not use that: ' + err.message, true);
+  }
+  $('#npFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) EDCCustom.fromFile(f).then(tookPicture, pictureFailed);
+  });
+  $('#npFetch').addEventListener('click', () => {
+    say($('#npPicMsg'), 'Loading…');
+    EDCCustom.fromUrl($('#npImgUrl').value).then(tookPicture, pictureFailed);
+  });
+
+  function npReset() {
+    [np.url, np.brand, np.name, np.price, np.grams, np.w, np.h, np.note, $('#npImgUrl')]
+      .forEach(el => { el.value = ''; });
+    $('#npFile').value = '';
+    $$('input[name="npPic"]').forEach(r => { r.checked = r.value === 'none'; });
+    $('#npPicFile').hidden = true; $('#npPicUrl').hidden = true;
+    npImage = ''; np.prev.hidden = true; np.prev.textContent = '';
+    np.msg.textContent = '';
+    $('#npAdd').textContent = 'Add to the catalogue';
+    delete $('#npAdd').dataset.editing;
+  }
+  $('#npClear').addEventListener('click', npReset);
+
+  $('#npAdd').addEventListener('click', () => {
+    if (!np.name.value.trim() && !np.url.value.trim())
+      return say(np.msg, 'It needs at least a name or a link.', true);
+    const input = {
+      url: np.url.value, brand: np.brand.value, name: np.name.value, cat: np.cat.value,
+      price: np.price.value, grams: np.grams.value,
+      w: np.w.value || np.w.placeholder, h: np.h.value || np.h.placeholder,
+      note: np.note.value, img: npImage
+    };
+    const editing = $('#npAdd').dataset.editing;
+    try {
+      const p = editing ? EDCCustom.update(editing, input) : EDCCustom.add(input);
+      if (!p) return say(np.msg, 'That product is no longer here to edit.', true);
+      if (!editing && !has(p.id)) state.items = state.items.concat(p.id);
+      npReset();
+      say(np.msg, (editing ? 'Updated ' : 'Added ') + p.brand + ' ' + p.name + '.');
+      renderAll();
+    } catch (err) { say(np.msg, err.message, true); }
+  });
+
+  function editCustom(p) {
+    np.url.value = p.url; np.brand.value = p.brand; np.name.value = p.name;
+    np.cat.value = p.cat; np.price.value = p.price; np.grams.value = p.grams;
+    np.w.value = p.mm[0]; np.h.value = p.mm[1]; np.note.value = p.note;
+    npImage = p.img || '';
+    np.prev.hidden = !npImage;
+    np.prev.textContent = '';
+    if (npImage) { const i = new Image(); i.src = npImage; np.prev.appendChild(i); }
+    $$('input[name="npPic"]').forEach(r => { r.checked = r.value === (npImage ? 'file' : 'none'); });
+    $('#npPicFile').hidden = !npImage;
+    $('#npAdd').textContent = 'Save the changes';
+    $('#npAdd').dataset.editing = p.id;
+    $('#addCard').open = true;
+    $('#addCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderMine() {
+    const mine = EDCCustom.all();
+    $('#mineCard').hidden = !mine.length;
+    const ul = $('#mineList');
+    ul.textContent = '';
+    mine.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pk-art">${EDCArt.thumb(p, 52, 34)}</span>
+        <span class="pk-txt"><b></b><small></small></span>
+        <span class="mine-acts">
+          <button class="btn btn-o btn-sm ed" type="button">Edit</button>
+          <button class="btn btn-o btn-sm rm" type="button">Delete</button></span>`;
+      $('b', li).textContent = p.brand + ' ' + p.name;
+      $('small', li).textContent = CAT_BY_ID[p.cat].label + ' · ' + money(p.price) + ' · ' +
+        grams(p.grams) + ' · ' + (p.img ? 'your picture' : 'stand-in art');
+      $('.ed', li).addEventListener('click', () => editCustom(p));
+      $('.rm', li).addEventListener('click', () => {
+        if (!confirm('Delete ' + p.brand + ' ' + p.name + '? This cannot be undone.')) return;
+        EDCCustom.remove(p.id);
+        state.items = state.items.filter(x => x !== p.id);
+        renderAll();
+      });
+      ul.appendChild(li);
+    });
+  }
+
+  $('#briefBtn').addEventListener('click', () => {
+    const text = EDCCustom.briefAll();
+    if (!text) return say(np.msg, 'Every one of your products already has a picture.', false);
+    $('#briefBox').hidden = false;
+    $('#briefText').value = text;
+  });
+  $('#briefCopy').addEventListener('click', () => {
+    $('#briefText').select();
+    if (navigator.clipboard) navigator.clipboard.writeText($('#briefText').value).catch(() => {});
   });
 
   /* ---- the pack sidebar ------------------------------------------------- */
@@ -485,6 +652,7 @@
 
   /* ---- go ---------------------------------------------------------------- */
   function renderAll() {
+    renderMine();
     renderCatalog();
     renderPack();
     renderBoard();

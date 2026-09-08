@@ -15,6 +15,7 @@ tools/edc-builder/
   js/art.js           the drawing generators, one per kind of object
   js/board.js         the display board: layout, surfaces, the SVG itself
   js/share.js         share links, save, import/export, PNG
+  js/custom.js        products you add yourself, and the image brief
   js/app.js           the UI - catalogue, pack, board controls, stats
   media/manifest.js   optional per-product image overrides, normally empty
   build-single.mjs    bundles all of the above into one self-contained file
@@ -24,7 +25,8 @@ tools/edc-builder/
 
 1. **Build** — filter or search the catalogue and add things. The sidebar keeps
    a running cost and weight. Six starter loadouts fill the pack in one click if
-   you would rather edit than start from nothing.
+   you would rather edit than start from nothing. **Add a product you found**
+   takes anything that is not in the catalogue — see below.
 2. **Board** — pick a layout and a surface, add your name and a profile link,
    then download it as a PNG or print it.
 3. **Stats** — where the weight and the money actually went, by category.
@@ -52,10 +54,81 @@ most useful thing the board does, and no set of product shots gives it to you.
 It is also faster, works offline, prints, and does not involve generating
 imitations of other people's products.
 
+## Adding a product you found
+
+Paste the link, fill in the cost and weight, pick a category, and it joins the
+catalogue. It is kept in this browser, it goes on the board, it counts in the
+totals, and it can be edited or deleted from **Your products**.
+
+Two things the browser genuinely cannot do, and the form says so rather than
+pretending:
+
+- **It cannot read the product page.** A page on another site is not fetchable
+  from this one, so the cost and the weight have to be typed in. What it *can*
+  read is the URL, and a maker's URL nearly always carries the brand in the
+  hostname and the product in the last path segment, so **Read the link** fills
+  those two in and leaves them editable. Marketplace SKUs get stripped.
+- **It cannot call an image generator.** There is no server and no key, and a
+  key in a public page is not a key.
+
+So a picture comes from one of four places:
+
+| Source | What you get |
+| --- | --- |
+| Nothing (the default) | A drawing in the house style, using the category's shape and the size you gave. It sits with the rest of the board immediately. |
+| An image file you pick | Downscaled and stored in the browser. Everything keeps working, PNG export included. |
+| An image address | Fetched and re-encoded locally if the other site allows it; if it does not, the form says so and tells you to download the file instead. |
+| A generated image | See below. This is the one that makes it permanent. |
+
+Sizes matter more than they look. The two millimetre figures are the footprint
+as the thing lies on a board, and they are what put it at the right size next to
+everything else. Each category has a sensible default if you do not know them.
+
+### Generating the picture
+
+**Your products → Image brief for the ones with no picture** writes a prompt per
+product. The wording is not decorative: square-on, light from the top left, no
+cast shadow and no background are exactly the four things that decide whether a
+generated image sits with the drawings or floats over them looking like a
+sticker. The brief also carries the real millimetre size and the source URL.
+
+Hand the brief to an image generator (Higgsfield, or anything else), cut the
+background out, then:
+
+```
+tools/edc-builder/media/stills/<id>.png     save the image here
+tools/edc-builder/media/manifest.js         add  '<id>': 'stills/<id>.png'
+```
+
+At that point it is an ordinary catalogue product: the picture is in the repo,
+so it survives a cleared browser and it reaches anyone you share the board with.
+
+**A generated image is a likeness, not a photograph of the real article.** An
+image model works from a name and a description, not from the product, so it
+produces something plausible rather than something accurate — proportions and
+details will be wrong in ways that matter to anyone who owns one. That is fine
+for a layout board and not fine for anything that implies you are showing the
+actual product. The app labels these, and so should you.
+
+## What travels, and what does not
+
+| | Share link | JSON export | Repo |
+| --- | --- | --- | --- |
+| Catalogue items | yes | yes | yes |
+| Your own products' details | yes | yes | only once added to `catalog.js` |
+| Your own products' pictures | **no** | yes | yes, once in `media/` |
+
+A share link has to stay a link, and a picture is tens of kilobytes, so pictures
+do not go in one — the recipient sees the drawn stand-in with the right name,
+price, weight and size. Use the JSON export to move pictures between your own
+machines, and `media/` to make them permanent for everyone.
+
 ## The media library
 
 `media/manifest.js` maps a product id to an image, and that image replaces the
-drawing everywhere — catalogue card, pack list and board.
+drawing everywhere — catalogue card, pack list and board. It works for
+catalogue products and for your own alike; products you add put their picture
+into the same table at runtime, which is why one code path serves both.
 
 ```js
 window.EDC_MEDIA = {

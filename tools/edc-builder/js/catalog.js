@@ -28,25 +28,25 @@
    ===================================================================== */
 
 const CATS = [
-  { id: 'knife',    label: 'Knives',        blurb: 'Folders and fixed blades.' },
-  { id: 'multi',    label: 'Multi-tools',   blurb: 'Pliers, drivers and the Swiss Army end of things.' },
-  { id: 'light',    label: 'Lights',        blurb: 'Pocket, keychain and headlamps.' },
-  { id: 'pen',      label: 'Pens',          blurb: 'Something to write with that survives a pocket.' },
-  { id: 'wallet',   label: 'Wallets',       blurb: 'Cards and cash.' },
-  { id: 'watch',    label: 'Watches',       blurb: 'Time without unlocking a phone.' },
-  { id: 'keys',     label: 'Keys',          blurb: 'Organisers, rings and clips.' },
-  { id: 'pry',      label: 'Pry and drive', blurb: 'Small metal for the jobs a knife should not do.' },
-  { id: 'fire',     label: 'Fire',          blurb: 'Lighters and sparks.' },
-  { id: 'tech',     label: 'Tech',          blurb: 'Power, cable, trackers, audio.' },
-  { id: 'paper',    label: 'Paper',         blurb: 'Notebooks and cards.' },
-  { id: 'bottle',   label: 'Water',         blurb: 'Bottles and flasks.' },
-  { id: 'med',      label: 'Medical',       blurb: 'Boo-boo kit through to bleeding control.' },
-  { id: 'pouch',    label: 'Pouches',       blurb: 'What holds the rest of it.' },
-  { id: 'eyewear',  label: 'Eyewear',       blurb: 'Sun and safety.' },
-  { id: 'belt',     label: 'Belts',         blurb: 'Load-bearing waistline.' },
-  { id: 'cord',     label: 'Cord and tape', blurb: 'Line, ties and a flat pack of tape.' },
-  { id: 'nav',      label: 'Navigation',    blurb: 'Compass and signal.' },
-  { id: 'fidget',   label: 'Fidget',        blurb: 'Pocket toys, for the record.' }
+  { id: 'knife',    label: 'Knives', one: 'folding or fixed knife',        blurb: 'Folders and fixed blades.' },
+  { id: 'multi',    label: 'Multi-tools', one: 'multi-tool',   blurb: 'Pliers, drivers and the Swiss Army end of things.' },
+  { id: 'light',    label: 'Lights', one: 'flashlight',        blurb: 'Pocket, keychain and headlamps.' },
+  { id: 'pen',      label: 'Pens', one: 'pen',          blurb: 'Something to write with that survives a pocket.' },
+  { id: 'wallet',   label: 'Wallets', one: 'wallet',       blurb: 'Cards and cash.' },
+  { id: 'watch',    label: 'Watches', one: 'wristwatch',       blurb: 'Time without unlocking a phone.' },
+  { id: 'keys',     label: 'Keys', one: 'key organiser',          blurb: 'Organisers, rings and clips.' },
+  { id: 'pry',      label: 'Pry and drive', one: 'pry bar or driver', blurb: 'Small metal for the jobs a knife should not do.' },
+  { id: 'fire',     label: 'Fire', one: 'lighter or fire starter',          blurb: 'Lighters and sparks.' },
+  { id: 'tech',     label: 'Tech', one: 'piece of carry tech',          blurb: 'Power, cable, trackers, audio.' },
+  { id: 'paper',    label: 'Paper', one: 'pocket notebook',         blurb: 'Notebooks and cards.' },
+  { id: 'bottle',   label: 'Water', one: 'water bottle',         blurb: 'Bottles and flasks.' },
+  { id: 'med',      label: 'Medical', one: 'first aid or trauma item',       blurb: 'Boo-boo kit through to bleeding control.' },
+  { id: 'pouch',    label: 'Pouches', one: 'pouch or organiser',       blurb: 'What holds the rest of it.' },
+  { id: 'eyewear',  label: 'Eyewear', one: 'pair of sunglasses',       blurb: 'Sun and safety.' },
+  { id: 'belt',     label: 'Belts', one: 'belt',         blurb: 'Load-bearing waistline.' },
+  { id: 'cord',     label: 'Cord and tape', one: 'length of cord or tape', blurb: 'Line, ties and a flat pack of tape.' },
+  { id: 'nav',      label: 'Navigation', one: 'compass or signalling item',    blurb: 'Compass and signal.' },
+  { id: 'fidget',   label: 'Fidget', one: 'fidget toy',        blurb: 'Pocket toys, for the record.' }
 ];
 
 /* Shared colourways. Keeping the palette in one place is most of the

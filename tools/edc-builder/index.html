@@ -62,6 +62,82 @@
       <p class="hint" id="resultCount"></p>
     </div>
 
+
+    <details class="card addcard" id="addCard">
+      <summary><h2>Add a product you found</h2>
+        <span class="sub">Paste a link, fill in the cost and weight, pick a category. It joins the catalogue and stays in this browser.</span>
+      </summary>
+
+      <div class="addbody">
+        <label class="fld"><span>Product link</span>
+          <div class="urlrow">
+            <input type="url" id="npUrl" placeholder="https://www.maker.com/products/the-thing" maxlength="200">
+            <button class="btn btn-o btn-sm" id="npRead" type="button">Read the link</button>
+          </div></label>
+        <p class="hint" id="npUrlMsg">The page itself cannot be read from here &mdash; another site will not allow it &mdash; so
+          the cost and weight are yours to fill in. The brand and product name are guessed from the address.</p>
+
+        <div class="grid3" style="margin-top:12px">
+          <label class="fld"><span>Brand</span><input type="text" id="npBrand" maxlength="28" placeholder="Maker"></label>
+          <label class="fld"><span>Product name</span><input type="text" id="npName" maxlength="40" placeholder="The thing"></label>
+          <label class="fld"><span>Category</span><select id="npCat"></select></label>
+        </div>
+
+        <div class="grid4" style="margin-top:12px">
+          <label class="fld"><span>Cost, US$</span><input type="number" id="npPrice" min="0" max="100000" step="1" placeholder="0"></label>
+          <label class="fld"><span>Weight, grams</span><input type="number" id="npGrams" min="0" max="50000" step="1" placeholder="0"></label>
+          <label class="fld"><span>Length, mm</span><input type="number" id="npW" min="3" max="2000" step="1"></label>
+          <label class="fld"><span>Width, mm</span><input type="number" id="npH" min="3" max="2000" step="1"></label>
+        </div>
+        <p class="hint">Weight in ounces? Type it in grams &mdash; 1 oz is 28.3 g. The two size figures are the
+          footprint as the thing lies on a board, and they are what puts it at the right size next to everything else.</p>
+
+        <label class="fld" style="margin-top:12px"><span>One line about it (optional)</span>
+          <input type="text" id="npNote" maxlength="140" placeholder="Why you carry it"></label>
+
+        <fieldset class="picsource">
+          <legend>Picture</legend>
+          <label class="chk"><input type="radio" name="npPic" value="none" checked> Draw a stand-in</label>
+          <label class="chk"><input type="radio" name="npPic" value="file"> Use an image file</label>
+          <label class="chk"><input type="radio" name="npPic" value="url"> Use an image address</label>
+          <div class="picrow" id="npPicFile" hidden>
+            <input type="file" id="npFile" accept="image/*">
+          </div>
+          <div class="picrow" id="npPicUrl" hidden>
+            <input type="url" id="npImgUrl" placeholder="https://&hellip;/photo.png" maxlength="300">
+            <button class="btn btn-o btn-sm" id="npFetch" type="button">Load it</button>
+          </div>
+          <p class="hint" id="npPicMsg">Without a picture it is drawn in the same style as everything else, at the size you gave.
+            A cut-out image on a white or transparent background sits best.</p>
+          <div class="picprev" id="npPrev" hidden></div>
+        </fieldset>
+
+        <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+          <button class="btn" id="npAdd" type="button">Add to the catalogue</button>
+          <button class="btn btn-o" id="npClear" type="button">Clear the form</button>
+          <span class="hint" id="npMsg" style="margin:0"></span>
+        </div>
+      </div>
+    </details>
+
+    <div class="card" id="mineCard" hidden>
+      <h2>Your products</h2>
+      <p class="sub">Kept in this browser. They travel in a share link, but their pictures do not &mdash;
+        export the JSON to move those to another machine.</p>
+      <ul class="mine" id="mineList"></ul>
+      <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn btn-o btn-sm" id="briefBtn" type="button">Image brief for the ones with no picture</button>
+      </div>
+      <div id="briefBox" hidden style="margin-top:10px">
+        <label class="fld"><span>Hand this to an image generator</span>
+          <textarea id="briefText" rows="10" readonly spellcheck="false"></textarea></label>
+        <p class="hint">Generate one image per product, cut the background out, save each as
+          <code>media/stills/&lt;id&gt;.png</code>, and add it to <code>media/manifest.js</code>.
+          A generated image is a likeness, not a photograph of the real article, and the app labels it that way.</p>
+        <button class="btn btn-o btn-sm" id="briefCopy" type="button">Copy the brief</button>
+      </div>
+    </div>
+
     <div id="catalog" class="catalog"></div>
     <p class="empty" id="catalogEmpty" hidden>Nothing matches that. Try a different search or clear the filters.</p>
   </div>
@@ -207,6 +283,7 @@
 <script src="js/art.js"></script>
 <script src="js/board.js"></script>
 <script src="js/share.js"></script>
+<script src="js/custom.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -25,6 +25,12 @@
    off the disk cannot fetch a local .json, and this tool is meant to
    work by double-clicking index.html.
 
+   Products you add yourself in the app put their picture into this same
+   table at runtime, so there is one code path for both. Moving one of
+   those into the repo - drop the file in media/stills/ and add a line
+   here - is what turns it from something only your browser knows about
+   into something everyone you share the board with can see.
+
    Empty is the normal state. Nothing here is required.
    ===================================================================== */
 window.EDC_MEDIA = {};

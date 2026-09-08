@@ -17,7 +17,7 @@
 
 const EDCShare = (function () {
 
-  const VERSION = '1';
+  const VERSION = '2';        /* 2 added the custom-product field; 1 still reads */
   const MAX_ITEMS = 60;
   const LIMITS = { title: 48, owner: 40, url: 200 };
   const LAYOUTS = ['knoll', 'grid', 'loadout'];
@@ -54,6 +54,27 @@ const EDCShare = (function () {
      newline breaking a label, the second stops a pasted essay. */
   const clamp = (v, n) => String(v == null ? '' : v)
     .replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, n);
+  const enc = v => encodeURIComponent(clamp(v, 60));
+
+  /* Products someone added themselves are not in anyone else's
+     catalogue, so the link has to carry their definitions or the board
+     arrives full of holes. Their pictures do not travel: a data URI is
+     tens of kilobytes and a URL has to stay a URL. The recipient sees
+     the drawn stand-in, which is the honest outcome - and the way to
+     make a custom product properly shareable is to give it art in
+     media/ and put it in the catalogue, which is a repo change, not a
+     link. */
+  function packCustom(p) {
+    return [p.id, enc(p.name), enc(p.brand), p.cat,
+            Math.round(p.price), Math.round(p.grams),
+            Math.round(p.mm[0]), Math.round(p.mm[1]), enc(p.url)].join('^');
+  }
+  function unpackCustom(str) {
+    const f = String(str).split('^');
+    if (f.length < 9 || !/^u_[a-z0-9]{4,10}$/.test(f[0])) return null;
+    return { id: f[0], name: dec(f[1]), brand: dec(f[2]), cat: f[3],
+             price: f[4], grams: f[5], w: f[6], h: f[7], url: dec(f[8]) };
+  }
   const pick = (v, allowed) => allowed.indexOf(v) >= 0 ? v : allowed[0];
   const knownSurface = v => Object.prototype.hasOwnProperty.call(EDCBoard.SURFACES, v) ? v : 'slate';
 
@@ -68,7 +89,10 @@ const EDCShare = (function () {
       encodeURIComponent(clamp(st.title, LIMITS.title)),
       encodeURIComponent(clamp(st.owner, LIMITS.owner)),
       encodeURIComponent(safeUrl(st.url)),
-      (st.items || []).slice(0, MAX_ITEMS).join(',')
+      (st.items || []).slice(0, MAX_ITEMS).join(','),
+      (st.items || []).slice(0, MAX_ITEMS)
+        .map(id => BY_ID[id]).filter(p => p && p.custom)
+        .map(packCustom).join(';')
     ];
     return b64e(f.join('|'));
   }
@@ -76,7 +100,16 @@ const EDCShare = (function () {
   function decode(code) {
     let f;
     try { f = b64d(String(code)).split('|'); } catch (e) { return null; }
-    if (f.length < 9 || f[0] !== VERSION) return null;
+    if (f.length < 9 || (f[0] !== VERSION && f[0] !== '1')) return null;
+
+    /* Custom definitions have to be taken on before the item list is
+       filtered, or every one of them would be dropped as unknown. Done
+       here rather than by the caller so that every route in - a link,
+       a JSON file, this browser's own storage - is vetted identically. */
+    if (f[9] && typeof EDCCustom !== 'undefined') {
+      EDCCustom.adopt(f[9].split(';').map(unpackCustom).filter(Boolean));
+    }
+
     const seen = new Set();
     const ids = (f[8] || '').split(',')
       .filter(id => BY_ID[id] && !seen.has(id) && seen.add(id))   /* unknown ids just vanish */
@@ -123,7 +156,10 @@ const EDCShare = (function () {
                surface: st.surface, labels: st.labels, ruler: !!st.ruler },
       totals: EDCBoard.totals(items),
       items: items.map(p => ({ id: p.id, brand: p.brand, name: p.name, category: p.cat,
-                               priceUsd: p.price, weightGrams: p.grams, url: p.url }))
+                               priceUsd: p.price, weightGrams: p.grams, url: p.url,
+                               mm: p.mm, note: p.note,
+                               yours: !!p.custom || undefined,
+                               image: p.custom && p.img ? p.img : undefined }))
     }, null, 2);
   }
 
@@ -131,6 +167,15 @@ const EDCShare = (function () {
     let o;
     try { o = JSON.parse(text); } catch (e) { return null; }
     const b = (o && o.board) || {};
+    /* JSON is the only route that carries pictures, so adopt from it
+       directly rather than going round through the link format. */
+    if (Array.isArray(o && o.items) && typeof EDCCustom !== 'undefined') {
+      EDCCustom.adopt(o.items.filter(i => i && i.yours).map(i => ({
+        id: i.id, name: i.name, brand: i.brand, cat: i.category,
+        price: i.priceUsd, grams: i.weightGrams, url: i.url, note: i.note,
+        w: i.mm && i.mm[0], h: i.mm && i.mm[1], img: i.image
+      })));
+    }
     return decode(encode({
       layout: b.layout, surface: b.surface, labels: b.labels, ruler: !!b.ruler,
       title: b.title, owner: b.owner, url: b.url,
