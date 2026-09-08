@@ -514,6 +514,47 @@
     photoFor(id, true);
   });
 
+  /* A list of addresses, one product per line. Whether it works is not
+     up to this page: reading another site's image needs that site to
+     allow it. So each line is reported on its own and a failure says
+     which of the two failures it was, rather than the whole run dying
+     on the first refusal. */
+  $('#listGo').addEventListener('click', () => {
+    const lines = $('#listText').value.split(/\r?\n/)
+      .map(l => l.trim()).filter(Boolean)
+      .map(l => {
+        const m = /^(\S+)[\s,;]+(\S+)$/.exec(l);
+        return m ? { id: m[1], url: m[2], line: l } : { bad: l };
+      });
+    if (!lines.length) return say($('#listMsg'), 'Nothing in the box.', true);
+
+    const opts = picOpts();
+    const done = [], failed = [];
+    let i = 0;
+    say($('#listMsg'), 'Working through ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') + '…');
+
+    (function next() {
+      if (i >= lines.length) {
+        renderAll();
+        const parts = [];
+        if (done.length) parts.push(done.length + ' added');
+        if (failed.length) parts.push(failed.length + ' failed — ' + failed[0]);
+        say($('#listMsg'), parts.join(' · '), !done.length);
+        return;
+      }
+      const row = lines[i++];
+      if (row.bad || !BY_ID[row.id]) {
+        failed.push((row.bad || row.id) + ': ' +
+          (row.bad ? 'not "id address"' : 'no product with that id'));
+        return next();
+      }
+      EDCImages.fromUrl(row.url, opts)
+        .then(res => { EDCImages.set(row.id, res.data); done.push(row.id); })
+        .catch(err => { failed.push(row.id + ': ' + err.message); })
+        .then(next);
+    })();
+  });
+
   $('#bulkFiles').addEventListener('change', e => {
     if (e.target.files && e.target.files.length) takeFiles(e.target.files);
     e.target.value = '';

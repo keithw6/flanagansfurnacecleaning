@@ -437,6 +437,17 @@ kbd {
   border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px;
 }
 
+.listbox {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 14px; margin-top: 14px;
+}
+.listbox > summary {
+  cursor: pointer; font-size: .8rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+}
+.listbox > summary:hover { color: var(--ink); }
+.listbox[open] > summary { margin-bottom: 4px; }
+
 </style>
 <header class="hdr no-print">
   <div class="wrap hdr-in">
@@ -592,6 +603,21 @@ kbd {
         </div>
         <p class="hint" id="pasteMsg"></p>
       </fieldset>
+
+
+      <details class="listbox" id="listBox">
+        <summary>A whole list at once</summary>
+        <p class="hint" style="margin-top:8px">One product per line: the product id, a space, then the address of
+          the image. Whether this works depends on the site holding the images allowing another page to read
+          them &mdash; many do, some do not, and the report below says which lines failed and why.</p>
+        <label class="fld"><span>id and image address, one pair per line</span>
+          <textarea id="listText" rows="6" spellcheck="false"
+            placeholder="bm535 https://example.com/bugout.png&#10;gshock5600 https://example.com/gshock.png"></textarea></label>
+        <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:10px">
+          <button class="btn btn-o btn-sm" id="listGo" type="button">Fetch them all</button>
+          <span class="hint" id="listMsg" style="margin:0"></span>
+        </div>
+      </details>
 
       <div class="field-inline" style="flex-wrap:wrap;gap:14px;margin-top:12px">
         <label class="chk"><input type="checkbox" id="optKnock" checked> Take the background off</label>
@@ -3995,6 +4021,47 @@ const EDCCustom = (function () {
     const id = $('#pasteTarget').value;
     if (!id) return say($('#pasteMsg'), 'Pick the product first.', true);
     photoFor(id, true);
+  });
+
+  /* A list of addresses, one product per line. Whether it works is not
+     up to this page: reading another site's image needs that site to
+     allow it. So each line is reported on its own and a failure says
+     which of the two failures it was, rather than the whole run dying
+     on the first refusal. */
+  $('#listGo').addEventListener('click', () => {
+    const lines = $('#listText').value.split(/\r?\n/)
+      .map(l => l.trim()).filter(Boolean)
+      .map(l => {
+        const m = /^(\S+)[\s,;]+(\S+)$/.exec(l);
+        return m ? { id: m[1], url: m[2], line: l } : { bad: l };
+      });
+    if (!lines.length) return say($('#listMsg'), 'Nothing in the box.', true);
+
+    const opts = picOpts();
+    const done = [], failed = [];
+    let i = 0;
+    say($('#listMsg'), 'Working through ' + lines.length + ' line' + (lines.length === 1 ? '' : 's') + '…');
+
+    (function next() {
+      if (i >= lines.length) {
+        renderAll();
+        const parts = [];
+        if (done.length) parts.push(done.length + ' added');
+        if (failed.length) parts.push(failed.length + ' failed — ' + failed[0]);
+        say($('#listMsg'), parts.join(' · '), !done.length);
+        return;
+      }
+      const row = lines[i++];
+      if (row.bad || !BY_ID[row.id]) {
+        failed.push((row.bad || row.id) + ': ' +
+          (row.bad ? 'not "id address"' : 'no product with that id'));
+        return next();
+      }
+      EDCImages.fromUrl(row.url, opts)
+        .then(res => { EDCImages.set(row.id, res.data); done.push(row.id); })
+        .catch(err => { failed.push(row.id + ': ' + err.message); })
+        .then(next);
+    })();
   });
 
   $('#bulkFiles').addEventListener('change', e => {

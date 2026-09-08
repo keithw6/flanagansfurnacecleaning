@@ -165,6 +165,21 @@
         <p class="hint" id="pasteMsg"></p>
       </fieldset>
 
+
+      <details class="listbox" id="listBox">
+        <summary>A whole list at once</summary>
+        <p class="hint" style="margin-top:8px">One product per line: the product id, a space, then the address of
+          the image. Whether this works depends on the site holding the images allowing another page to read
+          them &mdash; many do, some do not, and the report below says which lines failed and why.</p>
+        <label class="fld"><span>id and image address, one pair per line</span>
+          <textarea id="listText" rows="6" spellcheck="false"
+            placeholder="bm535 https://example.com/bugout.png&#10;gshock5600 https://example.com/gshock.png"></textarea></label>
+        <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:10px">
+          <button class="btn btn-o btn-sm" id="listGo" type="button">Fetch them all</button>
+          <span class="hint" id="listMsg" style="margin:0"></span>
+        </div>
+      </details>
+
       <div class="field-inline" style="flex-wrap:wrap;gap:14px;margin-top:12px">
         <label class="chk"><input type="checkbox" id="optKnock" checked> Take the background off</label>
         <label class="chk"><input type="checkbox" id="optTrim" checked> Trim to the object</label>

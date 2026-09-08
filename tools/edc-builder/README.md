@@ -42,6 +42,14 @@ and your own alike. **Build → Real pictures** takes a drop of image files and
 matches each to a product by filename; **Photo** on a single card does one at a
 time.
 
+### A whole list at once
+
+**A whole list at once** in the pictures panel takes lines of `productId url` and
+fetches each in turn. Whether it works is not up to this page - reading another
+site's image needs that site to allow it - so every line is reported on its own
+and a refusal on one does not stop the rest. Where a host refuses, fall back to
+copy-and-paste below, which never does.
+
 ### Taking one off a maker's site
 
 Right-click the photo on the product page, **Copy image**, come back, pick the

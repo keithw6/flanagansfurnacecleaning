@@ -432,3 +432,14 @@ kbd {
   background: var(--surface-3); border: 1px solid var(--line);
   border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px;
 }
+
+.listbox {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 14px; margin-top: 14px;
+}
+.listbox > summary {
+  cursor: pointer; font-size: .8rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+}
+.listbox > summary:hover { color: var(--ink); }
+.listbox[open] > summary { margin-bottom: 4px; }
