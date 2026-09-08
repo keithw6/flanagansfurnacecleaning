@@ -195,24 +195,35 @@ const EDCCustom = (function () {
   /* Registering is what makes the rest of the app treat these as normal
      catalogue entries. PRODUCTS and BY_ID are the two things every other
      module reads, so they are the two things kept true. */
+  /* The picture goes to EDCImages, which is the one store for every
+     product's art, catalogue and custom alike. Keeping a second copy on
+     the record would double what browser storage has to hold and give
+     the two a chance to disagree. */
   function register(p) {
     if (BY_ID[p.id]) unregister(p.id);
     BY_ID[p.id] = p;
     PRODUCTS.push(p);
-    if (p.img) window.EDC_MEDIA[p.id] = p.img;
+    if (p.img) { try { EDCImages.set(p.id, p.img); } catch (e) { p.img = ''; throw e; } }
     return p;
   }
   function unregister(id) {
     const i = PRODUCTS.findIndex(p => p.id === id);
     if (i >= 0) PRODUCTS.splice(i, 1);
     delete BY_ID[id];
-    delete window.EDC_MEDIA[id];
+    EDCImages.clear(id);
   }
 
   /* ---- storage -------------------------------------------------------------- */
+  /* Without the pictures - EDCImages holds those under its own key. */
   function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(list)); return true; }
-    catch (e) { return false; }        /* quota, or storage switched off */
+    try {
+      localStorage.setItem(KEY, JSON.stringify(list.map(p => {
+        const o = Object.assign({}, p);
+        delete o.img;
+        return o;
+      })));
+      return true;
+    } catch (e) { return false; }      /* quota, or storage switched off */
   }
   function restore() {
     let raw = null;
@@ -221,7 +232,12 @@ const EDCCustom = (function () {
     let arr;
     try { arr = JSON.parse(raw); } catch (e) { return; }
     if (!Array.isArray(arr)) return;
-    arr.slice(0, MAX).forEach(o => { const p = make(o); list.push(p); register(p); });
+    arr.slice(0, MAX).forEach(o => {
+      const p = make(o);
+      list.push(p);
+      register(p);
+      p.img = EDCImages.get(p.id) || '';    /* read the picture back from its own store */
+    });
   }
 
   function add(input) {

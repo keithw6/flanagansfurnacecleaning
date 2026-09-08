@@ -138,6 +138,38 @@
       </div>
     </div>
 
+
+    <div class="card" id="picsCard">
+      <h2>Real pictures</h2>
+      <p class="sub">Drop image files here and they are matched to products by filename &mdash;
+        <code>bm535.png</code>, or <code>benchmade-bugout-535.png</code>. Any product can take one,
+        catalogue or your own. Or use <b>Photo</b> on a single card.</p>
+
+      <label class="dropzone" id="dropZone">
+        <input type="file" id="bulkFiles" accept="image/*" multiple hidden>
+        <span class="dz-big">Drop images here</span>
+        <span class="dz-small">or click to choose files</span>
+      </label>
+
+      <div class="field-inline" style="flex-wrap:wrap;gap:14px;margin-top:12px">
+        <label class="chk"><input type="checkbox" id="optKnock" checked> Take the background off</label>
+        <label class="chk"><input type="checkbox" id="optTrim" checked> Trim to the object</label>
+      </div>
+      <p class="hint">A photo on a plain backdrop comes out cut out and trimmed to its own edges, which is
+        what lets the board draw it at the product&rsquo;s real size. Turn both off for an image that is
+        already cut out.</p>
+
+      <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn btn-o btn-sm" id="picsExport" type="button">Save as media/manifest.js</button>
+        <button class="btn btn-o btn-sm" id="picsClear" type="button">Remove all my pictures</button>
+        <span class="hint" id="picsCount" style="margin:0"></span>
+      </div>
+      <p class="hint" id="picsMsg"></p>
+      <p class="hint">Browser storage holds a handful. For a whole catalogue&rsquo;s worth, save the manifest
+        and drop it in <code>tools/edc-builder/media/</code> &mdash; then the pictures survive a cleared
+        browser and everyone you share a board with sees them.</p>
+    </div>
+
     <div id="catalog" class="catalog"></div>
     <p class="empty" id="catalogEmpty" hidden>Nothing matches that. Try a different search or clear the filters.</p>
   </div>
@@ -285,6 +317,7 @@
 <script src="js/art.js"></script>
 <script src="js/board.js"></script>
 <script src="js/share.js"></script>
+<script src="js/images.js"></script>
 <script src="js/custom.js"></script>
 <script src="js/app.js"></script>
 </body>

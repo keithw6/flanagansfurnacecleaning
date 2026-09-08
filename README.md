@@ -71,6 +71,7 @@ an interactive app. Neither is linked from the site and both carry
   See `tools/20-year-test/README.md`.
 - **`tools/edc-builder/`** — EDC Builder. Pick everyday-carry gear from a
   109-item catalogue, lay it out on a display board at true relative scale, and
-  share the board as a link. Every product is drawn rather than photographed, so
-  a board of ninety items reads as one flat-lay instead of a collage.
-  See `tools/edc-builder/README.md`.
+  share the board as a link. The catalogue is drawn rather than photographed, so
+  a board of ninety items reads as one flat-lay instead of a collage; any product
+  can take a real photograph instead, cut out and trimmed on the way in.
+  Add anything else by pasting its URL. See `tools/edc-builder/README.md`.

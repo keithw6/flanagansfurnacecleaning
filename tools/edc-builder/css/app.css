@@ -403,3 +403,17 @@ code {
   border-left: 2px solid var(--link); padding-left: 9px;
   margin-top: 9px; color: var(--muted);
 }
+
+/* ---- pictures --------------------------------------------------------- */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; margin-top: 14px; padding: 30px 20px; cursor: pointer;
+  border: 2px dashed var(--line); border-radius: var(--radius);
+  background: var(--surface-2); text-align: center;
+  transition: border-color .12s, background .12s;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--link); background: var(--surface-3); }
+.dz-big { font-family: var(--h); font-size: 1.15rem; color: var(--ink); }
+.dz-small { font-size: .82rem; color: var(--muted); }
+.gear-acts .pic { flex: none; }
+.gear-acts { flex-wrap: wrap; }

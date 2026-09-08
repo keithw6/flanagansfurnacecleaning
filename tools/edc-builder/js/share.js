@@ -159,7 +159,8 @@ const EDCShare = (function () {
                                priceUsd: p.price, weightGrams: p.grams, url: p.url,
                                mm: p.mm, note: p.note,
                                yours: !!p.custom || undefined,
-                               image: p.custom && p.img ? p.img : undefined }))
+                               image: (typeof EDCImages !== 'undefined' && EDCImages.isMine(p.id))
+                                 ? EDCImages.get(p.id) : undefined }))
     }, null, 2);
   }
 
@@ -176,11 +177,21 @@ const EDCShare = (function () {
         w: i.mm && i.mm[0], h: i.mm && i.mm[1], img: i.image
       })));
     }
-    return decode(encode({
+    const st = decode(encode({
       layout: b.layout, surface: b.surface, labels: b.labels, ruler: !!b.ruler,
       title: b.title, owner: b.owner, url: b.url,
       items: Array.isArray(o && o.items) ? o.items.map(i => i && i.id).filter(Boolean) : []
     }));
+    /* Pictures for catalogue products travel in JSON too, once the ids
+       they belong to are known to exist. */
+    if (st && Array.isArray(o && o.items) && typeof EDCImages !== 'undefined') {
+      o.items.forEach(i => {
+        if (i && i.id && i.image && BY_ID[i.id]) {
+          try { EDCImages.set(i.id, i.image); } catch (e) { /* storage full: skip the rest */ }
+        }
+      });
+    }
+    return st;
   }
 
   /* ---- PNG ----------------------------------------------------------------

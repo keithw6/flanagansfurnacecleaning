@@ -15,10 +15,13 @@ tools/edc-builder/
   js/art.js           the drawing generators, one per kind of object
   js/board.js         the display board: layout, surfaces, the SVG itself
   js/share.js         share links, save, import/export, PNG
+  js/images.js        real pictures: cut out, trim, store, match by filename
   js/custom.js        products you add yourself, and the image brief
   js/app.js           the UI - catalogue, pack, board controls, stats
-  media/manifest.js   optional per-product image overrides, normally empty
+  media/manifest.js   per-product image overrides, normally empty
+  media/stills/       image files, if you keep them as files
   build-single.mjs    bundles all of the above into one self-contained file
+  scan-media.mjs      rewrites manifest.js from what is in media/stills/
 ```
 
 ## How to use it
@@ -32,7 +35,57 @@ tools/edc-builder/
 3. **Stats** — where the weight and the money actually went, by category.
 4. **Share** — copy the link, save to this browser, or export JSON.
 
-## Why everything is drawn instead of photographed
+## Real pictures
+
+Any product can carry a photograph instead of its drawing - catalogue entries
+and your own alike. **Build → Real pictures** takes a drop of image files and
+matches each to a product by filename; **Photo** on a single card does one at a
+time.
+
+Filenames are matched four ways, in order: the product id (`bm535.png`), the
+brand and name (`benchmade-bugout-535.jpg`), the name alone (`Bugout 535.webp`),
+or a product id sitting as its own word inside a longer name
+(`IMG_2931 bm535 final.png`). Anything unmatched is listed rather than guessed at.
+
+### What happens to an image on the way in
+
+Three things, and all three are the difference between a photograph that sits on
+the board and one that floats over it looking like a sticker:
+
+1. **The background comes off** - by flood-filling inward from the edges, not by
+   deleting white pixels. That distinction matters: deleting white eats the
+   highlight on a steel blade and the white face of a watch. Only background
+   connected to the border goes; anything enclosed by the object stays.
+2. **It is trimmed to what is left.** Not cosmetic. The board fits an image
+   inside the product's real millimetre footprint, so a knife centred in a square
+   frame of empty space gets drawn at a third of its true size. Trimming makes
+   the image's own edges the object's edges, and true scale starts working again.
+3. **It is re-encoded small and local** - WebP with alpha, 512px longest side.
+   Small because browser storage is a few megabytes; local because an image left
+   pointing at another site taints the export canvas and silently breaks
+   Download PNG.
+
+Turn either step off in the panel for an image that arrives already cut out.
+
+### Making them permanent
+
+Browser storage holds a handful of pictures and belongs to one browser. For a
+whole catalogue's worth, put them in the repo. Two ways, pick one:
+
+- **Save as media/manifest.js** (in the pictures panel) writes every picture you
+  have added into a single file, already cut out and trimmed, inlined as data
+  URIs. Drop it at `tools/edc-builder/media/manifest.js`. One artefact to commit.
+- **A folder of files.** Put prepared images in `media/stills/` and run
+  `node tools/edc-builder/scan-media.mjs`, which rewrites `manifest.js` from
+  whatever it finds, matching filenames the same way the app does and reporting
+  anything it could not place. Better if you want the images visible as files;
+  it does no processing, so prepare them first.
+
+Either way the pictures then survive a cleared browser and reach everyone you
+share a board with. Pictures added in a browser sit on top of the manifest, and
+removing one reveals the manifest's again.
+
+## Why the catalogue is drawn instead of photographed
 
 The obvious way to build this is a folder of product photographs. It does not
 work. Ninety photographs carry ninety backgrounds, ninety light directions and
@@ -76,9 +129,9 @@ So a picture comes from one of four places:
 | Source | What you get |
 | --- | --- |
 | Nothing (the default) | A drawing in the house style, using the category's shape and the size you gave. It sits with the rest of the board immediately. |
-| An image file you pick | Downscaled and stored in the browser. Everything keeps working, PNG export included. |
-| An image address | Fetched and re-encoded locally if the other site allows it; if it does not, the form says so and tells you to download the file instead. |
-| A generated image | See below. This is the one that makes it permanent. |
+| An image file you pick | Cut out, trimmed and stored in the browser — see **Real pictures** above. |
+| An image address | The same, if the other site allows this page to read the pixels; if it does not, the form says so and tells you to download the file instead. |
+| A generated image | See below. |
 
 Sizes matter more than they look. The two millimetre figures are the footprint
 as the thing lies on a board, and they are what put it at the right size next to

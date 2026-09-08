@@ -81,6 +81,7 @@
        </div>
        <div class="gear-acts">
          <button class="btn btn-sm add" type="button"></button>
+         <button class="btn btn-o btn-sm pic" type="button">Photo</button>
          <a class="mk" target="_blank" rel="noopener noreferrer nofollow">Maker &#8599;</a>
        </div>`;
     $('.gear-brand', el).textContent = p.brand;
@@ -96,12 +97,16 @@
     } else {
       $('.mk', el).remove();
     }
-    if (p.custom) {
+    const mine = EDCImages.isMine(p.id);
+    if (mine) $('.pic', el).textContent = 'Remove photo';
+    if (p.custom || mine) {
       const tag = document.createElement('span');
       tag.className = 'yours';
-      tag.textContent = p.img ? 'yours · image' : 'yours · stand-in art';
-      tag.title = p.img
-        ? 'Your own entry, using the picture you gave it.'
+      tag.textContent = p.custom
+        ? (mine ? 'yours · photo' : 'yours · stand-in art')
+        : 'photo';
+      tag.title = mine
+        ? 'Using a picture you supplied, cut out and trimmed to the object.'
         : 'Your own entry. No picture yet, so it is drawn in the house style at the size you set.';
       $('.gear-art', el).appendChild(tag);
     }
@@ -145,9 +150,41 @@
   }
 
   $('#catalog').addEventListener('click', e => {
-    const btn = e.target.closest('.add');
-    if (!btn) return;
-    toggle(e.target.closest('.gear').dataset.id);
+    const card = e.target.closest('.gear');
+    if (!card) return;
+    if (e.target.closest('.add')) return toggle(card.dataset.id);
+    if (e.target.closest('.pic')) return photoFor(card.dataset.id);
+  });
+
+  /* One file input, retargeted, rather than 109 of them in the DOM. */
+  const oneFile = document.createElement('input');
+  oneFile.type = 'file';
+  oneFile.accept = 'image/*';
+  oneFile.hidden = true;
+  document.body.appendChild(oneFile);
+
+  function photoFor(id) {
+    if (EDCImages.isMine(id)) {
+      EDCImages.clear(id);
+      renderAll();
+      return;
+    }
+    oneFile.value = '';
+    oneFile.dataset.target = id;
+    oneFile.click();
+  }
+  oneFile.addEventListener('change', () => {
+    const f = oneFile.files && oneFile.files[0];
+    const id = oneFile.dataset.target;
+    if (!f || !BY_ID[id]) return;
+    EDCImages.fromFile(f, picOpts())
+      .then(res => {
+        EDCImages.set(id, res.data);
+        say($('#picsMsg'), 'Added a picture to ' + BY_ID[id].brand + ' ' + BY_ID[id].name + '. ' +
+          describe(res));
+        renderAll();
+      })
+      .catch(err => say($('#picsMsg'), 'Could not use that: ' + err.message, true));
   });
 
   function toggle(id) {
@@ -343,6 +380,88 @@
   $('#briefCopy').addEventListener('click', () => {
     $('#briefText').select();
     if (navigator.clipboard) navigator.clipboard.writeText($('#briefText').value).catch(() => {});
+  });
+
+  /* ---- pictures ---------------------------------------------------------- */
+  const picOpts = () => ({ knockout: $('#optKnock').checked, trim: $('#optTrim').checked });
+
+  function describe(res) {
+    const bits = [res.srcW + '×' + res.srcH + ' in, ' + res.outW + '×' + res.outH + ' out'];
+    if (res.knockedOut) bits.push('background removed');
+    if (res.trimmed) bits.push('trimmed to the object');
+    return bits.join(' · ') + '.';
+  }
+
+  function picsCount() {
+    const n = EDCImages.count();
+    const kb = Math.round(EDCImages.bytes() / 1024);
+    $('#picsCount').textContent = n
+      ? n + (n === 1 ? ' picture' : ' pictures') + ' in this browser, about ' + kb + ' kB'
+      : 'No pictures of your own yet.';
+  }
+
+  /* Files come in one at a time rather than all at once: a hundred
+     canvases in flight is how a tab runs out of memory, and a sequential
+     run can also stop the moment storage says no. */
+  function takeFiles(files) {
+    const list = Array.from(files).filter(f => /^image\//.test(f.type));
+    if (!list.length) return say($('#picsMsg'), 'No image files in that.', true);
+    const opts = picOpts();
+    const done = [], missed = [], failed = [];
+    let i = 0;
+
+    say($('#picsMsg'), 'Working through ' + list.length + ' file' + (list.length === 1 ? '' : 's') + '…');
+
+    (function next() {
+      if (i >= list.length) {
+        renderAll();
+        const parts = [];
+        if (done.length) parts.push(done.length + ' matched and added');
+        if (missed.length) parts.push(missed.length + ' with no product to match: ' +
+          missed.slice(0, 4).join(', ') + (missed.length > 4 ? '…' : ''));
+        if (failed.length) parts.push(failed.length + ' failed: ' + failed[0]);
+        say($('#picsMsg'), parts.join(' · ') || 'Nothing to do.', !done.length);
+        return;
+      }
+      const f = list[i++];
+      const id = EDCImages.match(f.name);
+      if (!id) { missed.push(f.name); return next(); }
+      EDCImages.fromFile(f, opts)
+        .then(res => { EDCImages.set(id, res.data); done.push(id); })
+        .catch(err => { failed.push(f.name + ' — ' + err.message); })
+        .then(next);
+    })();
+  }
+
+  $('#bulkFiles').addEventListener('change', e => {
+    if (e.target.files && e.target.files.length) takeFiles(e.target.files);
+    e.target.value = '';
+  });
+  const dz = $('#dropZone');
+  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.add('over');
+  }));
+  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('over');
+  }));
+  dz.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files.length) takeFiles(e.dataTransfer.files);
+  });
+  $('#picsExport').addEventListener('click', () => {
+    if (!EDCImages.count()) return say($('#picsMsg'), 'No pictures of your own to save yet.', true);
+    const text = EDCImages.toManifest();
+    EDCShare.download(new Blob([text], { type: 'text/javascript' }), 'manifest.js')
+      .then(how => say($('#picsMsg'), (how === 'saved' ? 'Saved ' : 'Handed over ') +
+        'manifest.js with ' + EDCImages.count() + ' picture' + (EDCImages.count() === 1 ? '' : 's') +
+        ', about ' + Math.round(text.length / 1024) + ' kB. Put it in tools/edc-builder/media/.'))
+      .catch(err => say($('#picsMsg'), 'Could not save it: ' + err.message, true));
+  });
+  $('#picsClear').addEventListener('click', () => {
+    if (!EDCImages.count()) return;
+    if (!confirm('Remove all ' + EDCImages.count() + ' of your pictures? The drawings come back.')) return;
+    EDCImages.clearAll();
+    renderAll();
+    say($('#picsMsg'), 'Removed. Every product is drawn again.');
   });
 
   /* ---- the pack sidebar ------------------------------------------------- */
@@ -670,6 +789,7 @@
 
   /* ---- go ---------------------------------------------------------------- */
   function renderAll() {
+    picsCount();
     renderMine();
     renderCatalog();
     renderPack();

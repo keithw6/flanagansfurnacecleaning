@@ -765,7 +765,14 @@ const EDCArt = (function () {
      the library works hosted or from a folder on a desk. */
   function media(id) {
     const m = (typeof window !== 'undefined' && window.EDC_MEDIA) || {};
-    return m[id] || null;
+    const v = m[id];
+    if (!v) return null;
+    /* A manifest entry is documented as relative to media/, so make it
+       so. Left verbatim it resolved against the page instead and every
+       file in media/stills/ came out a broken image - which nothing
+       caught for as long as the manifest stayed empty. A data URI, a
+       blob, an absolute URL or an absolute path is already final. */
+    return /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(v) ? v : 'media/' + v;
   }
 
   function draw(p) {
