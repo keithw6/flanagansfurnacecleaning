@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDC Builder</title>
+<meta name="description" content="Pick everyday-carry gear from every category, lay it out on a display board at true scale, and see what the whole kit costs and weighs.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="hdr no-print">
+  <div class="wrap hdr-in">
+    <div class="logo">EDC Builder<span>Build the pack. Show the board.</span></div>
+    <nav class="tabs hdr-spacer" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" aria-selected="true"  data-panel="build">Build</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="board">Board</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="stats">Stats</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="share">Share</button>
+    </nav>
+    <div class="hdr-tools">
+      <span class="hdr-count" id="hdrCount">0 items</span>
+      <button class="btn btn-o btn-sm" id="themeBtn" title="Light / dark">Theme</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================== BUILD ============================== -->
+<section class="panel on" id="panel-build">
+<div class="wrap build-cols">
+
+  <div class="build-main">
+    <div class="card">
+      <h2>Pick your carry</h2>
+      <p class="sub">Every item is drawn to true relative scale, so the board shows how the kit
+        actually sizes up against itself. Prices and weights are published-spec estimates &mdash;
+        check the maker's page before you buy anything.</p>
+
+      <div class="filterbar">
+        <label class="srch">
+          <span class="srch-i" aria-hidden="true">&#9906;</span>
+          <input type="search" id="search" placeholder="Search gear, brand or tag&hellip;" aria-label="Search gear">
+        </label>
+        <label class="sel">
+          <span>Sort</span>
+          <select id="sortBy" aria-label="Sort catalog">
+            <option value="cat">Category</option>
+            <option value="priceUp">Price, low to high</option>
+            <option value="priceDown">Price, high to low</option>
+            <option value="weightUp">Weight, light to heavy</option>
+            <option value="weightDown">Weight, heavy to light</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+        <button class="btn btn-o btn-sm" id="clearFilters">Clear</button>
+      </div>
+
+      <div id="catChips" class="chips" role="group" aria-label="Filter by category"></div>
+      <p class="hint" id="resultCount"></p>
+    </div>
+
+    <div id="catalog" class="catalog"></div>
+    <p class="empty" id="catalogEmpty" hidden>Nothing matches that. Try a different search or clear the filters.</p>
+  </div>
+
+  <aside class="build-side">
+    <div class="card side-card">
+      <h3>Your pack</h3>
+      <div class="tote" id="tote">
+        <div class="tote-fig"><span id="toteCost">$0</span><small>cost</small></div>
+        <div class="tote-fig"><span id="toteWeight">0 g</span><small>weight</small></div>
+        <div class="tote-fig"><span id="toteCount">0</span><small>items</small></div>
+      </div>
+      <p class="hint" id="toteOz"></p>
+      <ul class="picked" id="picked"></ul>
+      <p class="empty small" id="pickedEmpty">Nothing picked yet. Add something from the catalog.</p>
+      <div class="side-acts">
+        <button class="btn btn-sm" id="toBoardBtn">See the board</button>
+        <button class="btn btn-o btn-sm" id="randomBtn" title="Build a random pack">Surprise me</button>
+        <button class="btn btn-o btn-sm" id="emptyBtn">Empty</button>
+      </div>
+    </div>
+
+    <div class="card side-card">
+      <h3>Starter loadouts</h3>
+      <p class="sub small">A one-click pack you can then tear apart.</p>
+      <div id="loadouts" class="loadouts"></div>
+    </div>
+  </aside>
+
+</div>
+</section>
+
+<!-- ============================== BOARD ============================== -->
+<section class="panel" id="panel-board">
+<div class="wrap">
+
+  <div class="card no-print">
+    <h2>Your display board</h2>
+    <p class="sub">Everything sits at true relative scale on one surface. Your name and profile link
+      sit under the layout and travel with the share link.</p>
+
+    <div class="grid3">
+      <label class="fld"><span>Board title</span>
+        <input type="text" id="boardTitle" maxlength="48" placeholder="Everyday Carry"></label>
+      <label class="fld"><span>Your name</span>
+        <input type="text" id="ownerName" maxlength="40" placeholder="Your name or handle"></label>
+      <label class="fld"><span>Profile link</span>
+        <input type="url" id="ownerUrl" maxlength="200" placeholder="https://instagram.com/yourhandle"></label>
+    </div>
+    <p class="hint" id="urlNote">Instagram, TikTok, Facebook, YouTube, X, Threads, Reddit or a personal site. It shows as a clickable link under the board.</p>
+
+    <div class="grid3" style="margin-top:14px">
+      <label class="fld"><span>Layout</span>
+        <select id="boardLayout">
+          <option value="knoll">Knolling &mdash; true scale, packed</option>
+          <option value="grid">Grid &mdash; even cells</option>
+          <option value="loadout">Loadout &mdash; grouped by category</option>
+        </select></label>
+      <label class="fld"><span>Surface</span>
+        <select id="boardSurface"></select></label>
+      <label class="fld"><span>Labels</span>
+        <select id="boardLabels">
+          <option value="full">Name, price and weight</option>
+          <option value="name">Name only</option>
+          <option value="none">No labels</option>
+        </select></label>
+    </div>
+
+    <div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+      <button class="btn" id="pngBtn">Download PNG</button>
+      <button class="btn btn-o" id="printBtn">Print / PDF</button>
+      <button class="btn btn-o" id="copyLinkBtn2">Copy share link</button>
+      <label class="chk"><input type="checkbox" id="showRuler"> Show a scale bar</label>
+    </div>
+    <p class="hint" id="pngMsg"></p>
+  </div>
+
+  <div class="boardwrap" id="boardWrap"></div>
+
+  <div class="card no-print" id="boardLinksCard">
+    <h3>What is on the board</h3>
+    <p class="sub small">Every item, what it costs, what it weighs, and where to go and look at it.</p>
+    <div class="table-scroll"><table class="tbl" id="boardTable"></table></div>
+  </div>
+
+</div>
+</section>
+
+<!-- ============================== STATS ============================== -->
+<section class="panel" id="panel-stats">
+<div class="wrap">
+  <div id="statsOut"></div>
+</div>
+</section>
+
+<!-- ============================== SHARE ============================== -->
+<section class="panel" id="panel-share">
+<div class="wrap">
+
+  <div class="card">
+    <h2>Save it and send it</h2>
+    <p class="sub">The whole pack &mdash; items, name, link, board settings &mdash; is packed into the link
+      itself. There is no account and no server: whoever opens it sees exactly your board.</p>
+    <div class="field-inline" style="flex-wrap:wrap;gap:8px">
+      <button class="btn" id="copyLinkBtn">Copy share link</button>
+      <button class="btn btn-o" id="saveBtn">Save to this browser</button>
+      <button class="btn btn-o" id="loadBtn">Load saved</button>
+      <button class="btn btn-o" id="exportBtn">Export JSON</button>
+      <label class="btn btn-o" style="cursor:pointer">Import JSON<input type="file" id="importFile" accept=".json" hidden></label>
+    </div>
+    <p class="hint" id="shareMsg"></p>
+    <label class="fld" style="margin-top:12px"><span>Share link</span>
+      <textarea id="shareUrl" rows="3" readonly spellcheck="false"></textarea></label>
+    <div id="exportBox" hidden style="margin-top:10px">
+      <label class="fld"><span>Your pack, as JSON</span>
+        <textarea id="exportText" rows="8" readonly spellcheck="false"></textarea></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Where the numbers come from</h3>
+    <p class="sub small">Prices are typical retail in US dollars and weights are published specs, both
+      recorded by hand and both out of date the moment a maker changes a run. They are here to
+      compare items against each other, not to quote you a total at a checkout. Every card links to
+      the maker so you can check the current figure yourself.</p>
+    <p class="sub small">Nothing here is sponsored and no link is an affiliate link.</p>
+  </div>
+
+</div>
+</section>
+
+</main>
+
+<footer class="ftr no-print">
+  <div class="wrap">
+    <p>EDC Builder &mdash; a standalone tool. Not affiliated with, endorsed by, or sponsored by any
+      brand shown. Product names are the trademarks of their owners and are used to identify the gear.</p>
+  </div>
+</footer>
+
+<script src="media/manifest.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/art.js"></script>
+<script src="js/board.js"></script>
+<script src="js/share.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

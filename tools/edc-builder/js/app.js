@@ -1,0 +1,510 @@
+/* =====================================================================
+   EDC Builder - the app
+   ---------------------------------------------------------------------
+   State is one object and every view is a pure function of it. Change
+   the state, call render, done. With a catalogue this small that is
+   both fast enough and much easier to reason about than keeping four
+   tabs individually in sync.
+
+   Nothing here writes user text into innerHTML. Names, board titles and
+   links arrive from share URLs written by other people, so they go in
+   through textContent, or through the escaper on their way into the
+   board's SVG.
+   ===================================================================== */
+(function () {
+
+  const $  = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const money = EDCBoard.fmtMoney, grams = EDCBoard.fmtGrams;
+
+  /* ---- state ---------------------------------------------------------- */
+  const state = {
+    items: [], title: '', owner: '', url: '',
+    layout: 'knoll', surface: 'slate', labels: 'full', ruler: false
+  };
+  const ui = { cats: new Set(), search: '', sort: 'cat' };
+
+  const picked = () => state.items.map(id => BY_ID[id]).filter(Boolean);
+  const has = id => state.items.indexOf(id) >= 0;
+
+  function setState(next) {
+    Object.assign(state, next);
+    renderAll();
+  }
+
+  /* ---- tabs and theme -------------------------------------------------- */
+  function showTab(name) {
+    $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.panel === name)));
+    $$('.panel').forEach(p => p.classList.toggle('on', p.id === 'panel-' + name));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  $$('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.panel)));
+
+  $('#themeBtn').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const dark = cur ? cur === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  });
+
+  /* ---- the catalogue --------------------------------------------------- */
+  function matches(p) {
+    if (ui.cats.size && !ui.cats.has(p.cat)) return false;
+    const q = ui.search.trim().toLowerCase();
+    if (!q) return true;
+    return (p.name + ' ' + p.brand + ' ' + p.note + ' ' + p.tags.join(' ') + ' ' +
+      CAT_BY_ID[p.cat].label).toLowerCase().includes(q);
+  }
+
+  const SORTS = {
+    cat:         (a, b) => CATS.findIndex(c => c.id === a.cat) - CATS.findIndex(c => c.id === b.cat) ||
+                           a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name),
+    priceUp:     (a, b) => a.price - b.price,
+    priceDown:   (a, b) => b.price - a.price,
+    weightUp:    (a, b) => a.grams - b.grams,
+    weightDown:  (a, b) => b.grams - a.grams,
+    name:        (a, b) => (a.brand + a.name).localeCompare(b.brand + b.name)
+  };
+
+  function card(p) {
+    const el = document.createElement('article');
+    el.className = 'gear' + (has(p.id) ? ' in' : '');
+    el.dataset.id = p.id;
+    el.innerHTML =
+      `<div class="gear-art">${EDCArt.thumb(p, 260, 150)}</div>
+       <div class="gear-body">
+         <p class="gear-brand"></p><h4 class="gear-name"></h4>
+         <p class="gear-note"></p>
+         <p class="gear-spec"><span class="k-price"></span><span class="dot">&#183;</span>
+            <span class="k-weight"></span><span class="dot">&#183;</span>
+            <span class="k-size"></span></p>
+       </div>
+       <div class="gear-acts">
+         <button class="btn btn-sm add" type="button"></button>
+         <a class="mk" target="_blank" rel="noopener noreferrer nofollow">Maker &#8599;</a>
+       </div>`;
+    $('.gear-brand', el).textContent = p.brand;
+    $('.gear-name', el).textContent = p.name;
+    $('.gear-note', el).textContent = p.note;
+    $('.k-price', el).textContent = money(p.price);
+    $('.k-weight', el).textContent = grams(p.grams);
+    $('.k-size', el).textContent = p.mm[0] + ' × ' + p.mm[1] + ' mm';
+    $('.add', el).textContent = has(p.id) ? 'Remove' : 'Add';
+    $('.mk', el).href = p.url;
+    $('.mk', el).title = 'Open ' + p.brand + '’s site in a new tab';
+    return el;
+  }
+
+  function renderCatalog() {
+    const list = PRODUCTS.filter(matches).sort(SORTS[ui.sort] || SORTS.cat);
+    const wrap = $('#catalog');
+    wrap.textContent = '';
+    $('#catalogEmpty').hidden = list.length > 0;
+    $('#resultCount').textContent = list.length === PRODUCTS.length
+      ? PRODUCTS.length + ' items across ' + CATS.length + ' categories'
+      : list.length + ' of ' + PRODUCTS.length + ' items';
+
+    if (ui.sort === 'cat') {
+      CATS.forEach(c => {
+        const inCat = list.filter(p => p.cat === c.id);
+        if (!inCat.length) return;
+        const sec = document.createElement('section');
+        sec.className = 'catsec';
+        const h = document.createElement('h3');
+        h.textContent = c.label;
+        const b = document.createElement('span');
+        b.className = 'catblurb';
+        b.textContent = c.blurb;
+        h.appendChild(b);
+        sec.appendChild(h);
+        const grid = document.createElement('div');
+        grid.className = 'grid-gear';
+        inCat.forEach(p => grid.appendChild(card(p)));
+        sec.appendChild(grid);
+        wrap.appendChild(sec);
+      });
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'grid-gear';
+      list.forEach(p => grid.appendChild(card(p)));
+      wrap.appendChild(grid);
+    }
+  }
+
+  $('#catalog').addEventListener('click', e => {
+    const btn = e.target.closest('.add');
+    if (!btn) return;
+    toggle(e.target.closest('.gear').dataset.id);
+  });
+
+  function toggle(id) {
+    if (!BY_ID[id]) return;
+    state.items = has(id) ? state.items.filter(x => x !== id) : state.items.concat(id);
+    renderAll();
+  }
+
+  /* ---- filters --------------------------------------------------------- */
+  function renderChips() {
+    const box = $('#catChips');
+    box.textContent = '';
+    CATS.forEach(c => {
+      const n = PRODUCTS.filter(p => p.cat === c.id).length;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (ui.cats.has(c.id) ? ' on' : '');
+      b.setAttribute('aria-pressed', String(ui.cats.has(c.id)));
+      b.textContent = c.label;
+      const s = document.createElement('span');
+      s.textContent = n;
+      b.appendChild(s);
+      b.addEventListener('click', () => {
+        ui.cats.has(c.id) ? ui.cats.delete(c.id) : ui.cats.add(c.id);
+        renderChips(); renderCatalog();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  let searchTimer;
+  $('#search').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    const v = e.target.value;
+    searchTimer = setTimeout(() => { ui.search = v; renderCatalog(); }, 120);
+  });
+  $('#sortBy').addEventListener('change', e => { ui.sort = e.target.value; renderCatalog(); });
+  $('#clearFilters').addEventListener('click', () => {
+    ui.cats.clear(); ui.search = ''; ui.sort = 'cat';
+    $('#search').value = ''; $('#sortBy').value = 'cat';
+    renderChips(); renderCatalog();
+  });
+
+  /* ---- the pack sidebar ------------------------------------------------- */
+  function renderPack() {
+    const items = picked(), t = EDCBoard.totals(items);
+    $('#toteCost').textContent = money(t.price);
+    $('#toteWeight').textContent = grams(t.grams);
+    $('#toteCount').textContent = t.count;
+    $('#hdrCount').textContent = t.count + (t.count === 1 ? ' item' : ' items');
+    $('#toteOz').textContent = t.count
+      ? EDCBoard.gramsToOz(t.grams).toFixed(1) + ' oz · ' + verdict(t.grams)
+      : '';
+
+    const ul = $('#picked');
+    ul.textContent = '';
+    $('#pickedEmpty').hidden = items.length > 0;
+    items.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pk-art">${EDCArt.thumb(p, 46, 30)}</span>
+        <span class="pk-txt"><b></b><small></small></span>
+        <button class="x" type="button" title="Remove">&#215;</button>`;
+      $('b', li).textContent = p.name;
+      $('small', li).textContent = money(p.price) + ' · ' + grams(p.grams);
+      $('.x', li).addEventListener('click', () => toggle(p.id));
+      ul.appendChild(li);
+    });
+  }
+
+  function verdict(g) {
+    if (g < 300)  return 'you would forget it was on you';
+    if (g < 600)  return 'an ordinary pocket load';
+    if (g < 1000) return 'you will notice this by evening';
+    if (g < 2000) return 'this wants a belt or a bag';
+    return 'this is a bag, not a pocket';
+  }
+
+  function renderLoadouts() {
+    const box = $('#loadouts');
+    box.textContent = '';
+    LOADOUTS.forEach(l => {
+      const items = l.items.map(i => BY_ID[i]).filter(Boolean);
+      const t = EDCBoard.totals(items);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lo';
+      b.innerHTML = `<b></b><small></small><em></em>`;
+      $('b', b).textContent = l.name;
+      $('small', b).textContent = l.blurb;
+      $('em', b).textContent = t.count + ' items · ' + money(t.price) + ' · ' + grams(t.grams);
+      b.addEventListener('click', () => {
+        state.items = l.items.slice();
+        if (!state.title.trim()) state.title = l.name;
+        $('#boardTitle').value = state.title;
+        renderAll();
+        showTab('board');
+      });
+      box.appendChild(b);
+    });
+  }
+
+  $('#emptyBtn').addEventListener('click', () => { state.items = []; renderAll(); });
+  $('#toBoardBtn').addEventListener('click', () => showTab('board'));
+  $('#randomBtn').addEventListener('click', () => {
+    /* One item from each of a handful of categories, so a random pack is
+       a plausible pack rather than four knives. */
+    const cats = CATS.map(c => c.id).sort(() => Math.random() - 0.5).slice(0, 7);
+    state.items = cats.map(c => {
+      const inCat = PRODUCTS.filter(p => p.cat === c);
+      return inCat[Math.floor(Math.random() * inCat.length)].id;
+    });
+    renderAll();
+    showTab('board');
+  });
+
+  /* ---- the board -------------------------------------------------------- */
+  function boardOpts() {
+    return { items: picked(), title: state.title, owner: state.owner,
+             url: EDCShare.safeUrl(state.url),      /* vetted here as well as in the board */
+             layout: state.layout, surface: state.surface, labels: state.labels, ruler: state.ruler };
+  }
+  let lastBoard = null;
+
+  function renderBoard() {
+    lastBoard = EDCBoard.render(boardOpts());
+    $('#boardWrap').innerHTML = lastBoard.svg;      /* every string in here went through the escaper */
+
+    const bad = state.url && !EDCShare.safeUrl(state.url);
+    $('#urlNote').classList.toggle('warn', !!bad);
+    $('#urlNote').textContent = bad
+      ? 'That link is not usable. It has to be a normal http or https web address.'
+      : 'Instagram, TikTok, Facebook, YouTube, X, Threads, Reddit or a personal site. ' +
+        'It shows as a clickable link under the board.';
+
+    const items = picked();
+    const tbl = $('#boardTable');
+    tbl.textContent = '';
+    $('#boardLinksCard').hidden = !items.length;
+    if (!items.length) return;
+    const head = tbl.createTHead().insertRow();
+    ['Item', 'Category', 'Cost', 'Weight', 'Where'].forEach((h, i) => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      if (i > 1 && i < 4) th.className = 'num';
+      head.appendChild(th);
+    });
+    const body = tbl.createTBody();
+    items.slice().sort(SORTS.cat).forEach(p => {
+      const r = body.insertRow();
+      const c0 = r.insertCell();
+      const strong = document.createElement('b');
+      strong.textContent = p.name;
+      const sm = document.createElement('small');
+      sm.textContent = p.brand;
+      c0.append(strong, document.createElement('br'), sm);
+      r.insertCell().textContent = CAT_BY_ID[p.cat].label;
+      const c2 = r.insertCell(); c2.textContent = money(p.price); c2.className = 'num';
+      const c3 = r.insertCell(); c3.textContent = grams(p.grams); c3.className = 'num';
+      const a = document.createElement('a');
+      a.href = p.url; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow';
+      a.textContent = 'Maker ↗';
+      r.insertCell().appendChild(a);
+    });
+    const t = EDCBoard.totals(items);
+    const foot = tbl.createTFoot().insertRow();
+    const f0 = foot.insertCell(); f0.textContent = t.count + ' items'; f0.colSpan = 2;
+    const f2 = foot.insertCell(); f2.textContent = money(t.price); f2.className = 'num';
+    const f3 = foot.insertCell(); f3.textContent = grams(t.grams); f3.className = 'num';
+    foot.insertCell();
+  }
+
+  function bindField(sel, key, ev) {
+    const el = $(sel);
+    el.addEventListener(ev || 'input', () => {
+      state[key] = el.value;
+      renderBoard(); renderShare();
+    });
+    return el;
+  }
+  bindField('#boardTitle', 'title');
+  bindField('#ownerName', 'owner');
+  bindField('#ownerUrl', 'url');
+  bindField('#boardLayout', 'layout', 'change');
+  bindField('#boardSurface', 'surface', 'change');
+  bindField('#boardLabels', 'labels', 'change');
+  $('#showRuler').addEventListener('change', e => {
+    state.ruler = e.target.checked; renderBoard(); renderShare();
+  });
+
+  EDCBoard.surfaceList().forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.label;
+    $('#boardSurface').appendChild(o);
+  });
+
+  $('#pngBtn').addEventListener('click', () => {
+    if (!lastBoard) return;
+    const msg = $('#pngMsg');
+    msg.className = 'hint';
+    msg.textContent = 'Rendering…';
+    EDCShare.toPNG(lastBoard.svg, lastBoard.width, lastBoard.height, 2)
+      .then(blob => {
+        EDCShare.download(blob, EDCShare.slug(state.title || state.owner, 'edc') + '-board.png');
+        msg.textContent = 'Saved as a PNG, ' + (lastBoard.width * 2) + ' pixels wide.';
+      })
+      .catch(err => { msg.className = 'hint warn'; msg.textContent = 'Could not export: ' + err.message; });
+  });
+  $('#printBtn').addEventListener('click', () => window.print());
+
+  /* ---- stats ------------------------------------------------------------ */
+  function bar(frac, cls) {
+    return `<span class="bar ${cls}"><i style="width:${(frac * 100).toFixed(1)}%"></i></span>`;
+  }
+
+  function renderStats() {
+    const items = picked(), out = $('#statsOut');
+    out.textContent = '';
+    if (!items.length) {
+      out.innerHTML = `<div class="card"><h2>Nothing to measure yet</h2>
+        <p class="sub">Pick some gear on the Build tab and the numbers turn up here.</p></div>`;
+      return;
+    }
+    const t = EDCBoard.totals(items);
+    const byCat = CATS.map(c => ({ c, list: items.filter(p => p.cat === c.id) }))
+      .filter(g => g.list.length)
+      .map(g => Object.assign(g, EDCBoard.totals(g.list)))
+      .sort((a, b) => b.grams - a.grams);
+    const maxG = Math.max.apply(null, byCat.map(g => g.grams));
+    const maxP = Math.max.apply(null, byCat.map(g => g.price));
+    const heaviest = items.slice().sort((a, b) => b.grams - a.grams)[0];
+    const dearest  = items.slice().sort((a, b) => b.price - a.price)[0];
+    const lightest = items.slice().sort((a, b) => a.grams - b.grams)[0];
+
+    const head = document.createElement('div');
+    head.className = 'card';
+    head.innerHTML = `<h2>The whole pack</h2>
+      <div class="bignums">
+        <div><span>${money(t.price)}</span><small>total cost</small></div>
+        <div><span>${grams(t.grams)}</span><small>total weight</small></div>
+        <div><span>${EDCBoard.gramsToOz(t.grams).toFixed(1)} oz</span><small>in ounces</small></div>
+        <div><span>${t.count}</span><small>items</small></div>
+        <div><span>${byCat.length}</span><small>categories</small></div>
+      </div>
+      <p class="sub" style="margin-top:12px">Carried all at once that is <b>${verdict(t.grams)}</b>.
+        Drop the ${EDCArt.esc(heaviest.name)} and you save ${grams(heaviest.grams)},
+        ${((heaviest.grams / t.grams) * 100).toFixed(0)}% of the load.</p>`;
+    out.appendChild(head);
+
+    const split = document.createElement('div');
+    split.className = 'card';
+    split.innerHTML = `<h2>Where the weight and the money went</h2>
+      <div class="table-scroll"><table class="tbl">
+        <thead><tr><th>Category</th><th class="num">Items</th><th>Weight</th>
+          <th class="num">g</th><th>Cost</th><th class="num">$</th></tr></thead>
+        <tbody>${byCat.map(g => `<tr>
+          <td>${EDCArt.esc(g.c.label)}</td>
+          <td class="num">${g.count}</td>
+          <td class="barcell">${bar(g.grams / maxG, 'w')}</td>
+          <td class="num">${Math.round(g.grams)}</td>
+          <td class="barcell">${bar(g.price / maxP, 'p')}</td>
+          <td class="num">${Math.round(g.price)}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+    out.appendChild(split);
+
+    const notes = document.createElement('div');
+    notes.className = 'card';
+    notes.innerHTML = `<h2>Notable</h2>
+      <ul class="notes">
+        <li><b>Heaviest</b> ${EDCArt.esc(heaviest.brand + ' ' + heaviest.name)} at ${grams(heaviest.grams)}</li>
+        <li><b>Lightest</b> ${EDCArt.esc(lightest.brand + ' ' + lightest.name)} at ${grams(lightest.grams)}</li>
+        <li><b>Most expensive</b> ${EDCArt.esc(dearest.brand + ' ' + dearest.name)} at ${money(dearest.price)},
+            ${((dearest.price / t.price) * 100).toFixed(0)}% of the total</li>
+        <li><b>Average item</b> ${grams(t.grams / t.count)} and ${money(t.price / t.count)}</li>
+      </ul>
+      <p class="sub small" style="margin-top:10px">Costs are typical retail in US dollars and weights are
+        published specs. Both are estimates recorded by hand, so treat the comparison between items as the
+        useful part and the totals as an approximation.</p>`;
+    out.appendChild(notes);
+  }
+
+  /* ---- share ------------------------------------------------------------- */
+  function renderShare() {
+    const link = EDCShare.linkFor(state);
+    $('#shareUrl').value = link;
+    if (history.replaceState) history.replaceState(null, '', '#b=' + EDCShare.encode(state));
+  }
+
+  function copy(text, msgEl) {
+    const done = ok => {
+      msgEl.className = 'hint' + (ok ? '' : ' warn');
+      msgEl.textContent = ok ? 'Link copied to the clipboard.'
+        : 'Could not reach the clipboard. Select the link below and copy it by hand.';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+    } else { done(false); }
+  }
+  $('#copyLinkBtn').addEventListener('click', () => copy($('#shareUrl').value, $('#shareMsg')));
+  $('#copyLinkBtn2').addEventListener('click', () => copy(EDCShare.linkFor(state), $('#pngMsg')));
+
+  $('#saveBtn').addEventListener('click', () => {
+    const ok = EDCShare.save(state);
+    $('#shareMsg').className = 'hint' + (ok ? '' : ' warn');
+    $('#shareMsg').textContent = ok
+      ? 'Saved in this browser. It will still be here next time on this device.'
+      : 'This browser will not let the page store anything, so use the share link or the JSON instead.';
+  });
+  $('#loadBtn').addEventListener('click', () => {
+    const st = EDCShare.load();
+    $('#shareMsg').className = 'hint' + (st ? '' : ' warn');
+    if (!st) { $('#shareMsg').textContent = 'There is nothing saved in this browser yet.'; return; }
+    adopt(st);
+    $('#shareMsg').textContent = 'Loaded the saved pack.';
+  });
+  $('#exportBtn').addEventListener('click', () => {
+    $('#exportBox').hidden = false;
+    $('#exportText').value = EDCShare.toJSON(state);
+    EDCShare.download(new Blob([EDCShare.toJSON(state)], { type: 'application/json' }),
+      EDCShare.slug(state.title || state.owner, 'edc') + '-pack.json');
+  });
+  $('#importFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const st = EDCShare.fromJSON(String(r.result));
+      $('#shareMsg').className = 'hint' + (st ? '' : ' warn');
+      if (!st) { $('#shareMsg').textContent = 'That file is not an EDC Builder pack.'; return; }
+      adopt(st);
+      $('#shareMsg').textContent = 'Imported ' + st.items.length + ' items.';
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  });
+
+  /* Take on a vetted state object from a link, a file or storage. */
+  function adopt(st) {
+    Object.assign(state, st);
+    $('#boardTitle').value = state.title;
+    $('#ownerName').value = state.owner;
+    $('#ownerUrl').value = state.url;
+    $('#boardLayout').value = state.layout;
+    $('#boardSurface').value = state.surface;
+    $('#boardLabels').value = state.labels;
+    $('#showRuler').checked = !!state.ruler;
+    renderAll();
+  }
+
+  /* ---- go ---------------------------------------------------------------- */
+  function renderAll() {
+    renderCatalog();
+    renderPack();
+    renderBoard();
+    renderStats();
+    renderShare();
+  }
+
+  renderChips();
+  renderLoadouts();
+
+  const incoming = EDCShare.fromLocation();
+  if (incoming && incoming.items.length) {
+    adopt(incoming);
+    showTab('board');
+  } else {
+    renderAll();
+  }
+
+  window.addEventListener('hashchange', () => {
+    const st = EDCShare.fromLocation();
+    if (st && EDCShare.encode(st) !== EDCShare.encode(state)) { adopt(st); showTab('board'); }
+  });
+})();

@@ -11,6 +11,7 @@ Local SEO site for Flanagan's Furnace & Duct Cleaning Service, Calgary. 35 pages
 /_src/pages/*.html       one content file per page, with a meta block on top
 /_preview/               local preview zips, gitignored, not published
 /tools/20-year-test/     standalone calculator app, not part of the site build
+/tools/edc-builder/      standalone everyday-carry board builder, likewise
 ```
 
 Every root `.html` file is generated. Edit `_src/pages/` instead and rebuild:
@@ -57,11 +58,19 @@ See `DEPLOY.md`. There are placeholders in the source that must be replaced firs
 
 `GBP-SETUP.md` and `Flanagans-GBP-Setup-Guide.pdf` are operator and client documents. They are not linked from any page.
 
-## tools/20-year-test
+## tools/
 
-A separate thing that happens to live in this repo: the Blue Collar Business
-20-Year Test, an interactive career and business comparison calculator. It is
-self-contained, has no build step and no dependencies, and is deliberately outside
-`_src/build.ps1` — that generator exists to keep NAP schema identical across 35 SEO
-pages and has nothing to offer an interactive app. It is not linked from the site
-and carries `noindex, nofollow`. See `tools/20-year-test/README.md`.
+Separate things that happen to live in this repo. Both are self-contained, have
+no dependencies, and are deliberately outside `_src/build.ps1` — that generator
+exists to keep NAP schema identical across 35 SEO pages and has nothing to offer
+an interactive app. Neither is linked from the site and both carry
+`noindex, nofollow`.
+
+- **`tools/20-year-test/`** — the Blue Collar Business 20-Year Test, an
+  interactive career and business comparison calculator.
+  See `tools/20-year-test/README.md`.
+- **`tools/edc-builder/`** — EDC Builder. Pick everyday-carry gear from a
+  109-item catalogue, lay it out on a display board at true relative scale, and
+  share the board as a link. Every product is drawn rather than photographed, so
+  a board of ninety items reads as one flat-lay instead of a collage.
+  See `tools/edc-builder/README.md`.
