@@ -443,3 +443,5 @@ kbd {
 }
 .listbox > summary:hover { color: var(--ink); }
 .listbox[open] > summary { margin-bottom: 4px; }
+.gear-acts .find { font-size: .76rem; color: var(--muted); text-decoration: none; }
+.gear-acts .find:hover { color: var(--link); text-decoration: underline; }

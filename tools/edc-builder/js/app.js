@@ -82,6 +82,7 @@
        <div class="gear-acts">
          <button class="btn btn-sm add" type="button"></button>
          <button class="btn btn-o btn-sm pic" type="button">Photo</button>
+         <a class="find" target="_blank" rel="noopener noreferrer nofollow">Find one &#8599;</a>
          <a class="mk" target="_blank" rel="noopener noreferrer nofollow">Maker &#8599;</a>
        </div>`;
     $('.gear-brand', el).textContent = p.brand;
@@ -99,6 +100,9 @@
     }
     const mine = EDCImages.isMine(p.id);
     if (mine) $('.pic', el).textContent = 'Remove photo';
+    $('.find', el).href = photoSearch(p);
+    $('.find', el).title = 'Search the web for a photo of this, then copy it and paste it in';
+    if (mine) $('.find', el).remove();
     if (p.custom || mine) {
       const tag = document.createElement('span');
       tag.className = 'yours';
@@ -389,7 +393,20 @@
     const bits = [res.srcW + '×' + res.srcH + ' in, ' + res.outW + '×' + res.outH + ' out'];
     if (res.knockedOut) bits.push('background removed');
     if (res.trimmed) bits.push('trimmed to the object');
-    return bits.join(' · ') + '.';
+    let out = bits.join(' · ') + '.';
+    if (res.busyBackground) {
+      out += ' Careful: that photo has no plain backdrop, so nothing could be cut away — ' +
+        'it will show as a rectangle on the board. A shot on plain white works far better.';
+    }
+    return out;
+  }
+
+  /* Somewhere to go and get one. The maker's own page is already linked from
+     every card; this is the other half — an image search for the exact
+     product, biased toward the studio shots that cut out cleanly. */
+  function photoSearch(p) {
+    return 'https://www.google.com/search?tbm=isch&q=' +
+      encodeURIComponent('"' + p.brand + ' ' + p.name + '" product photo white background');
   }
 
   function picsCount() {
@@ -483,7 +500,7 @@
         EDCImages.set(id, res.data);
         const next = advanceTarget(id);
         say(msgEl, 'Added to ' + p.brand + ' ' + p.name + '. ' + describe(res) +
-          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''));
+          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''), res.busyBackground);
         renderAll();
       })
       .catch(err => say(msgEl, 'Could not use that: ' + err.message, true));
@@ -507,6 +524,20 @@
     }
     takeOne(file, id, $('#pasteMsg'));
   });
+
+  function syncPasteFind() {
+    const id = $('#pasteTarget').value;
+    const a = $('#pasteFind');
+    if (!a) return;
+    if (id && BY_ID[id]) {
+      a.href = photoSearch(BY_ID[id]);
+      a.textContent = 'Find a photo of the ' + BY_ID[id].name + ' ↗';
+      a.hidden = false;
+    } else {
+      a.hidden = true;
+    }
+  }
+  $('#pasteTarget').addEventListener('change', syncPasteFind);
 
   $('#pasteFile').addEventListener('click', () => {
     const id = $('#pasteTarget').value;
@@ -935,6 +966,7 @@
   function renderAll() {
     picsCount();
     fillPasteTarget();
+    syncPasteFind();
     renderMine();
     renderCatalog();
     renderPack();

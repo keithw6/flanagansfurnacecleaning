@@ -452,6 +452,8 @@ kbd {
 }
 .listbox > summary:hover { color: var(--ink); }
 .listbox[open] > summary { margin-bottom: 4px; }
+.gear-acts .find { font-size: .76rem; color: var(--muted); text-decoration: none; }
+.gear-acts .find:hover { color: var(--link); text-decoration: underline; }
 
 </style>
 </head>
@@ -609,6 +611,8 @@ kbd {
           <select id="pasteTarget" aria-label="Product to paste a picture onto"></select>
           <button class="btn btn-o btn-sm" id="pasteFile" type="button">or choose a file</button>
         </div>
+        <p class="hint" style="margin-top:8px"><a id="pasteFind" target="_blank"
+          rel="noopener noreferrer nofollow" hidden></a></p>
         <p class="hint" id="pasteMsg"></p>
       </fieldset>
 
@@ -3049,6 +3053,11 @@ const EDCImages = (function () {
         srcW: img.width, srcH: img.height,
         outW: out.width, outH: out.height,
         knockedOut: knocked,
+        /* Asked to cut the background out and could not: the photo has no
+           flat backdrop, so it is stored as a rectangle. That looks fine on
+           a catalogue card and terrible on a dark board, and the caller has
+           to be able to say so rather than let it arrive as a surprise. */
+        busyBackground: wantKnock && !knocked,
         trimmed: box.w !== c.width || box.h !== c.height
       };
     });
@@ -3599,6 +3608,7 @@ const EDCCustom = (function () {
        <div class="gear-acts">
          <button class="btn btn-sm add" type="button"></button>
          <button class="btn btn-o btn-sm pic" type="button">Photo</button>
+         <a class="find" target="_blank" rel="noopener noreferrer nofollow">Find one &#8599;</a>
          <a class="mk" target="_blank" rel="noopener noreferrer nofollow">Maker &#8599;</a>
        </div>`;
     $('.gear-brand', el).textContent = p.brand;
@@ -3616,6 +3626,9 @@ const EDCCustom = (function () {
     }
     const mine = EDCImages.isMine(p.id);
     if (mine) $('.pic', el).textContent = 'Remove photo';
+    $('.find', el).href = photoSearch(p);
+    $('.find', el).title = 'Search the web for a photo of this, then copy it and paste it in';
+    if (mine) $('.find', el).remove();
     if (p.custom || mine) {
       const tag = document.createElement('span');
       tag.className = 'yours';
@@ -3906,7 +3919,20 @@ const EDCCustom = (function () {
     const bits = [res.srcW + '×' + res.srcH + ' in, ' + res.outW + '×' + res.outH + ' out'];
     if (res.knockedOut) bits.push('background removed');
     if (res.trimmed) bits.push('trimmed to the object');
-    return bits.join(' · ') + '.';
+    let out = bits.join(' · ') + '.';
+    if (res.busyBackground) {
+      out += ' Careful: that photo has no plain backdrop, so nothing could be cut away — ' +
+        'it will show as a rectangle on the board. A shot on plain white works far better.';
+    }
+    return out;
+  }
+
+  /* Somewhere to go and get one. The maker's own page is already linked from
+     every card; this is the other half — an image search for the exact
+     product, biased toward the studio shots that cut out cleanly. */
+  function photoSearch(p) {
+    return 'https://www.google.com/search?tbm=isch&q=' +
+      encodeURIComponent('"' + p.brand + ' ' + p.name + '" product photo white background');
   }
 
   function picsCount() {
@@ -4000,7 +4026,7 @@ const EDCCustom = (function () {
         EDCImages.set(id, res.data);
         const next = advanceTarget(id);
         say(msgEl, 'Added to ' + p.brand + ' ' + p.name + '. ' + describe(res) +
-          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''));
+          (next ? ' Next up: ' + next.brand + ' ' + next.name + '.' : ''), res.busyBackground);
         renderAll();
       })
       .catch(err => say(msgEl, 'Could not use that: ' + err.message, true));
@@ -4024,6 +4050,20 @@ const EDCCustom = (function () {
     }
     takeOne(file, id, $('#pasteMsg'));
   });
+
+  function syncPasteFind() {
+    const id = $('#pasteTarget').value;
+    const a = $('#pasteFind');
+    if (!a) return;
+    if (id && BY_ID[id]) {
+      a.href = photoSearch(BY_ID[id]);
+      a.textContent = 'Find a photo of the ' + BY_ID[id].name + ' ↗';
+      a.hidden = false;
+    } else {
+      a.hidden = true;
+    }
+  }
+  $('#pasteTarget').addEventListener('change', syncPasteFind);
 
   $('#pasteFile').addEventListener('click', () => {
     const id = $('#pasteTarget').value;
@@ -4452,6 +4492,7 @@ const EDCCustom = (function () {
   function renderAll() {
     picsCount();
     fillPasteTarget();
+    syncPasteFind();
     renderMine();
     renderCatalog();
     renderPack();

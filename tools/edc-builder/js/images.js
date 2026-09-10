@@ -210,6 +210,11 @@ const EDCImages = (function () {
         srcW: img.width, srcH: img.height,
         outW: out.width, outH: out.height,
         knockedOut: knocked,
+        /* Asked to cut the background out and could not: the photo has no
+           flat backdrop, so it is stored as a rectangle. That looks fine on
+           a catalogue card and terrible on a dark board, and the caller has
+           to be able to say so rather than let it arrive as a surprise. */
+        busyBackground: wantKnock && !knocked,
         trimmed: box.w !== c.width || box.h !== c.height
       };
     });

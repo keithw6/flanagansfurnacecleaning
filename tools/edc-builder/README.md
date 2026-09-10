@@ -50,6 +50,15 @@ site's image needs that site to allow it - so every line is reported on its own
 and a refusal on one does not stop the rest. Where a host refuses, fall back to
 copy-and-paste below, which never does.
 
+### Finding one
+
+Every card carries **Find one**, an image search for that exact product asking
+for a studio shot on a white background. That last part is not fussiness: a
+photo taken on a desk or held in a hand has no flat backdrop, nothing can be
+cut away from it, and it lands on the board as a rectangle. The import says so
+when it happens rather than letting it arrive as a surprise, but the cheaper fix
+is picking the right photo in the first place.
+
 ### Taking one off a maker's site
 
 Right-click the photo on the product page, **Copy image**, come back, pick the
