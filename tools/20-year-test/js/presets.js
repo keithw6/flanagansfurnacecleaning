@@ -1752,6 +1752,7 @@
     { label: '10 years', kind: 'years', value: 10 },
     { label: '20 years', kind: 'years', value: 20 },
     { label: '30 years', kind: 'years', value: 30 },
+    { label: '40 years', kind: 'years', value: 40 },
     { label: 'To age 40', kind: 'age', value: 40 },
     { label: 'To age 50', kind: 'age', value: 50 },
     { label: 'To age 55', kind: 'age', value: 55 },

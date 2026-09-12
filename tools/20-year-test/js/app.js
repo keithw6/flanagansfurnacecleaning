@@ -68,8 +68,8 @@
      ===================================================================== */
   var GLOBAL_FIELDS = [
     { path: 'startAge', label: 'Starting age (both)', type: 'int', min: 14, max: 60 },
-    { path: 'years', label: 'Comparison period (years)', type: 'int', min: 3, max: 45,
-      hint: 'The brief default is 20. Try 10 and 30 as well - the winner can change.' },
+    { path: 'years', label: 'Comparison period (years)', type: 'int', min: 3, max: 50,
+      hint: 'The brief default is 20. Run it at 30 and 40 as well - the winner can change.' },
     { path: 'country', label: 'Country', type: 'select', options: 'countries' },
     { path: 'region', label: 'Province / state', type: 'select', options: 'regions' },
     { path: 'currency', label: 'Currency label', type: 'text' },
@@ -379,6 +379,36 @@
       return '<button class="cat" data-matchup="' + i + '" style="cursor:pointer;text-align:left;border:1px solid var(--line);font:inherit">' +
         '<span>' + esc(m.title) + '</span><span class="who">Load</span></button>';
     }).join('');
+  }
+
+  /* The horizon chips: the same test at 10, 20, 30 or 40 years, or run
+     to a birthday, one click each. The number field beside them still
+     takes anything; the chips just make the standard runs obvious. */
+  function horizonYears(h) {
+    return h.kind === 'age' ? h.value - state.startAge : h.value;
+  }
+  function renderHorizons() {
+    var el = document.getElementById('horizons');
+    if (!el) { return; }
+    /* Update the buttons in place once they exist. Typing in the years
+       field and then clicking a chip fires the field's change event
+       between mousedown and mouseup; rebuilding the buttons at that
+       moment would destroy the one being clicked and the click is lost. */
+    var existing = el.querySelectorAll('button[data-horizon]');
+    var rebuild = existing.length !== D.HORIZONS.length;
+    if (rebuild) {
+      el.innerHTML = D.HORIZONS.map(function (h, i) { return '<button data-horizon="' + i + '"></button>'; }).join('');
+      existing = el.querySelectorAll('button[data-horizon]');
+    }
+    D.HORIZONS.forEach(function (h, i) {
+      var yrs = horizonYears(h);
+      var label = h.kind === 'age' ? h.label + ' (' + yrs + ' yrs)' : h.label;
+      var btn = existing[i];
+      if (btn.textContent !== label) { btn.textContent = label; }
+      btn.setAttribute('aria-pressed', String(yrs === state.years));
+      btn.disabled = yrs < 3;
+      btn.title = yrs < 3 ? 'Already past that age' : '';
+    });
   }
 
   function renderScenarioTabs() {
@@ -1264,6 +1294,7 @@
       if (t.dataset.path === 'name') {
         document.getElementById(t.dataset.root === 'a' ? 'nameA' : 'nameB').textContent = t.value;
       }
+      if (t.dataset.path === 'years' || t.dataset.path === 'startAge') { renderHorizons(); }
       scheduleRecompute();
       return;
     }
@@ -1280,7 +1311,7 @@
   }
 
   function onClick(ev) {
-    var t = ev.target.closest('[data-matchup],[data-scen],[data-addstage],[data-delstage],[data-reshuffle],.tab');
+    var t = ev.target.closest('[data-matchup],[data-scen],[data-horizon],[data-addstage],[data-delstage],[data-reshuffle],.tab');
     if (!t) { return; }
     if (t.dataset.reshuffle) {
       state.scriptSeed = (state.scriptSeed || 0) + 1;
@@ -1311,6 +1342,15 @@
     if (t.dataset.scen) {
       state.scenario = t.dataset.scen;
       renderScenarioTabs();
+      recompute(true);
+      return;
+    }
+    if (t.dataset.horizon != null) {
+      var hz = D.HORIZONS[+t.dataset.horizon];
+      if (!hz) { return; }
+      state.years = Math.max(3, horizonYears(hz));
+      renderGlobalForm();
+      renderHorizons();
       recompute(true);
       return;
     }
@@ -1345,6 +1385,7 @@
 
   function renderAllForms() {
     renderGlobalForm();
+    renderHorizons();
     renderCareerForm('a');
     renderCareerForm('b');
     renderScenarioTabs();
