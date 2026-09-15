@@ -1732,6 +1732,7 @@
     region: 'AB',
     currency: 'CAD',
     inflation: 0.025,
+    moneyView: 'today',    /* 'today' takes inflation back out of every figure shown; 'nominal' shows dollars of the day */
     investReturn: 0.065,
     salaryGrowth: 0.025,
     safeWithdrawal: 0.04,
