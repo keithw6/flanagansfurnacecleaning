@@ -827,6 +827,48 @@
           'Nobody worked for that ' + say(bigGrow.totals.investmentGrowth) + '. It showed up because the money was left alone.',
           'That growth is the closest thing to free money in this whole test. And it only shows up if you start.')]);
 
+    /* ---- the head start, invested: what the first years alone are worth ---- */
+    var scRet = (sim.scenario && sim.scenario.investReturn) || 0;
+    var simRet = Math.max(-0.05, Math.min(0.20, cfg.investReturn + scRet));
+    if (hs.years > 0) {
+      var lead = hs.leader === a.name ? a : b;
+      var lag = lead === a ? b : a;
+      var earlyPut = 0, earlyWorth = 0;
+      lead.rows.forEach(function (r) {
+        if (r.age >= hs.toAge || r.contribution <= 0) { return; }
+        earlyPut += r.contribution;
+        /* The engine's own convention: half a year's return in the year
+           it goes in, a full year for every year after. */
+        earlyWorth += r.contribution * (1 + simRet / 2) * Math.pow(1 + simRet, Math.max(0, years - 1 - r.t));
+      });
+      var leadAt = rowAt(lead, hs.toAge - 1), lagAt = rowAt(lag, hs.toAge - 1);
+      var earlyShare = lead.totals.investments > 0 ? Math.round(earlyWorth / lead.totals.investments * 100) : 0;
+      if (earlyPut > 0) {
+        beat('earlymoney', 'earlymoney', 'The head start, invested', 'What the first ' + hs.years + ' years alone are worth',
+          [pk('Now put those two ideas together. The head start, and compounding.',
+              'Here\'s where the head start and the compounding meet.',
+              'This is the slide the whole episode has been building to.'),
+           pk(lead.name + ' is investing from ' + hs.fromAge + '. ' + lag.name + ' can\'t really start until ' + hs.toAge + '. In those ' + hs.years + ' years, ' + lead.name + ' puts away ' + say(earlyPut) + '.',
+              'From ' + hs.fromAge + ' to ' + (hs.toAge - 1) + ', ' + lead.name + ' is putting money in and ' + lag.name + ' isn\'t. That\'s ' + say(earlyPut) + ' in, before ' + lag.name + ' has earned a proper cheque.',
+              'While ' + lag.name + ' is still in training, ' + lead.name + ' invests ' + say(earlyPut) + '. ' + hs.years + ' years of deposits with nobody to race.'),
+           pk('Leave that money alone and by ' + endAge + ' it\'s worth ' + say(earlyWorth) + '. On its own. Nothing added after ' + (hs.toAge - 1) + '.',
+              'That ' + say(earlyPut) + ', left to grow, is ' + say(earlyWorth) + ' by age ' + endAge + '. Not counting a single dollar put in later.',
+              'By ' + endAge + ' that early money alone is ' + say(earlyWorth) + '. The deposits stopped at ' + (hs.toAge - 1) + '. The growth didn\'t.'),
+           earlyShare > 0
+             ? pk('That\'s ' + earlyShare + ' percent of everything ' + lead.name + ' finishes with. Bought by the first ' + hs.years + ' years.',
+                  earlyShare + ' percent of ' + lead.name + '\'s final balance comes from those first ' + hs.years + ' years. The earliest dollars do the most work.',
+                  'The first ' + hs.years + ' years buy ' + earlyShare + ' percent of the finish. That\'s what starting early is actually worth.')
+             : null,
+           pk('The year before ' + lag.name + ' starts earning, ' + lead.name + ' already has ' + say(leadAt.investments) + ' invested. ' + lag.name + ' has ' + say(lagAt.investments) +
+                (lagAt.studentDebt > 0 ? ', and ' + say(lagAt.studentDebt) + ' of student debt.' : '.'),
+              'At ' + (hs.toAge - 1) + ', ' + lead.name + ' is sitting on ' + say(leadAt.investments) + '. ' + lag.name + ' is at ' + say(lagAt.investments) +
+                (lagAt.studentDebt > 0 ? ' with ' + say(lagAt.studentDebt) + ' owing.' : '.'),
+              'Same age, ' + (hs.toAge - 1) + '. ' + say(leadAt.investments) + ' invested against ' + say(lagAt.investments) +
+                (lagAt.studentDebt > 0 ? ', plus ' + say(lagAt.studentDebt) + ' of debt on the other side.' : '.') + ' That\'s the gap ' + lag.name + ' has to close.')],
+          { earlyPut: earlyPut, earlyWorth: earlyWorth, earlyShare: earlyShare, leadAt: leadAt.investments, lagAt: lagAt.investments, lagDebt: lagAt.studentDebt });
+      }
+    }
+
     beat('investments', 'chart:investments', 'The bank balance', 'Cash and investments only',
       [pk('This is just cash and investments. No house. No business.',
           'Strip out the house and the business and this is what\'s left. Money in accounts.',

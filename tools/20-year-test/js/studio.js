@@ -637,6 +637,19 @@
         return wrap;
       }
 
+      case 'earlymoney': {
+        /* The first years' deposits, and what they alone become. */
+        var hsx = sim.headStart, leadRes = hsx.leader === a.name ? a : bb, lagRes = leadRes === a ? bb : a;
+        var leadSide = leadRes === a ? 'a' : 'b', lagSide = leadSide === 'a' ? 'b' : 'a';
+        wrap.appendChild(bigStat([
+          { k: leadRes.name + ' - invested ' + hsx.fromAge + ' to ' + (hsx.toAge - 1), v: money(b.earlyPut || 0), n: 'the ' + hsx.years + ' head-start years', side: leadSide },
+          { k: 'worth by ' + (cfg.startAge + cfg.years), v: money(b.earlyWorth || 0), n: b.earlyShare ? b.earlyShare + '% of the final balance' : 'that early money alone', side: leadSide },
+          { k: leadRes.name + ' has at ' + (hsx.toAge - 1), v: money(b.leadAt || 0), n: 'invested', side: leadSide },
+          { k: lagRes.name + ' has at ' + (hsx.toAge - 1), v: money(b.lagAt || 0), n: b.lagDebt > 0 ? money(b.lagDebt) + ' of student debt' : 'still in training', side: lagSide }
+        ]));
+        return wrap;
+      }
+
       case 'compound': {
         /* A dollar's journey, then the pile: what went in against what
            the market added. Totals are the balance at the end. */
@@ -889,7 +902,7 @@
   }
 
   var ONE_INSET = { setup: 1, education: 1, business: 1, dependency: 1, hours: 1, freedom: 1,
-    invest: 1, disclaimer: 1, outro: 1, title: 1 };
+    invest: 1, earlymoney: 1, disclaimer: 1, outro: 1, title: 1 };
   function renderStage() {
     if (!overlay) { return; }
     var b = beat();
