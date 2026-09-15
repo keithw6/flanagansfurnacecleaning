@@ -413,6 +413,7 @@
     var homeValue = 0, mortgage = 0, mortgagePaymentFixed = 0, owned = false;
     var bizFailed = false, bizFailedAge = null;
     var cumEarnings = 0, cumTax = 0, cumHours = 0, cumInvested = 0, cumEduSpend = 0, cumInterest = 0;
+    var cumSchoolLiving = 0;      /* living costs in the unpaid school years */
     var cumHoursSchool = 0;
     var cumInvestReturns = 0;
     var debtFreeAge = null, firstPositiveNetWorthAge = null, freedomAge = null, freedomSaleAge = null;
@@ -542,7 +543,13 @@
          the career's eventual lifestyle. Blending the two is how you end
          up borrowing a professional's living costs for seven years. */
       var studentCost = (career.education.studentLivingCost == null ? 22000 : career.education.studentLivingCost) * idx;
-      var livingBase = baseLiving * idx * (1 - eduRow.unpaidShare) + studentCost * eduRow.unpaidShare;
+      /* The school share of the year is spent at the student figure in
+         full. A student on twenty-four thousand is already at the floor;
+         the sixty-percent floor and the austerity cut below are for a
+         working household's spending, and applying them here quietly
+         turned the entered cost into less than half of itself. */
+      var schoolLiving = studentCost * eduRow.unpaidShare;
+      var careerBase = baseLiving * idx * (1 - eduRow.unpaidShare);
       var housingCost = owned ? homeValue * housing.annualCostPct : 0;
 
       /* ---------- 4. tax, with one pass for the registered deduction ---------- */
@@ -554,11 +561,12 @@
       /* A floor you cannot live below, plus a share of everything above
          it. Spending tracks income in real life; a single flat figure
          either bankrupts the junior or under-spends the principal. */
-      var floorCost = livingBase * 0.6;
-      var living = floorCost + career.living.creep * Math.max(0, afterTax0 - floorCost);
+      var floorCost = careerBase * 0.6;
+      var living = schoolLiving + floorCost + career.living.creep * Math.max(0, afterTax0 - floorCost - schoolLiving);
+      cumSchoolLiving += schoolLiving;
       /* Employer-paid benefits and a company truck are not cash, but they
          do displace spending, so they belong on the expense side. */
-      living = Math.max(floorCost * 0.8, living - Math.min(benefits + vehicle, livingBase * 0.25));
+      living = schoolLiving + Math.max(floorCost * 0.8, (living - schoolLiving) - Math.min(benefits + vehicle, careerBase * 0.25));
 
       /* ---------- 5. cash available before investing ---------- */
       var studentPayment = 0, studentInterest = 0;
@@ -611,7 +619,7 @@
          spending first. Real households cut back; they do not fund a
          twenty-year shortfall on a credit card. */
       if (investableRaw < 0) {
-        var cut = Math.min(-investableRaw, living * 0.30);
+        var cut = Math.min(-investableRaw, (living - schoolLiving) * 0.30);
         living -= cut;
         outflow -= cut;
         investableRaw += cut;
@@ -779,7 +787,12 @@
         educationOffsets: edu.totalOffset,
         educationNet: last.cumEduSpend,
         educationInterest: cumInterest,
-        educationTotalCost: last.cumEduSpend + cumInterest,
+        /* Living in school is a cost of the education only to the extent
+           it had to be borrowed: rent and food that summer and part-time
+           work covered would have been spent either way. */
+        schoolLiving: cumSchoolLiving,
+        schoolLivingCovered: Math.max(0, cumSchoolLiving - studentLivingDebt),
+        educationTotalCost: last.cumEduSpend + studentLivingDebt + cumInterest,
         studentTuitionDebt: studentTuitionDebt,
         studentLivingDebt: studentLivingDebt,
         peakStudentDebt: Math.max.apply(null, rows.map(function (r) { return r.studentDebt; })),

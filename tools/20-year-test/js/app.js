@@ -122,7 +122,7 @@
       { path: 'education.equipment', label: 'Required equipment', type: 'money' },
       { path: 'education.other', label: 'Other education costs', type: 'money' },
       { path: 'education.studentLivingCost', label: 'Cost of living while in school', type: 'money',
-        hint: 'Per year. Borrowed if income does not cover it.' },
+        hint: 'Per year, spent in full during the unpaid school years. Whatever summer and part-time pay does not cover is borrowed as student debt and counted in the cost of the education.' },
       { path: 'education.schoolWorkHours', label: 'Hours worked per school year', type: 'int', min: 0, max: 2500 },
       { path: 'education.studyHoursPerYear', label: 'Hours in class and studying per school year', type: 'int', min: 0, max: 4000,
         hint: 'Class, labs, clinic and study time in the unpaid school years. Counted as hours given to the career.' },
@@ -443,6 +443,7 @@
       '<div class="nw-stage">Ends as: ' + esc(lastRow.stage) + '</div>' +
       line('Career earnings', t.careerEarnings) +
       line('Education, all in', t.educationTotalCost, true) +
+      (t.studentLivingDebt > 0 ? sub('of which living costs borrowed in school', t.studentLivingDebt) : '') +
       line('Tax paid', t.totalTax, true) +
       '<div style="height:8px"></div>' +
       line('Investments', t.investments) +
@@ -1175,8 +1176,16 @@
         kv('Certification, licensing, exams', money(e.certification + e.licensing + e.examFees)) +
         kv('Gross cost', money(t.educationGross)) +
         kv('Family, scholarships, grants', '-' + money(t.educationOffsets)) +
-        kv('Net cost paid', money(t.educationNet));
-    }) + '<div class="callout" style="margin-top:12px"><strong>Lost earnings.</strong> ' +
+        kv('Net cost of tuition and fees', money(t.educationNet)) +
+        kv('Living costs in the unpaid school years', money(t.schoolLiving)) +
+        kv('Covered by summer and part-time pay', '-' + money(t.schoolLivingCovered)) +
+        kv('Borrowed to live on', money(t.studentLivingDebt)) +
+        kv('Interest on everything borrowed', money(t.educationInterest)) +
+        kv('Education, all in', money(t.educationTotalCost));
+    }) + '<div class="callout" style="margin-top:12px"><strong>Where the living money comes from.</strong> ' +
+      'A student\u2019s rent and food are paid first from summer and part-time earnings, then from any savings, and the rest is borrowed ' +
+      'as student debt. Only the borrowed part is counted as a cost of the education - the part that earnings covered would have been spent either way.</div>' +
+      '<div class="callout" style="margin-top:12px"><strong>Lost earnings.</strong> ' +
       (sim.headStart.years
         ? esc(sim.headStart.leader) + ' earns ' + money(sim.headStart.incomeEarned) + ' before ' +
           esc(sim.headStart.laggard) + ' earns a professional income at all - see section 7.'

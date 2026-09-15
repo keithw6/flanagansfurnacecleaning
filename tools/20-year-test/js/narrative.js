@@ -102,7 +102,7 @@
         'net worth, the comparison is not close and should not be presented as though it were.');
     }
     p.push('Tax takes ' + money(a.totals.totalTax) + ' from ' + A + ' and ' + money(b.totals.totalTax) +
-      ' from ' + B + ' over the period. Education, financing included, costs ' + A + ' ' +
+      ' from ' + B + ' over the period. Education - tuition, the living costs that had to be borrowed, and the financing - costs ' + A + ' ' +
       money(a.totals.educationTotalCost) + ' against ' + money(b.totals.educationTotalCost) + ' for ' + B + '.');
     out.push({ heading: 'Earning versus keeping', paragraphs: p });
 
@@ -731,10 +731,17 @@
     }
 
     /* ---- education ---- */
+    var livingBorrowed = Math.max(a.totals.studentLivingDebt, b.totals.studentLivingDebt);
+    var livingBorrower = a.totals.studentLivingDebt >= b.totals.studentLivingDebt ? A : B;
     beat('education', 'education', 'What the education cost', 'Including the interest',
-      [pk('Education isn\'t just tuition. It\'s tuition, plus the years you weren\'t earning, plus the interest on what you borrowed.',
-          'People think school costs whatever the tuition is. It doesn\'t. The real price tag has three parts. Tuition. The years you weren\'t earning. And the interest.',
-          'Tuition is the sticker price. The real price is tuition, plus lost years, plus interest. And it\'s a lot bigger.'),
+      [pk('Education isn\'t just tuition. It\'s tuition, plus rent and groceries for the years you weren\'t earning, plus the interest on all of it.',
+          'People think school costs whatever the tuition is. It doesn\'t. The real price tag has three parts. Tuition. Living costs while you\'re not earning. And the interest.',
+          'Tuition is the sticker price. The real price is tuition, plus living on borrowed money, plus interest. And it\'s a lot bigger.'),
+       livingBorrowed > 5000
+         ? pk(livingBorrower + ' borrows ' + say(livingBorrowed) + ' just to eat and pay rent while in school. Summer jobs cover some of it. Not most of it.',
+              'Here\'s the part the brochure leaves out. ' + livingBorrower + ' has to borrow ' + say(livingBorrowed) + ' for rent and food alone. Part-time work doesn\'t come close.',
+              say(livingBorrowed) + ' of ' + livingBorrower + '\'s loan isn\'t tuition at all. It\'s groceries and rent for the years without a paycheque.')
+         : null,
        pk('All in, that\'s ' + say(a.totals.educationTotalCost) + ' for ' + A + ' and ' + say(b.totals.educationTotalCost) + ' for ' + B + '.',
           'For ' + A + ', the whole thing comes to about ' + say(a.totals.educationTotalCost) + '. For ' + B + ', ' + say(b.totals.educationTotalCost) + '.',
           say(a.totals.educationTotalCost) + ' versus ' + say(b.totals.educationTotalCost) + '. ' + A + ' first, ' + B + ' second.'),
