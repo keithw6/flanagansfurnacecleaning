@@ -135,6 +135,15 @@
         for (var pi = 0; pi < pts.length; pi++) { if (pts[pi].x <= rv.from) { k = pi; } }
       }
       var lineAttrs = { fill: 'none', stroke: s.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      /* A supporting series - "what went in" under "what it grew to" -
+         is dashed, thinner, fades in rather than drawing on (the draw-on
+         needs a solid dash pattern of its own) and carries no end label,
+         so the main lines keep the reader's eye. */
+      if (s.dash) {
+        svg.appendChild(el('path', Object.assign({ d: seg(pts), class: 'series-soft', style: stagger }, lineAttrs,
+          { 'stroke-width': 1.6, 'stroke-dasharray': '6 5', opacity: 0.85 })));
+        return;
+      }
       if (k > 0) {
         svg.appendChild(el('path', Object.assign({ d: seg(pts.slice(0, k + 1)), class: 'series-line series-static' }, lineAttrs)));
       }
@@ -179,7 +188,8 @@
     var tip = el('g', { class: 'bcb-tip', style: 'display:none' });
     var tipBg = el('rect', { rx: 5, class: 'tip-bg' });
     tip.appendChild(tipBg);
-    var tipLines = [el('text', { class: 'tip-head' }), el('text', { class: 'tip-row' }), el('text', { class: 'tip-row' })];
+    var tipLines = [el('text', { class: 'tip-head' })];
+    series.forEach(function () { tipLines.push(el('text', { class: 'tip-row' })); });
     tipLines.forEach(function (t) { tip.appendChild(t); });
     svg.appendChild(tip);
 
@@ -208,7 +218,7 @@
       var tx = X(age) + 12;
       if (tx + tw > pad.left + iw) { tx = X(age) - tw - 12; }
       tipBg.setAttribute('x', tx); tipBg.setAttribute('y', pad.top + 6);
-      tipBg.setAttribute('width', tw); tipBg.setAttribute('height', 60);
+      tipBg.setAttribute('width', tw); tipBg.setAttribute('height', 26 + 17 * series.length);
       tipLines.forEach(function (t, i) { t.setAttribute('x', tx + 10); t.setAttribute('y', pad.top + 24 + i * 17); });
     }
     capture.addEventListener('mousemove', pointerMove);
