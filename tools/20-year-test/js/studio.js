@@ -521,10 +521,10 @@
 
       case 'setup':
         wrap.appendChild(bigStat([
-          { k: 'Inflation', v: Math.round(cfg.inflation * 1000) / 10 + '%' },
-          { k: 'Investment return', v: Math.round(cfg.investReturn * 1000) / 10 + '%' },
-          { k: 'Scenario', v: sim.scenario.label },
-          { k: 'Same house for both', v: cfg.housing.enabled ? money(cfg.housing.price) : 'no house' }
+          { k: 'Every figure in', v: 'today\u2019s dollars', n: Math.round(cfg.inflation * 1000) / 10 + '% inflation modelled, then taken back out. Not adjusted for the timeline.' },
+          { k: 'Investment return', v: Math.round(cfg.investReturn * 1000) / 10 + '%', n: 'before inflation' },
+          { k: 'Scenario', v: sim.scenario.label, n: sim.scenario.blurb || '' },
+          { k: 'Same house for both', v: cfg.housing.enabled ? money(cfg.housing.price) : 'no house', n: cfg.housing.enabled ? 'bought at ' + cfg.housing.buyAge : '' }
         ]));
         return wrap;
 
