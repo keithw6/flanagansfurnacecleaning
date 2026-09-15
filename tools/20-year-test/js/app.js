@@ -52,10 +52,14 @@
     return sign + '$' + Math.abs(Math.round(v)).toLocaleString();
   }
   var short = C.fmtMoney;
-  function todayView() { return state.moneyView !== 'nominal'; }
+  /* Every figure on every page is in today's dollars. The engine runs
+     inflation - it has to, for tax brackets and loan payments - and the
+     display takes it back out, so nothing is adjusted for the timeline:
+     a wage at 57 reads as what it buys today, not the number that would
+     be on that year's pay stub. */
+  function todayView() { return true; }
   function moneyNote() {
-    return todayView() ? 'All money in today\u2019s dollars, with inflation taken back out.'
-                       : 'All money in dollars of the day, not adjusted for inflation.';
+    return 'Every dollar figure is in today\u2019s dollars and is not adjusted for the timeline: a wage or a balance at age 57 means that much of today\u2019s buying power, not the bigger number that would be on the paperwork that year.';
   }
   function pctTxt(v) { return (v * 100).toFixed(v * 100 % 1 === 0 ? 0 : 1) + '%'; }
   function num(v) { return Math.round(v).toLocaleString(); }
@@ -82,9 +86,6 @@
       options: [{ v: 'brackets', l: 'Progressive brackets' }, { v: 'flat', l: 'Flat effective rate' }] },
     { path: 'flatRate', label: 'Flat rate (if used)', type: 'pct' },
     { path: 'inflation', label: 'Inflation', type: 'pct' },
-    { path: 'moneyView', label: 'Show money in', type: 'select',
-      options: [{ v: 'today', l: 'Today\u2019s dollars' }, { v: 'nominal', l: 'Dollars of the day' }],
-      hint: 'Wages, prices and taxes all rise with inflation inside the model. Today\u2019s dollars takes that back out so a wage at 57 reads like a wage you recognise.' },
     { path: 'investReturn', label: 'Investment return', type: 'pct',
       hint: 'Nominal, before tax. 6-7% is a common long-run assumption.' },
     { path: 'salaryGrowth', label: 'Wage drift above stages', type: 'pct',
@@ -1162,7 +1163,8 @@
       '<p style="margin-top:22px;color:var(--muted)">Age ' + cfg.startAge + ' to ' + (cfg.startAge + cfg.years) +
       ' &middot; ' + esc(sim.scenario.label) + ' assumptions &middot; ' + esc(cfg.currency) + ' &middot; ' +
       esc((D.TAX[cfg.country] || {}).label || cfg.country) + '</p>' +
-      '<p style="margin-top:18px;font-size:.85rem;color:var(--faint);max-width:70ch">A model, not a measurement. ' +
+      '<p style="margin-top:18px;font-size:.85rem;color:var(--faint);max-width:70ch">' + esc(moneyNote()) + '</p>' +
+      '<p style="margin-top:10px;font-size:.85rem;color:var(--faint);max-width:70ch">A model, not a measurement. ' +
       'Every figure is the arithmetic consequence of the assumptions listed in section 25. Not financial, tax, ' +
       'career or investment advice.</p>' +
       '<p style="margin-top:auto;padding-top:24px;font-family:var(--h);text-transform:uppercase;letter-spacing:.1em;font-size:.8rem">' +
@@ -1386,7 +1388,7 @@
       kv('Starting age', cfg.startAge) + kv('Period', cfg.years + ' years') +
       kv('Jurisdiction', esc(((D.TAX[cfg.country] || {}).regions || {})[cfg.region] ?
         D.TAX[cfg.country].regions[cfg.region].label + ', ' + D.TAX[cfg.country].label : cfg.country)) +
-      kv('Inflation', pctTxt(cfg.inflation)) + kv('Money shown in', todayView() ? 'today’s dollars' : 'dollars of the day') +
+      kv('Inflation', pctTxt(cfg.inflation)) + kv('Money shown in', 'today’s dollars, not adjusted for the timeline') +
       kv('Investment return', pctTxt(cfg.investReturn)) +
       kv('Wage drift above stages', pctTxt(cfg.salaryGrowth)) +
       kv('Safe withdrawal rate', pctTxt(cfg.safeWithdrawal)) +
@@ -1445,6 +1447,7 @@
   var renderTimer = null;
   function recompute(skipForms) {
     try {
+      state.moneyView = 'today';   /* every figure in today's dollars; see moneyNote */
       var sim = E.run(state);
       var scores = S.scoreAll(sim);
       last = {

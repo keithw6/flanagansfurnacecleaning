@@ -125,10 +125,10 @@ or businesses, and the manifest says so.
 ## How the model works
 
 One pass per career, one row per year of life. Every downstream view reads those
-rows. Money is nominal — dollars of the year they occur in — with the
-today's-dollar equivalent reported alongside so a twenty-year figure is not read
-too generously. Tax brackets, living costs and house prices are all indexed to
-inflation.
+rows. The simulation runs in dollars of the year they occur in — tax brackets,
+living costs and house prices are all indexed to inflation — and every figure
+shown is then taken back to today's dollars, year by year, so nothing on screen
+is adjusted for the timeline: a wage at 57 reads as what it buys today.
 
 **Business profit is built up from labour rather than typed in.** Materials, then
 producing employees at a fully loaded cost against the revenue each generates,

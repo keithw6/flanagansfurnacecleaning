@@ -1377,6 +1377,9 @@ body.st-on { overflow: hidden; }
 
 <footer class="foot no-print">
   <div class="wrap">
+    <p><strong>Today’s dollars.</strong> Every figure on every page is in today’s dollars and is not adjusted for the
+      timeline. The model runs inflation underneath, then takes it back out, so a wage or a balance at age 57 means that much
+      of today’s buying power - not the bigger number that would be on the paperwork that year.</p>
     <p><strong>What this is.</strong> A model, not a measurement. Every output is the arithmetic consequence of
       the assumptions on the Setup tab - change them and the answer changes. Tax is simplified, investment
       returns are assumed rather than known, and the chance of a business failing is not priced in.</p>
@@ -5742,6 +5745,9 @@ body.st-on { overflow: hidden; }
        pk('Everything in this episode is my opinion, run through a model with a lot of assumptions in it.',
           'This is a model and an opinion. The numbers are estimates, not facts about your life.',
           'What you\'re about to see is a spreadsheet with a personality. It\'s my take, built on assumptions.'),
+       pk('Every dollar you\'ll see is in today\'s dollars. The model runs inflation and I take it back out, so nothing is adjusted for the timeline. A wage at 57 sounds like a wage, not a lottery number.',
+          'All the money is in today\'s dollars, not adjusted for the timeline. Inflation is in the model, but I strip it back out before it hits the screen, so the numbers mean what they\'d mean today.',
+          'One more thing. Every number is in today\'s dollars. Not adjusted for the timeline. If it says $133,000 at 57, that\'s $133,000 of today\'s buying power.'),
        pk('It is not career advice, financial advice, tax advice or investment advice. It\'s entertainment, and a way to think.',
           'None of it is career, financial, tax or investment advice. It\'s entertainment. It\'s a way to think about the question.',
           'It is not advice of any kind. Not career, not financial, not tax, not investment. It\'s a show.'),
@@ -6651,10 +6657,14 @@ body.st-on { overflow: hidden; }
     return sign + '$' + Math.abs(Math.round(v)).toLocaleString();
   }
   var short = C.fmtMoney;
-  function todayView() { return state.moneyView !== 'nominal'; }
+  /* Every figure on every page is in today's dollars. The engine runs
+     inflation - it has to, for tax brackets and loan payments - and the
+     display takes it back out, so nothing is adjusted for the timeline:
+     a wage at 57 reads as what it buys today, not the number that would
+     be on that year's pay stub. */
+  function todayView() { return true; }
   function moneyNote() {
-    return todayView() ? 'All money in today\u2019s dollars, with inflation taken back out.'
-                       : 'All money in dollars of the day, not adjusted for inflation.';
+    return 'Every dollar figure is in today\u2019s dollars and is not adjusted for the timeline: a wage or a balance at age 57 means that much of today\u2019s buying power, not the bigger number that would be on the paperwork that year.';
   }
   function pctTxt(v) { return (v * 100).toFixed(v * 100 % 1 === 0 ? 0 : 1) + '%'; }
   function num(v) { return Math.round(v).toLocaleString(); }
@@ -6681,9 +6691,6 @@ body.st-on { overflow: hidden; }
       options: [{ v: 'brackets', l: 'Progressive brackets' }, { v: 'flat', l: 'Flat effective rate' }] },
     { path: 'flatRate', label: 'Flat rate (if used)', type: 'pct' },
     { path: 'inflation', label: 'Inflation', type: 'pct' },
-    { path: 'moneyView', label: 'Show money in', type: 'select',
-      options: [{ v: 'today', l: 'Today\u2019s dollars' }, { v: 'nominal', l: 'Dollars of the day' }],
-      hint: 'Wages, prices and taxes all rise with inflation inside the model. Today\u2019s dollars takes that back out so a wage at 57 reads like a wage you recognise.' },
     { path: 'investReturn', label: 'Investment return', type: 'pct',
       hint: 'Nominal, before tax. 6-7% is a common long-run assumption.' },
     { path: 'salaryGrowth', label: 'Wage drift above stages', type: 'pct',
@@ -7761,7 +7768,8 @@ body.st-on { overflow: hidden; }
       '<p style="margin-top:22px;color:var(--muted)">Age ' + cfg.startAge + ' to ' + (cfg.startAge + cfg.years) +
       ' &middot; ' + esc(sim.scenario.label) + ' assumptions &middot; ' + esc(cfg.currency) + ' &middot; ' +
       esc((D.TAX[cfg.country] || {}).label || cfg.country) + '</p>' +
-      '<p style="margin-top:18px;font-size:.85rem;color:var(--faint);max-width:70ch">A model, not a measurement. ' +
+      '<p style="margin-top:18px;font-size:.85rem;color:var(--faint);max-width:70ch">' + esc(moneyNote()) + '</p>' +
+      '<p style="margin-top:10px;font-size:.85rem;color:var(--faint);max-width:70ch">A model, not a measurement. ' +
       'Every figure is the arithmetic consequence of the assumptions listed in section 25. Not financial, tax, ' +
       'career or investment advice.</p>' +
       '<p style="margin-top:auto;padding-top:24px;font-family:var(--h);text-transform:uppercase;letter-spacing:.1em;font-size:.8rem">' +
@@ -7985,7 +7993,7 @@ body.st-on { overflow: hidden; }
       kv('Starting age', cfg.startAge) + kv('Period', cfg.years + ' years') +
       kv('Jurisdiction', esc(((D.TAX[cfg.country] || {}).regions || {})[cfg.region] ?
         D.TAX[cfg.country].regions[cfg.region].label + ', ' + D.TAX[cfg.country].label : cfg.country)) +
-      kv('Inflation', pctTxt(cfg.inflation)) + kv('Money shown in', todayView() ? 'today’s dollars' : 'dollars of the day') +
+      kv('Inflation', pctTxt(cfg.inflation)) + kv('Money shown in', 'today’s dollars, not adjusted for the timeline') +
       kv('Investment return', pctTxt(cfg.investReturn)) +
       kv('Wage drift above stages', pctTxt(cfg.salaryGrowth)) +
       kv('Safe withdrawal rate', pctTxt(cfg.safeWithdrawal)) +
@@ -8044,6 +8052,7 @@ body.st-on { overflow: hidden; }
   var renderTimer = null;
   function recompute(skipForms) {
     try {
+      state.moneyView = 'today';   /* every figure in today's dollars; see moneyNote */
       var sim = E.run(state);
       var scores = S.scoreAll(sim);
       last = {
@@ -9274,10 +9283,10 @@ body.st-on { overflow: hidden; }
 
       case 'setup':
         wrap.appendChild(bigStat([
-          { k: 'Inflation', v: Math.round(cfg.inflation * 1000) / 10 + '%' },
-          { k: 'Investment return', v: Math.round(cfg.investReturn * 1000) / 10 + '%' },
-          { k: 'Scenario', v: sim.scenario.label },
-          { k: 'Same house for both', v: cfg.housing.enabled ? money(cfg.housing.price) : 'no house' }
+          { k: 'Every figure in', v: 'today\u2019s dollars', n: Math.round(cfg.inflation * 1000) / 10 + '% inflation modelled, then taken back out. Not adjusted for the timeline.' },
+          { k: 'Investment return', v: Math.round(cfg.investReturn * 1000) / 10 + '%', n: 'before inflation' },
+          { k: 'Scenario', v: sim.scenario.label, n: sim.scenario.blurb || '' },
+          { k: 'Same house for both', v: cfg.housing.enabled ? money(cfg.housing.price) : 'no house', n: cfg.housing.enabled ? 'bought at ' + cfg.housing.buyAge : '' }
         ]));
         return wrap;
 
