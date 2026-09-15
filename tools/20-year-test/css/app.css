@@ -289,6 +289,7 @@ main { padding: 22px 0 80px; }
 .bcb-chart .series-line { stroke-dasharray: 1; animation: bcbDraw var(--draw) cubic-bezier(.45,0,.2,1) both;
   animation-delay: calc(var(--i, 0) * var(--step)); }
 .bcb-chart .series-static { animation: none; stroke-dasharray: none; }
+.bcb-chart .series-soft { animation: bcbFade .8s ease-out both; animation-delay: calc(var(--draw) * .5 + var(--i, 0) * var(--step)); }
 .bcb-chart .series-area { animation: bcbFade .8s ease-out both; animation-delay: calc(var(--draw) * .6 + var(--i, 0) * var(--step)); }
 .bcb-chart .end-dot, .bcb-chart .end-label { animation: bcbPop .45s cubic-bezier(.2,.9,.3,1.4) both;
   animation-delay: calc(var(--draw) * .92 + var(--i, 0) * var(--step)); transform-box: fill-box; transform-origin: center; }
@@ -1207,4 +1208,32 @@ body.st-on { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .st-cta { transition: opacity .2s ease; transform: none; }
   .st-cta.on .st-cta-chip, .st-cta.on .st-cta-chip.go, .st-cta.on .st-cta-chip.ring svg { animation: none; }
+}
+
+/* ---- Investing tab ---- */
+.inv-lead { font-size: 1.05rem; color: var(--text); max-width: 72ch; }
+.inv-lead strong { color: var(--ink); }
+.inv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+.inv-col { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--surface-1); }
+.inv-col.a { border-top: 3px solid var(--series-a); }
+.inv-col.b { border-top: 3px solid var(--series-b); }
+.inv-col .who { font-family: var(--h); text-transform: uppercase; font-size: 1.1rem; color: var(--ink); margin-bottom: 8px; }
+.inv-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--surface-2); margin: 8px 0 10px; }
+.inv-bar i { display: block; height: 100%; }
+.inv-bar .in { background: var(--muted); opacity: .55; }
+.inv-col.a .inv-bar .grow { background: var(--series-a); }
+.inv-col.b .inv-bar .grow { background: var(--series-b); }
+.inv-key { display: flex; gap: 16px; font-size: .78rem; color: var(--muted); flex-wrap: wrap; }
+.inv-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.dollar-rows { display: grid; gap: 8px; margin-top: 10px; }
+.dollar-row { display: grid; grid-template-columns: 150px 1fr 110px; align-items: center; gap: 12px; font-size: .9rem; }
+.dollar-row .lbl { color: var(--text); }
+.dollar-row .lbl small { display: block; color: var(--faint); font-size: .74rem; }
+.dollar-row .track { height: 18px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.dollar-row .track i { display: block; height: 100%; background: var(--series-a); border-radius: 5px;
+  transform-origin: left; animation: bcbGrowX var(--draw) cubic-bezier(.45,0,.2,1) both; animation-delay: calc(var(--i, 0) * var(--step)); }
+.dollar-row .val { font-family: var(--h); font-size: 1.05rem; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .inv-cols { grid-template-columns: 1fr; }
+  .dollar-row { grid-template-columns: 110px 1fr 90px; }
 }

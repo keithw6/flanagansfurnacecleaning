@@ -673,7 +673,7 @@
   /* Balances are measured at the END of each year, flows during it. Plotting
      both against the same age made every balance chart finish at 37 while
      the headline said 38 - the same number, labelled two different ways. */
-  var STOCKS = { netWorth: 1, investments: 1, totalDebt: 1, businessEquity: 1, cumEarnings: 1 };
+  var STOCKS = { netWorth: 1, investments: 1, totalDebt: 1, businessEquity: 1, cumEarnings: 1, cumInvested: 1, cumInvestReturns: 1 };
   function series(key) {
     var sim = last.sim;
     var shift = STOCKS[key] ? 1 : 0;
@@ -844,6 +844,184 @@
           '</td><td>' + r.weight + '</td><td class="a-val">' + r.value + '</td>' +
           '<td class="b-val">' + rowsB[i].value + '</td></tr>';
       }).join('') + '</tbody></table></div>';
+  }
+
+  /* =====================================================================
+     INVESTING
+     The part of the model people skip, given its own page: how much
+     goes in, what the market adds, and why the years matter more than
+     the amounts. Every number here comes off the same rows the rest of
+     the tool reports - nothing is re-simulated.
+     ===================================================================== */
+  function simReturn() {
+    var sim = last.sim;
+    var adj = (sim.scenario && sim.scenario.investReturn) || 0;
+    return Math.max(-0.05, Math.min(0.20, state.investReturn + adj));
+  }
+  /* What one year's contribution is worth at the end of the run, on the
+     engine's own convention: half a year's return in the year it goes in,
+     a full year for every year after. */
+  function growTo(amount, t, years, ret) {
+    return amount * (1 + ret / 2) * Math.pow(1 + ret, Math.max(0, years - 1 - t));
+  }
+  function earlyMoney(res, uptoAge, years, ret) {
+    var put = 0, worth = 0, n = 0;
+    res.rows.forEach(function (r) {
+      if (r.age >= uptoAge || r.contribution <= 0) { return; }
+      put += r.contribution; worth += growTo(r.contribution, r.t, years, ret); n++;
+    });
+    return { put: put, worth: worth, years: n };
+  }
+
+  function renderInvesting() {
+    var host = document.getElementById('investingBody');
+    if (!host) { return; }
+    var sim = last.sim, cfg = state, a = sim.a, b = sim.b, hs = sim.headStart;
+    var ret = simReturn(), retPct = (ret * 100).toFixed(1);
+    var endAge = cfg.startAge + cfg.years;
+    var rule = cfg.investing.mode === 'percent'
+      ? pctTxt(cfg.investing.percent) + ' of what is left after living costs'
+      : money(cfg.investing.fixedAmount) + ' a year in today’s dollars, when there is that much spare';
+
+    var leader = hs.years > 0 ? (hs.leader === a.name ? a : b) : null;
+    var laggard = leader ? (leader === a ? b : a) : null;
+    var early = leader ? earlyMoney(leader, hs.toAge, cfg.years, ret) : null;
+    var leadAt = leader ? leader.rows.filter(function (r) { return r.age === hs.toAge - 1; })[0] : null;
+    var lagAt = laggard ? laggard.rows.filter(function (r) { return r.age === hs.toAge - 1; })[0] : null;
+    var bigger = a.totals.investments >= b.totals.investments ? a : b;
+    var smaller = bigger === a ? b : a;
+
+    var h = '';
+
+    /* ---- the point, in one card ---- */
+    h += '<div class="card"><h2>Investing early is the head start</h2>';
+    if (leader && early && early.put > 0) {
+      h += '<p class="inv-lead">' + esc(leader.name) + ' starts investing at <strong>' + hs.fromAge + '</strong>. ' +
+        esc(laggard.name) + ' cannot start properly until <strong>' + hs.toAge + '</strong>. In those ' + hs.years +
+        ' years ' + esc(leader.name) + ' puts away <strong>' + money(early.put) + '</strong>' +
+        ' - and left alone at ' + retPct + '% a year, that early money on its own is worth <strong>' + money(early.worth) +
+        '</strong> by age ' + endAge + '. ' +
+        (leader.totals.investments > 0
+          ? 'That is ' + Math.round(early.worth / leader.totals.investments * 100) + '% of ' + esc(leader.name) + '’s final balance, bought by the first ' + hs.years + ' years alone.'
+          : '') + '</p>';
+      h += '<div class="tiles" style="margin-top:14px">' +
+        tile('Invested in the head-start years', money(early.put), leader.name + ', ages ' + hs.fromAge + ' to ' + (hs.toAge - 1), leader === a ? 'a-tint' : 'b-tint') +
+        tile('What that money alone becomes', money(early.worth), 'by age ' + endAge + ' at ' + retPct + '% a year', leader === a ? 'a-tint' : 'b-tint') +
+        tile(leader.name + ' has at ' + (hs.toAge - 1), money(leadAt ? leadAt.investments : 0), 'in investments the year before ' + laggard.name + ' starts earning', leader === a ? 'a-tint' : 'b-tint') +
+        tile(laggard.name + ' has at ' + (hs.toAge - 1), money(lagAt ? lagAt.investments : 0),
+          lagAt && lagAt.studentDebt > 0 ? 'and ' + money(lagAt.studentDebt) + ' of student debt' : 'still in training', laggard === a ? 'a-tint' : 'b-tint') +
+        '</div>';
+    } else {
+      h += '<p class="inv-lead">Both of them start earning at the same age, so there is no head start to invest here. ' +
+        'The difference below is about how much goes in, not how early.</p>';
+    }
+    h += '<p class="chart-note" style="margin-top:12px">Same rule for both: ' + esc(rule) + '. Employer pension contributions count as money invested. ' +
+      'In a year with no spare cash - school, a business start-up - nothing goes in, and investments get sold before anything is borrowed. ' +
+      'Change the rule on the Setup tab under <em>Investing rule</em>.</p></div>';
+
+    /* ---- what went in, what it earned ---- */
+    function col(res, cls) {
+      var t = res.totals, tot = Math.max(1, t.invested + Math.max(0, t.investmentGrowth));
+      var growShare = t.investments > 0 ? Math.round(Math.max(0, t.investmentGrowth) / t.investments * 100) : 0;
+      return '<div class="inv-col ' + cls + '"><div class="who">' + esc(res.name) + '</div>' +
+        '<div class="nw-line"><span>Put in over ' + cfg.years + ' years</span><span class="v">' + money(t.invested) + '</span></div>' +
+        '<div class="nw-line"><span>Earned by the money itself</span><span class="v">' + money(t.investmentGrowth) + '</span></div>' +
+        '<div class="nw-line"><span>Sold to cover shortfalls</span><span class="v">' + money(Math.max(0, t.invested + t.investmentGrowth - t.investments)) + '</span></div>' +
+        '<div class="nw-total"><div class="lbl">Investments at ' + endAge + '</div><div class="amt">' + money(t.investments) + '</div>' +
+        '<div class="real">' + growShare + '% of it is growth nobody worked for</div></div>' +
+        '<div class="inv-bar"><i class="in" style="width:' + (t.invested / tot * 100).toFixed(1) + '%"></i>' +
+        '<i class="grow" style="width:' + (Math.max(0, t.investmentGrowth) / tot * 100).toFixed(1) + '%"></i></div>' +
+        '<div class="inv-key"><span><i style="background:var(--muted);opacity:.55"></i>Put in</span><span><i style="background:var(--series-' + cls + ')"></i>Growth</span></div>' +
+        '</div>';
+    }
+    h += '<div class="card"><h2>What went in, and what it earned</h2>' +
+      '<p class="sub">The grey part is money they deposited. The coloured part is what it earned on its own at ' + retPct + '% a year' +
+      (sim.scenario && sim.scenario.investReturn ? ' (' + pctTxt(cfg.investReturn) + ' set, ' + (sim.scenario.investReturn > 0 ? '+' : '') + (sim.scenario.investReturn * 100).toFixed(1) + ' points for the ' + esc(sim.scenario.label.toLowerCase()) + ' scenario)' : '') + '.</p>' +
+      '<div class="inv-cols">' + col(a, 'a') + col(b, 'b') + '</div>' +
+      (bigger.totals.investmentGrowth > 0
+        ? '<p class="chart-note" style="margin-top:12px">' + esc(bigger.name) + '’s money earned ' + money(bigger.totals.investmentGrowth) +
+          ' by itself. ' + (smaller.totals.investmentGrowth > 0 ? esc(smaller.name) + '’s earned ' + money(smaller.totals.investmentGrowth) + '. ' : '') +
+          'Growth is the part that only shows up if you start.</p>' : '') +
+      '</div>';
+    host.innerHTML = h;
+
+    /* ---- charts ---- */
+    host.appendChild(chartCard('How much goes in each year',
+      'The contribution in each single year, pension included. School years and business start-ups show up as the flat stretches at zero.',
+      C.lineChart({ series: series('contribution'), markers: markers(), title: 'Annual investment contribution', xTitle: 'Age' }),
+      function () { return seriesTable('contribution'); }));
+
+    var grey = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#777';
+    var balance = series('investments'), putIn = series('cumInvested');
+    host.appendChild(chartCard('The balance against what was put in',
+      'Solid lines are the investment balance. Dashed lines are the running total of deposits. The gap between a solid line and its dashed line is compounding.',
+      C.lineChart({ series: [
+        balance[0], balance[1],
+        { name: a.name + ' put in', color: colA(), dash: true, points: putIn[0].points },
+        { name: b.name + ' put in', color: colB(), dash: true, points: putIn[1].points }
+      ], markers: markers(), title: 'Investments and cumulative deposits', xTitle: 'Age' }),
+      function () {
+        return '<div class="tscroll"><table class="data"><thead><tr><th>Age</th><th>' + esc(a.name) + ' put in</th><th>' + esc(a.name) + ' balance</th>' +
+          '<th>' + esc(b.name) + ' put in</th><th>' + esc(b.name) + ' balance</th></tr></thead><tbody>' +
+          a.rows.map(function (ra, i) {
+            var rb = b.rows[i];
+            return '<tr><td>' + (ra.age + 1) + '</td><td class="a-val">' + money(ra.cumInvested) + '</td><td class="a-val">' + money(ra.investments) +
+              '</td><td class="b-val">' + money(rb.cumInvested) + '</td><td class="b-val">' + money(rb.investments) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      },
+      [{ color: colA(), label: a.name + ' balance' }, { color: colB(), label: b.name + ' balance' }, { color: grey, label: 'dashed: put in so far' }]));
+
+    /* ---- the same money, started later ---- */
+    var stake = 10000;
+    var starts = [];
+    for (var sa = cfg.startAge; sa < endAge - 2; sa += 5) { starts.push(sa); }
+    if (starts.length < 2) { starts = [cfg.startAge, cfg.startAge + Math.max(1, Math.round(cfg.years / 2))]; }
+    var best = stake * Math.pow(1 + ret, endAge - starts[0]);
+    var dollarCard = document.createElement('div');
+    dollarCard.className = 'card';
+    dollarCard.innerHTML = '<h2>The same ' + money(stake) + ', started later</h2>' +
+      '<p class="sub">One deposit of ' + money(stake) + ', left alone at ' + retPct + '% a year until age ' + endAge +
+      '. Nothing changes but the year it goes in.</p>' +
+      '<div class="dollar-rows">' + starts.map(function (sAge, i) {
+        var yrs = endAge - sAge, v = stake * Math.pow(1 + ret, yrs);
+        return '<div class="dollar-row"><div class="lbl">Invested at ' + sAge + '<small>' + yrs + ' years to grow</small></div>' +
+          '<div class="track"><i style="width:' + (v / best * 100).toFixed(1) + '%;--i:' + i + '"></i></div>' +
+          '<div class="val">' + money(v) + '</div></div>';
+      }).join('') + '</div>' +
+      '<p class="chart-note" style="margin-top:12px">Every five years of waiting costs roughly ' +
+      Math.round((1 - 1 / Math.pow(1 + ret, 5)) * 100) + '% of what the money would have become. ' +
+      'That is the whole reason a ' + (hs.years > 0 ? hs.years + '-year' : '') + ' head start is worth more than it looks: the earliest dollars are the ones that do the most work.</p>';
+    host.appendChild(dollarCard);
+
+    /* ---- the numbers at milestones ---- */
+    var ages = milestoneAges();
+    function at(res, age) { return res.rows.filter(function (r) { return r.age + 1 === age; })[0]; }
+    var mCard = document.createElement('div');
+    mCard.className = 'card';
+    mCard.innerHTML = '<h2>Where the money stands, every five years</h2>' +
+      '<p class="sub">Balances at the end of the year before each age. Put in is the running total of deposits; growth is the running total the money earned.</p>' +
+      '<div class="tscroll"><table class="data"><thead><tr><th>Age</th>' +
+      '<th class="a-val">' + esc(a.name) + ' put in</th><th class="a-val">growth</th><th class="a-val">balance</th>' +
+      '<th class="b-val">' + esc(b.name) + ' put in</th><th class="b-val">growth</th><th class="b-val">balance</th></tr></thead><tbody>' +
+      ages.map(function (age) {
+        var ra = at(a, age), rb = at(b, age);
+        if (!ra || !rb) { return ''; }
+        return '<tr><td>' + age + '</td><td class="a-val">' + money(ra.cumInvested) + '</td><td class="a-val">' + money(ra.cumInvestReturns) + '</td><td class="a-val"><strong>' + money(ra.investments) + '</strong></td>' +
+          '<td class="b-val">' + money(rb.cumInvested) + '</td><td class="b-val">' + money(rb.cumInvestReturns) + '</td><td class="b-val"><strong>' + money(rb.investments) + '</strong></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (sim.crossoverInvestments
+        ? '<p class="chart-note" style="margin-top:12px">' + esc(sim.crossoverInvestments.passed) + ' is passed on investments at age ' + sim.crossoverInvestments.age +
+          ' and stays behind from there. Before that, the head start is winning; after it, the bigger income is.</p>'
+        : '<p class="chart-note" style="margin-top:12px">The investment lines never cross inside the ' + cfg.years + ' years. The early money keeps growing faster than the later money arrives.</p>');
+    host.appendChild(mCard);
+
+    /* ---- honesty ---- */
+    var note = document.createElement('div');
+    note.className = 'callout';
+    note.innerHTML = '<strong>What this assumes.</strong> A steady ' + retPct + '% a year, every year, in dollars of the day (not inflation-adjusted). ' +
+      'Real markets go up and down, and a bad stretch early or late changes the picture. The rule, the return and the share going into registered accounts are all yours to change on the Setup tab. ' +
+      'Entertainment and education, not investment advice.';
+    host.appendChild(note);
   }
 
   function renderScores() {
@@ -1248,6 +1426,7 @@
       scenarioCache = E.runAllScenarios(state);
       renderResults();
       renderCharts();
+      renderInvesting();
       renderScores();
       renderAnalysis();
       renderYouTube();

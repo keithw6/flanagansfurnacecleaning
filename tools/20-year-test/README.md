@@ -31,13 +31,15 @@ tools/20-year-test/
    then edit anything. Every input the engine reads is on this tab.
 2. **Results** — the head start, wealth at year 20, winner by category, all three
    scenarios, employee-versus-owner, and the year-by-year table.
-3. **Charts** — eight comparisons built to be read off a screen recording.
-4. **Scores** — the Blue Collar Business 100, the four ownership scores, time
+3. **Investing** — the head start, invested: what goes in each year, what the
+   money earns on its own, and what the earliest years alone are worth at the end.
+4. **Charts** — eight comparisons built to be read off a screen recording.
+5. **Scores** — the Blue Collar Business 100, the four ownership scores, time
    freedom, owner dependency, lifestyle, each with its components shown.
-5. **Analysis** — the written explanation of *why* the numbers came out that way.
-6. **YouTube** — five titles, thumbnail text, an opening hook, key results, verdict.
-7. **Report / PDF** — twenty-five sections. Print to PDF from the browser.
-8. **Studio** — the recording rig. See below.
+6. **Analysis** — the written explanation of *why* the numbers came out that way.
+7. **YouTube** — five titles, thumbnail text, an opening hook, key results, verdict.
+8. **Report / PDF** — twenty-five sections. Print to PDF from the browser.
+9. **Studio** — the recording rig. See below.
 
 Save keeps the comparison in this browser. Export writes a JSON file you can keep
 or hand to someone else.
