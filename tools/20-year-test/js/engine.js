@@ -570,6 +570,7 @@
 
       /* ---------- 5. cash available before investing ---------- */
       var studentPayment = 0, studentInterest = 0;
+      var borrowedTuition = 0, borrowedLiving = 0;   /* this year's student borrowing */
       /* Interest accrues from day one; payments start once school ends. */
       if (studentDebt > 0) {
         studentInterest = studentDebt * career.debt.rate;
@@ -655,6 +656,7 @@
             studentTuitionDebt += eduShare;
             studentLivingDebt += gap - eduShare;
             studentDebt += gap;
+            borrowedTuition = eduShare; borrowedLiving = gap - eduShare;
           } else {
             consumerDebt += gap;
           }
@@ -744,8 +746,9 @@
         incomeTax: tax0.income - refund, payroll: tax0.payroll, marginalRate: tax0.marginal,
         afterTax: afterTax0 + refund,
 
-        living: living, housingCost: housingCost, eduSpend: eduSpend,
+        living: living, housingCost: housingCost, eduSpend: eduSpend, schoolLiving: schoolLiving,
         studentPayment: studentPayment, studentInterest: studentInterest,
+        borrowedTuition: borrowedTuition, borrowedLiving: borrowedLiving,
         mortgagePayment: mortgagePayment,
         investable: investableRaw, contribution: contrib + pension,
         investReturn: investReturn, cumInvestReturns: cumInvestReturns,
@@ -915,6 +918,92 @@
   }
 
   /* ---------------------------------------------------------------
+     TODAY'S DOLLARS
+     The simulation runs in dollars of the day, because tax brackets,
+     loan payments and a fixed mortgage only make sense that way. But a
+     pipefitter "earning $348,000 at 57" is a 2066 pay cheque, and nobody
+     watching does the inflation sum in their head. So the default view
+     takes the index back out of every money figure, year by year, and
+     rebuilds the running totals from the deflated years. Ages, hours,
+     rates and headcounts are untouched.
+     --------------------------------------------------------------- */
+  function moneyView(cfg) { return cfg && cfg.moneyView === 'nominal' ? 'nominal' : 'today'; }
+
+  /* The rate an illustration ("a dollar at 18 becomes...") should use so
+     it lands in the same units as the results beside it. */
+  function displayReturn(cfg, rate) {
+    return moneyView(cfg) === 'today' ? (1 + rate) / (1 + cfg.inflation) - 1 : rate;
+  }
+
+  var FLOW_KEYS = ['wages', 'overtime', 'bonus', 'benefits', 'pension', 'vehicle', 'otherComp', 'ownerSalary',
+    'distributions', 'ownerSalaryShortfall', 'personalIncome', 'totalCompensation', 'incomeTax', 'payroll', 'afterTax',
+    'living', 'housingCost', 'eduSpend', 'schoolLiving', 'studentPayment', 'studentInterest', 'borrowedTuition',
+    'borrowedLiving', 'mortgagePayment', 'investable', 'contribution', 'investReturn'];
+  var STOCK_KEYS = ['investments', 'cash', 'registered', 'homeValue', 'mortgage', 'homeEquity', 'studentDebt',
+    'consumerDebt', 'businessDebt', 'businessLoan', 'businessLine', 'businessCash', 'businessEquity', 'businessValue', 'netWorth'];
+  var CUM_KEYS = ['cumEarnings', 'cumTax', 'cumInvested', 'cumInvestReturns', 'cumEduSpend'];
+  var BIZ_KEYS = ['revenue', 'materials', 'producerCost', 'overhead', 'managerCost', 'marketing', 'ownerProduced', 'sde', 'ebitda', 'capex'];
+  var VAL_KEYS = ['value', 'base', 'assetFloor'];
+
+  function deflate(res) {
+    if (!res || res.moneyView === 'today') { return res; }
+    var prev = null, running = {};
+    var rows = res.rows.map(function (r0) {
+      var r = Object.assign({}, r0), d = r0.idx || 1;
+      FLOW_KEYS.forEach(function (k) { if (typeof r[k] === 'number') { r[k] = r[k] / d; } });
+      STOCK_KEYS.forEach(function (k) { if (typeof r[k] === 'number') { r[k] = r[k] / d; } });
+      CUM_KEYS.forEach(function (k) {
+        var inc = r0[k] - (prev ? prev[k] : 0);
+        running[k] = (running[k] || 0) + inc / d;
+        r[k] = running[k];
+      });
+      r.netWorthReal = r.netWorth;
+      if (r0.business) {
+        r.business = Object.assign({}, r0.business);
+        BIZ_KEYS.forEach(function (k) { if (typeof r.business[k] === 'number') { r.business[k] = r.business[k] / d; } });
+      }
+      if (r0.valuation) {
+        r.valuation = Object.assign({}, r0.valuation);
+        VAL_KEYS.forEach(function (k) { if (typeof r.valuation[k] === 'number') { r.valuation[k] = r.valuation[k] / d; } });
+      }
+      prev = r0;
+      return r;
+    });
+    var last = rows[rows.length - 1];
+    function total(k) { return sum(rows.map(function (r) { return r[k] || 0; })); }
+    function peak(k) { return Math.max.apply(null, rows.map(function (r) { return r[k] || 0; })); }
+    var tuitionB = total('borrowedTuition'), livingB = total('borrowedLiving');
+    var interest = total('studentInterest'), schoolLiving = total('schoolLiving');
+    var out = Object.assign({}, res, { rows: rows, moneyView: 'today' });
+    out.totals = Object.assign({}, res.totals, {
+      careerEarnings: last.cumEarnings,
+      totalTax: last.cumTax,
+      educationNet: last.cumEduSpend,
+      educationInterest: interest,
+      educationTotalCost: last.cumEduSpend + livingB + interest,
+      studentTuitionDebt: tuitionB,
+      studentLivingDebt: livingB,
+      peakStudentDebt: peak('studentDebt'),
+      investments: last.investments,
+      invested: last.cumInvested,
+      investmentGrowth: last.cumInvestReturns,
+      cash: last.cash,
+      homeEquity: last.homeEquity,
+      businessEquity: last.businessEquity,
+      businessValue: last.businessValue,
+      peakBusinessValue: peak('businessValue'),
+      debt: last.studentDebt + last.consumerDebt + last.mortgage + last.businessDebt,
+      netWorth: last.netWorth,
+      netWorthReal: last.netWorth,
+      schoolLiving: schoolLiving,
+      schoolLivingCovered: Math.max(0, schoolLiving - livingB),
+      wealthPerHour: last.cumHours > 0 ? last.netWorth / last.cumHours : 0,
+      earningsPerHour: last.cumHours > 0 ? last.cumEarnings / last.cumHours : 0
+    });
+    return out;
+  }
+
+  /* ---------------------------------------------------------------
      PUBLIC ENTRY
      --------------------------------------------------------------- */
   var PROJECT_TO_AGE = 75;
@@ -922,6 +1011,8 @@
   function run(cfg) {
     var a = runCareer(cfg.careers.a, cfg, cfg.careers.aOpts);
     var b = runCareer(cfg.careers.b, cfg, cfg.careers.bOpts);
+    var today = moneyView(cfg) === 'today';
+    if (today) { a = deflate(a); b = deflate(b); }
 
     /* The comparison window is what gets reported. But "when does the
        dentist catch up" and "when is each of them free" are usually
@@ -935,6 +1026,7 @@
       farCfg.careers = cfg.careers;
       var fa = runCareer(cfg.careers.a, farCfg, cfg.careers.aOpts);
       var fb = runCareer(cfg.careers.b, farCfg, cfg.careers.bOpts);
+      if (today) { fa = deflate(fa); fb = deflate(fb); }
       far = { a: fa, b: fb, crossoverNetWorth: crossover(fa, fb, 'netWorth'),
               crossoverInvestments: crossover(fa, fb, 'investments') };
       /* Adopt the projected freedom age when the window could not see it. */
@@ -956,6 +1048,8 @@
       a: a, b: b,
       projection: far,
       projectToAge: PROJECT_TO_AGE,
+      moneyView: today ? 'today' : 'nominal',
+      idxEnd: a.rows[a.rows.length - 1].idx,
       headStart: headStart(a, b),
       crossoverNetWorth: xNet,
       crossoverNetWorthProjected: xNetProjected,
@@ -982,6 +1076,7 @@
     var career = which === 'b' ? c.careers.b : c.careers.a;
     var asEmployee = runCareer(career, c, { forceEmployee: true });
     var asOwner = runCareer(career, c, { forceOwner: true });
+    if (moneyView(c) === 'today') { asEmployee = deflate(asEmployee); asOwner = deflate(asOwner); }
     return { employee: asEmployee, owner: asOwner, career: career.name };
   }
 
@@ -992,6 +1087,9 @@
     employeeVsOwner: employeeVsOwner,
     headStart: headStart,
     crossover: crossover,
+    moneyView: moneyView,
+    displayReturn: displayReturn,
+    deflate: deflate,
     helpers: {
       payment: payment, bracketTax: bracketTax, marginalRate: marginalRate,
       makeTaxer: makeTaxer, businessYear: businessYear, valueBusiness: valueBusiness,

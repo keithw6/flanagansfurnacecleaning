@@ -654,10 +654,11 @@
         /* A dollar's journey, then the pile: what went in against what
            the market added. Totals are the balance at the end. */
         var r = cfg.investReturn, yrs = cfg.years;
-        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var rIll = BCB.engine.displayReturn(cfg, r), todayV = cfg.moneyView !== 'nominal';
+        var full = Math.pow(1 + rIll, yrs), half = Math.pow(1 + rIll, Math.max(1, yrs - Math.round(yrs / 2)));
         var grey = '#5f656d';
         wrap.appendChild(bigStat([
-          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' + (todayV ? ', after inflation' : '') },
           { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
         ]));
         var stack = C.stackChart({

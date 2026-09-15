@@ -801,9 +801,15 @@
       ? Math.round((inv.percent || 0) * 100) + ' percent of whatever is left'
       : say(inv.fixedAmount || 0) + ' a year';
     var retPct = (cfg.investReturn * 100).toFixed(1).replace(/\.0$/, '');
-    var dollarFull = Math.pow(1 + cfg.investReturn, years);
+    /* The dollar's journey is told in the same units as the results:
+       after inflation in today's-dollar view. */
+    var todayView = cfg.moneyView !== 'nominal';
+    var illRet = todayView ? (1 + cfg.investReturn) / (1 + cfg.inflation) - 1 : cfg.investReturn;
+    var afterInfl = todayView ? ', after inflation,' : ',';
+    var inToday = todayView ? ' in today\'s money' : '';
+    var dollarFull = Math.pow(1 + illRet, years);
     var halfYears = years - Math.round(years / 2);
-    var dollarHalf = Math.pow(1 + cfg.investReturn, halfYears);
+    var dollarHalf = Math.pow(1 + illRet, halfYears);
     var growA = a.totals.investmentGrowth, growB = b.totals.investmentGrowth;
     var bigGrow = growA >= growB ? a : b;
     beat('invest', 'invest', 'The investing habit', 'Pay yourself first',
@@ -824,8 +830,8 @@
       [pk('Here\'s why. The returns get reinvested, so next year you earn returns on the returns. Slowly at first. Then not slowly.',
           'This is compound growth. Your money earns money, and then that money earns money. It feels like nothing for years. Then it doesn\'t.',
           'Compounding is boring for a decade and then it isn\'t. The growth starts growing.'),
-       pk('At ' + retPct + ' percent a year, a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
-          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent it\'s ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
+       pk('At ' + retPct + ' percent a year' + afterInfl + ' a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + inToday + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
+          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent' + (todayView ? ', after inflation,' : '') + ' it\'s ' + '$' + dollarFull.toFixed(2) + inToday + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
           'A dollar at ' + S + ' becomes ' + '$' + dollarFull.toFixed(2) + '. A dollar at ' + (S + Math.round(years / 2)) + ' becomes ' + '$' + dollarHalf.toFixed(2) + '. Half the time, ' + Math.round((dollarHalf - 1) / (dollarFull - 1) * 100) + ' percent of the growth. Time is the ingredient.'),
        pk('So look at the pile. ' + A + ' put in ' + say(a.totals.invested) + ' and the market added ' + say(growA) + '. ' + B + ' put in ' + say(b.totals.invested) + ' and the market added ' + say(growB) + '.',
           'The grey part is what they put in. The coloured part is what it earned on its own. ' + say(growA) + ' for ' + A + '. ' + say(growB) + ' for ' + B + '.',
@@ -841,12 +847,13 @@
       var lead = hs.leader === a.name ? a : b;
       var lag = lead === a ? b : a;
       var earlyPut = 0, earlyWorth = 0;
+      var idxEnd = lead.rows[lead.rows.length - 1].idx || 1;
       lead.rows.forEach(function (r) {
         if (r.age >= hs.toAge || r.contribution <= 0) { return; }
         earlyPut += r.contribution;
         /* The engine's own convention: half a year's return in the year
            it goes in, a full year for every year after. */
-        earlyWorth += r.contribution * (1 + simRet / 2) * Math.pow(1 + simRet, Math.max(0, years - 1 - r.t));
+        earlyWorth += r.contribution * (1 + simRet / 2) * Math.pow(1 + simRet, Math.max(0, years - 1 - r.t)) * (todayView ? r.idx / idxEnd : 1);
       });
       var leadAt = rowAt(lead, hs.toAge - 1), lagAt = rowAt(lag, hs.toAge - 1);
       var earlyShare = lead.totals.investments > 0 ? Math.round(earlyWorth / lead.totals.investments * 100) : 0;

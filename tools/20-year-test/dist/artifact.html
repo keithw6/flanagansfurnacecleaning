@@ -3113,6 +3113,7 @@ body.st-on { overflow: hidden; }
     region: 'AB',
     currency: 'CAD',
     inflation: 0.025,
+    moneyView: 'today',    /* 'today' takes inflation back out of every figure shown; 'nominal' shows dollars of the day */
     investReturn: 0.065,
     salaryGrowth: 0.025,
     safeWithdrawal: 0.04,
@@ -3730,6 +3731,7 @@ body.st-on { overflow: hidden; }
 
       /* ---------- 5. cash available before investing ---------- */
       var studentPayment = 0, studentInterest = 0;
+      var borrowedTuition = 0, borrowedLiving = 0;   /* this year's student borrowing */
       /* Interest accrues from day one; payments start once school ends. */
       if (studentDebt > 0) {
         studentInterest = studentDebt * career.debt.rate;
@@ -3815,6 +3817,7 @@ body.st-on { overflow: hidden; }
             studentTuitionDebt += eduShare;
             studentLivingDebt += gap - eduShare;
             studentDebt += gap;
+            borrowedTuition = eduShare; borrowedLiving = gap - eduShare;
           } else {
             consumerDebt += gap;
           }
@@ -3904,8 +3907,9 @@ body.st-on { overflow: hidden; }
         incomeTax: tax0.income - refund, payroll: tax0.payroll, marginalRate: tax0.marginal,
         afterTax: afterTax0 + refund,
 
-        living: living, housingCost: housingCost, eduSpend: eduSpend,
+        living: living, housingCost: housingCost, eduSpend: eduSpend, schoolLiving: schoolLiving,
         studentPayment: studentPayment, studentInterest: studentInterest,
+        borrowedTuition: borrowedTuition, borrowedLiving: borrowedLiving,
         mortgagePayment: mortgagePayment,
         investable: investableRaw, contribution: contrib + pension,
         investReturn: investReturn, cumInvestReturns: cumInvestReturns,
@@ -4075,6 +4079,92 @@ body.st-on { overflow: hidden; }
   }
 
   /* ---------------------------------------------------------------
+     TODAY'S DOLLARS
+     The simulation runs in dollars of the day, because tax brackets,
+     loan payments and a fixed mortgage only make sense that way. But a
+     pipefitter "earning $348,000 at 57" is a 2066 pay cheque, and nobody
+     watching does the inflation sum in their head. So the default view
+     takes the index back out of every money figure, year by year, and
+     rebuilds the running totals from the deflated years. Ages, hours,
+     rates and headcounts are untouched.
+     --------------------------------------------------------------- */
+  function moneyView(cfg) { return cfg && cfg.moneyView === 'nominal' ? 'nominal' : 'today'; }
+
+  /* The rate an illustration ("a dollar at 18 becomes...") should use so
+     it lands in the same units as the results beside it. */
+  function displayReturn(cfg, rate) {
+    return moneyView(cfg) === 'today' ? (1 + rate) / (1 + cfg.inflation) - 1 : rate;
+  }
+
+  var FLOW_KEYS = ['wages', 'overtime', 'bonus', 'benefits', 'pension', 'vehicle', 'otherComp', 'ownerSalary',
+    'distributions', 'ownerSalaryShortfall', 'personalIncome', 'totalCompensation', 'incomeTax', 'payroll', 'afterTax',
+    'living', 'housingCost', 'eduSpend', 'schoolLiving', 'studentPayment', 'studentInterest', 'borrowedTuition',
+    'borrowedLiving', 'mortgagePayment', 'investable', 'contribution', 'investReturn'];
+  var STOCK_KEYS = ['investments', 'cash', 'registered', 'homeValue', 'mortgage', 'homeEquity', 'studentDebt',
+    'consumerDebt', 'businessDebt', 'businessLoan', 'businessLine', 'businessCash', 'businessEquity', 'businessValue', 'netWorth'];
+  var CUM_KEYS = ['cumEarnings', 'cumTax', 'cumInvested', 'cumInvestReturns', 'cumEduSpend'];
+  var BIZ_KEYS = ['revenue', 'materials', 'producerCost', 'overhead', 'managerCost', 'marketing', 'ownerProduced', 'sde', 'ebitda', 'capex'];
+  var VAL_KEYS = ['value', 'base', 'assetFloor'];
+
+  function deflate(res) {
+    if (!res || res.moneyView === 'today') { return res; }
+    var prev = null, running = {};
+    var rows = res.rows.map(function (r0) {
+      var r = Object.assign({}, r0), d = r0.idx || 1;
+      FLOW_KEYS.forEach(function (k) { if (typeof r[k] === 'number') { r[k] = r[k] / d; } });
+      STOCK_KEYS.forEach(function (k) { if (typeof r[k] === 'number') { r[k] = r[k] / d; } });
+      CUM_KEYS.forEach(function (k) {
+        var inc = r0[k] - (prev ? prev[k] : 0);
+        running[k] = (running[k] || 0) + inc / d;
+        r[k] = running[k];
+      });
+      r.netWorthReal = r.netWorth;
+      if (r0.business) {
+        r.business = Object.assign({}, r0.business);
+        BIZ_KEYS.forEach(function (k) { if (typeof r.business[k] === 'number') { r.business[k] = r.business[k] / d; } });
+      }
+      if (r0.valuation) {
+        r.valuation = Object.assign({}, r0.valuation);
+        VAL_KEYS.forEach(function (k) { if (typeof r.valuation[k] === 'number') { r.valuation[k] = r.valuation[k] / d; } });
+      }
+      prev = r0;
+      return r;
+    });
+    var last = rows[rows.length - 1];
+    function total(k) { return sum(rows.map(function (r) { return r[k] || 0; })); }
+    function peak(k) { return Math.max.apply(null, rows.map(function (r) { return r[k] || 0; })); }
+    var tuitionB = total('borrowedTuition'), livingB = total('borrowedLiving');
+    var interest = total('studentInterest'), schoolLiving = total('schoolLiving');
+    var out = Object.assign({}, res, { rows: rows, moneyView: 'today' });
+    out.totals = Object.assign({}, res.totals, {
+      careerEarnings: last.cumEarnings,
+      totalTax: last.cumTax,
+      educationNet: last.cumEduSpend,
+      educationInterest: interest,
+      educationTotalCost: last.cumEduSpend + livingB + interest,
+      studentTuitionDebt: tuitionB,
+      studentLivingDebt: livingB,
+      peakStudentDebt: peak('studentDebt'),
+      investments: last.investments,
+      invested: last.cumInvested,
+      investmentGrowth: last.cumInvestReturns,
+      cash: last.cash,
+      homeEquity: last.homeEquity,
+      businessEquity: last.businessEquity,
+      businessValue: last.businessValue,
+      peakBusinessValue: peak('businessValue'),
+      debt: last.studentDebt + last.consumerDebt + last.mortgage + last.businessDebt,
+      netWorth: last.netWorth,
+      netWorthReal: last.netWorth,
+      schoolLiving: schoolLiving,
+      schoolLivingCovered: Math.max(0, schoolLiving - livingB),
+      wealthPerHour: last.cumHours > 0 ? last.netWorth / last.cumHours : 0,
+      earningsPerHour: last.cumHours > 0 ? last.cumEarnings / last.cumHours : 0
+    });
+    return out;
+  }
+
+  /* ---------------------------------------------------------------
      PUBLIC ENTRY
      --------------------------------------------------------------- */
   var PROJECT_TO_AGE = 75;
@@ -4082,6 +4172,8 @@ body.st-on { overflow: hidden; }
   function run(cfg) {
     var a = runCareer(cfg.careers.a, cfg, cfg.careers.aOpts);
     var b = runCareer(cfg.careers.b, cfg, cfg.careers.bOpts);
+    var today = moneyView(cfg) === 'today';
+    if (today) { a = deflate(a); b = deflate(b); }
 
     /* The comparison window is what gets reported. But "when does the
        dentist catch up" and "when is each of them free" are usually
@@ -4095,6 +4187,7 @@ body.st-on { overflow: hidden; }
       farCfg.careers = cfg.careers;
       var fa = runCareer(cfg.careers.a, farCfg, cfg.careers.aOpts);
       var fb = runCareer(cfg.careers.b, farCfg, cfg.careers.bOpts);
+      if (today) { fa = deflate(fa); fb = deflate(fb); }
       far = { a: fa, b: fb, crossoverNetWorth: crossover(fa, fb, 'netWorth'),
               crossoverInvestments: crossover(fa, fb, 'investments') };
       /* Adopt the projected freedom age when the window could not see it. */
@@ -4116,6 +4209,8 @@ body.st-on { overflow: hidden; }
       a: a, b: b,
       projection: far,
       projectToAge: PROJECT_TO_AGE,
+      moneyView: today ? 'today' : 'nominal',
+      idxEnd: a.rows[a.rows.length - 1].idx,
       headStart: headStart(a, b),
       crossoverNetWorth: xNet,
       crossoverNetWorthProjected: xNetProjected,
@@ -4142,6 +4237,7 @@ body.st-on { overflow: hidden; }
     var career = which === 'b' ? c.careers.b : c.careers.a;
     var asEmployee = runCareer(career, c, { forceEmployee: true });
     var asOwner = runCareer(career, c, { forceOwner: true });
+    if (moneyView(c) === 'today') { asEmployee = deflate(asEmployee); asOwner = deflate(asOwner); }
     return { employee: asEmployee, owner: asOwner, career: career.name };
   }
 
@@ -4152,6 +4248,9 @@ body.st-on { overflow: hidden; }
     employeeVsOwner: employeeVsOwner,
     headStart: headStart,
     crossover: crossover,
+    moneyView: moneyView,
+    displayReturn: displayReturn,
+    deflate: deflate,
     helpers: {
       payment: payment, bracketTax: bracketTax, marginalRate: marginalRate,
       makeTaxer: makeTaxer, businessYear: businessYear, valueBusiness: valueBusiness,
@@ -5757,9 +5856,15 @@ body.st-on { overflow: hidden; }
       ? Math.round((inv.percent || 0) * 100) + ' percent of whatever is left'
       : say(inv.fixedAmount || 0) + ' a year';
     var retPct = (cfg.investReturn * 100).toFixed(1).replace(/\.0$/, '');
-    var dollarFull = Math.pow(1 + cfg.investReturn, years);
+    /* The dollar's journey is told in the same units as the results:
+       after inflation in today's-dollar view. */
+    var todayView = cfg.moneyView !== 'nominal';
+    var illRet = todayView ? (1 + cfg.investReturn) / (1 + cfg.inflation) - 1 : cfg.investReturn;
+    var afterInfl = todayView ? ', after inflation,' : ',';
+    var inToday = todayView ? ' in today\'s money' : '';
+    var dollarFull = Math.pow(1 + illRet, years);
     var halfYears = years - Math.round(years / 2);
-    var dollarHalf = Math.pow(1 + cfg.investReturn, halfYears);
+    var dollarHalf = Math.pow(1 + illRet, halfYears);
     var growA = a.totals.investmentGrowth, growB = b.totals.investmentGrowth;
     var bigGrow = growA >= growB ? a : b;
     beat('invest', 'invest', 'The investing habit', 'Pay yourself first',
@@ -5780,8 +5885,8 @@ body.st-on { overflow: hidden; }
       [pk('Here\'s why. The returns get reinvested, so next year you earn returns on the returns. Slowly at first. Then not slowly.',
           'This is compound growth. Your money earns money, and then that money earns money. It feels like nothing for years. Then it doesn\'t.',
           'Compounding is boring for a decade and then it isn\'t. The growth starts growing.'),
-       pk('At ' + retPct + ' percent a year, a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
-          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent it\'s ' + '$' + dollarFull.toFixed(2) + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
+       pk('At ' + retPct + ' percent a year' + afterInfl + ' a dollar invested at ' + S + ' is worth ' + '$' + dollarFull.toFixed(2) + inToday + ' by ' + endAge + '. The same dollar invested at ' + (S + Math.round(years / 2)) + ' is only worth ' + '$' + dollarHalf.toFixed(2) + '.',
+          'Put a dollar in at ' + S + ' and at ' + retPct + ' percent' + (todayView ? ', after inflation,' : '') + ' it\'s ' + '$' + dollarFull.toFixed(2) + inToday + ' by ' + endAge + '. Wait until ' + (S + Math.round(years / 2)) + ' to put it in, and it\'s ' + '$' + dollarHalf.toFixed(2) + '.',
           'A dollar at ' + S + ' becomes ' + '$' + dollarFull.toFixed(2) + '. A dollar at ' + (S + Math.round(years / 2)) + ' becomes ' + '$' + dollarHalf.toFixed(2) + '. Half the time, ' + Math.round((dollarHalf - 1) / (dollarFull - 1) * 100) + ' percent of the growth. Time is the ingredient.'),
        pk('So look at the pile. ' + A + ' put in ' + say(a.totals.invested) + ' and the market added ' + say(growA) + '. ' + B + ' put in ' + say(b.totals.invested) + ' and the market added ' + say(growB) + '.',
           'The grey part is what they put in. The coloured part is what it earned on its own. ' + say(growA) + ' for ' + A + '. ' + say(growB) + ' for ' + B + '.',
@@ -5797,12 +5902,13 @@ body.st-on { overflow: hidden; }
       var lead = hs.leader === a.name ? a : b;
       var lag = lead === a ? b : a;
       var earlyPut = 0, earlyWorth = 0;
+      var idxEnd = lead.rows[lead.rows.length - 1].idx || 1;
       lead.rows.forEach(function (r) {
         if (r.age >= hs.toAge || r.contribution <= 0) { return; }
         earlyPut += r.contribution;
         /* The engine's own convention: half a year's return in the year
            it goes in, a full year for every year after. */
-        earlyWorth += r.contribution * (1 + simRet / 2) * Math.pow(1 + simRet, Math.max(0, years - 1 - r.t));
+        earlyWorth += r.contribution * (1 + simRet / 2) * Math.pow(1 + simRet, Math.max(0, years - 1 - r.t)) * (todayView ? r.idx / idxEnd : 1);
       });
       var leadAt = rowAt(lead, hs.toAge - 1), lagAt = rowAt(lag, hs.toAge - 1);
       var earlyShare = lead.totals.investments > 0 ? Math.round(earlyWorth / lead.totals.investments * 100) : 0;
@@ -6537,6 +6643,11 @@ body.st-on { overflow: hidden; }
     return sign + '$' + Math.abs(Math.round(v)).toLocaleString();
   }
   var short = C.fmtMoney;
+  function todayView() { return state.moneyView !== 'nominal'; }
+  function moneyNote() {
+    return todayView() ? 'All money in today\u2019s dollars, with inflation taken back out.'
+                       : 'All money in dollars of the day, not adjusted for inflation.';
+  }
   function pctTxt(v) { return (v * 100).toFixed(v * 100 % 1 === 0 ? 0 : 1) + '%'; }
   function num(v) { return Math.round(v).toLocaleString(); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -6562,6 +6673,9 @@ body.st-on { overflow: hidden; }
       options: [{ v: 'brackets', l: 'Progressive brackets' }, { v: 'flat', l: 'Flat effective rate' }] },
     { path: 'flatRate', label: 'Flat rate (if used)', type: 'pct' },
     { path: 'inflation', label: 'Inflation', type: 'pct' },
+    { path: 'moneyView', label: 'Show money in', type: 'select',
+      options: [{ v: 'today', l: 'Today\u2019s dollars' }, { v: 'nominal', l: 'Dollars of the day' }],
+      hint: 'Wages, prices and taxes all rise with inflation inside the model. Today\u2019s dollars takes that back out so a wage at 57 reads like a wage you recognise.' },
     { path: 'investReturn', label: 'Investment return', type: 'pct',
       hint: 'Nominal, before tax. 6-7% is a common long-run assumption.' },
     { path: 'salaryGrowth', label: 'Wage drift above stages', type: 'pct',
@@ -6940,7 +7054,9 @@ body.st-on { overflow: hidden; }
       line('Education and consumer debt', personalDebt, true) +
       '<div class="nw-total"><div class="lbl">Estimated net worth</div>' +
       '<div class="amt">' + money(t.netWorth) + '</div>' +
-      '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div>' +
+      (todayView()
+        ? '<div class="real">' + money(t.netWorth * last.sim.idxEnd) + ' in dollars of the day</div>'
+        : '<div class="real">' + money(t.netWorthReal) + ' in today’s dollars</div>') +
       '<div class="real">Total debt carried: ' + money(t.debt) + '</div></div>' +
       '</div>';
   }
@@ -6996,7 +7112,7 @@ body.st-on { overflow: hidden; }
     h += headStartHtml(sim);
 
     h += '<div class="card"><h2>Wealth at year ' + cfg.years + '</h2>' +
-      '<p class="sub">Age ' + endAge + '. Nominal dollars, with today’s-dollar equivalent underneath.</p>' +
+      '<p class="sub">Age ' + endAge + '. ' + moneyNote() + '</p>' +
       '<div class="nw-cols">' + netWorthColumn(a, 'a', cfg) + netWorthColumn(b, 'b', cfg) + '</div></div>';
 
     /* the metrics that make this more than a salary comparison */
@@ -7194,7 +7310,7 @@ body.st-on { overflow: hidden; }
 
   function renderCharts() {
     var host = document.getElementById('chartsBody');
-    host.innerHTML = '';
+    host.innerHTML = '<p class="chart-note">' + esc(moneyNote()) + '</p>';
     var sim = last.sim, sc = last.scores;
 
     host.appendChild(chartCard('Net worth', 'Everything owned less everything owed, year by year.',
@@ -7350,11 +7466,15 @@ body.st-on { overflow: hidden; }
   function growTo(amount, t, years, ret) {
     return amount * (1 + ret / 2) * Math.pow(1 + ret, Math.max(0, years - 1 - t));
   }
+  /* In today's-dollar view the rows are deflated, so a year's deposit
+     compounds at the nominal rate and lands in end-of-run dollars; the
+     index ratio brings it back to today's. */
   function earlyMoney(res, uptoAge, years, ret) {
-    var put = 0, worth = 0, n = 0;
+    var put = 0, worth = 0, n = 0, idxEnd = last.sim.idxEnd || 1;
     res.rows.forEach(function (r) {
       if (r.age >= uptoAge || r.contribution <= 0) { return; }
-      put += r.contribution; worth += growTo(r.contribution, r.t, years, ret); n++;
+      var scale = todayView() ? r.idx / idxEnd : 1;
+      put += r.contribution; worth += growTo(r.contribution, r.t, years, ret) * scale; n++;
     });
     return { put: put, worth: worth, years: n };
   }
@@ -7364,6 +7484,10 @@ body.st-on { overflow: hidden; }
     if (!host) { return; }
     var sim = last.sim, cfg = state, a = sim.a, b = sim.b, hs = sim.headStart;
     var ret = simReturn(), retPct = (ret * 100).toFixed(1);
+    /* Illustrations use the after-inflation rate in today's-dollar view
+       so "$10,000 at 18" ends in the same units as the balances beside it. */
+    var illRet = E.displayReturn(cfg, ret), illPct = (illRet * 100).toFixed(1);
+    var afterInfl = todayView() ? ' (' + illPct + '% after inflation)' : '';
     var endAge = cfg.startAge + cfg.years;
     var rule = cfg.investing.mode === 'percent'
       ? pctTxt(cfg.investing.percent) + ' of what is left after living costs'
@@ -7385,14 +7509,14 @@ body.st-on { overflow: hidden; }
       h += '<p class="inv-lead">' + esc(leader.name) + ' starts investing at <strong>' + hs.fromAge + '</strong>. ' +
         esc(laggard.name) + ' cannot start properly until <strong>' + hs.toAge + '</strong>. In those ' + hs.years +
         ' years ' + esc(leader.name) + ' puts away <strong>' + money(early.put) + '</strong>' +
-        ' - and left alone at ' + retPct + '% a year, that early money on its own is worth <strong>' + money(early.worth) +
+        ' - and left alone at ' + retPct + '% a year' + afterInfl + ', that early money on its own is worth <strong>' + money(early.worth) +
         '</strong> by age ' + endAge + '. ' +
         (leader.totals.investments > 0
           ? 'That is ' + Math.round(early.worth / leader.totals.investments * 100) + '% of ' + esc(leader.name) + '’s final balance, bought by the first ' + hs.years + ' years alone.'
           : '') + '</p>';
       h += '<div class="tiles" style="margin-top:14px">' +
         tile('Invested in the head-start years', money(early.put), leader.name + ', ages ' + hs.fromAge + ' to ' + (hs.toAge - 1), leader === a ? 'a-tint' : 'b-tint') +
-        tile('What that money alone becomes', money(early.worth), 'by age ' + endAge + ' at ' + retPct + '% a year', leader === a ? 'a-tint' : 'b-tint') +
+        tile('What that money alone becomes', money(early.worth), 'by age ' + endAge + ' at ' + retPct + '% a year' + afterInfl, leader === a ? 'a-tint' : 'b-tint') +
         tile(leader.name + ' has at ' + (hs.toAge - 1), money(leadAt ? leadAt.investments : 0), 'in investments the year before ' + laggard.name + ' starts earning', leader === a ? 'a-tint' : 'b-tint') +
         tile(laggard.name + ' has at ' + (hs.toAge - 1), money(lagAt ? lagAt.investments : 0),
           lagAt && lagAt.studentDebt > 0 ? 'and ' + money(lagAt.studentDebt) + ' of student debt' : 'still in training', laggard === a ? 'a-tint' : 'b-tint') +
@@ -7421,7 +7545,7 @@ body.st-on { overflow: hidden; }
         '</div>';
     }
     h += '<div class="card"><h2>What went in, and what it earned</h2>' +
-      '<p class="sub">The grey part is money they deposited. The coloured part is what it earned on its own at ' + retPct + '% a year' +
+      '<p class="sub">The grey part is money they deposited. The coloured part is what it earned on its own at ' + retPct + '% a year' + afterInfl +
       (sim.scenario && sim.scenario.investReturn ? ' (' + pctTxt(cfg.investReturn) + ' set, ' + (sim.scenario.investReturn > 0 ? '+' : '') + (sim.scenario.investReturn * 100).toFixed(1) + ' points for the ' + esc(sim.scenario.label.toLowerCase()) + ' scenario)' : '') + '.</p>' +
       '<div class="inv-cols">' + col(a, 'a') + col(b, 'b') + '</div>' +
       (bigger.totals.investmentGrowth > 0
@@ -7462,20 +7586,20 @@ body.st-on { overflow: hidden; }
     var starts = [];
     for (var sa = cfg.startAge; sa < endAge - 2; sa += 5) { starts.push(sa); }
     if (starts.length < 2) { starts = [cfg.startAge, cfg.startAge + Math.max(1, Math.round(cfg.years / 2))]; }
-    var best = stake * Math.pow(1 + ret, endAge - starts[0]);
+    var best = stake * Math.pow(1 + illRet, endAge - starts[0]);
     var dollarCard = document.createElement('div');
     dollarCard.className = 'card';
     dollarCard.innerHTML = '<h2>The same ' + money(stake) + ', started later</h2>' +
-      '<p class="sub">One deposit of ' + money(stake) + ', left alone at ' + retPct + '% a year until age ' + endAge +
-      '. Nothing changes but the year it goes in.</p>' +
+      '<p class="sub">One deposit of ' + money(stake) + ', left alone at ' + retPct + '% a year' + afterInfl + ' until age ' + endAge +
+      '. Nothing changes but the year it goes in.' + (todayView() ? ' Shown in today\u2019s dollars.' : '') + '</p>' +
       '<div class="dollar-rows">' + starts.map(function (sAge, i) {
-        var yrs = endAge - sAge, v = stake * Math.pow(1 + ret, yrs);
+        var yrs = endAge - sAge, v = stake * Math.pow(1 + illRet, yrs);
         return '<div class="dollar-row"><div class="lbl">Invested at ' + sAge + '<small>' + yrs + ' years to grow</small></div>' +
           '<div class="track"><i style="width:' + (v / best * 100).toFixed(1) + '%;--i:' + i + '"></i></div>' +
           '<div class="val">' + money(v) + '</div></div>';
       }).join('') + '</div>' +
       '<p class="chart-note" style="margin-top:12px">Every five years of waiting costs roughly ' +
-      Math.round((1 - 1 / Math.pow(1 + ret, 5)) * 100) + '% of what the money would have become. ' +
+      Math.round((1 - 1 / Math.pow(1 + illRet, 5)) * 100) + '% of what the money would have become. ' +
       'That is the whole reason a ' + (hs.years > 0 ? hs.years + '-year' : '') + ' head start is worth more than it looks: the earliest dollars are the ones that do the most work.</p>';
     host.appendChild(dollarCard);
 
@@ -7504,7 +7628,8 @@ body.st-on { overflow: hidden; }
     /* ---- honesty ---- */
     var note = document.createElement('div');
     note.className = 'callout';
-    note.innerHTML = '<strong>What this assumes.</strong> A steady ' + retPct + '% a year, every year, in dollars of the day (not inflation-adjusted). ' +
+    note.innerHTML = '<strong>What this assumes.</strong> A steady ' + retPct + '% a year, every year' +
+      (todayView() ? ', with ' + pctTxt(cfg.inflation) + ' inflation taken back out of everything shown. ' : ', in dollars of the day, not adjusted for inflation. ') +
       'Real markets go up and down, and a bad stretch early or late changes the picture. The rule, the return and the share going into registered accounts are all yours to change on the Setup tab. ' +
       'Entertainment and education, not investment advice.';
     host.appendChild(note);
@@ -7852,7 +7977,8 @@ body.st-on { overflow: hidden; }
       kv('Starting age', cfg.startAge) + kv('Period', cfg.years + ' years') +
       kv('Jurisdiction', esc(((D.TAX[cfg.country] || {}).regions || {})[cfg.region] ?
         D.TAX[cfg.country].regions[cfg.region].label + ', ' + D.TAX[cfg.country].label : cfg.country)) +
-      kv('Inflation', pctTxt(cfg.inflation)) + kv('Investment return', pctTxt(cfg.investReturn)) +
+      kv('Inflation', pctTxt(cfg.inflation)) + kv('Money shown in', todayView() ? 'today’s dollars' : 'dollars of the day') +
+      kv('Investment return', pctTxt(cfg.investReturn)) +
       kv('Wage drift above stages', pctTxt(cfg.salaryGrowth)) +
       kv('Safe withdrawal rate', pctTxt(cfg.safeWithdrawal)) +
       kv('Tax model', cfg.taxMode === 'flat' ? 'Flat ' + pctTxt(cfg.flatRate) : 'Progressive brackets, indexed to inflation') +
@@ -9273,10 +9399,11 @@ body.st-on { overflow: hidden; }
         /* A dollar's journey, then the pile: what went in against what
            the market added. Totals are the balance at the end. */
         var r = cfg.investReturn, yrs = cfg.years;
-        var full = Math.pow(1 + r, yrs), half = Math.pow(1 + r, Math.max(1, yrs - Math.round(yrs / 2)));
+        var rIll = BCB.engine.displayReturn(cfg, r), todayV = cfg.moneyView !== 'nominal';
+        var full = Math.pow(1 + rIll, yrs), half = Math.pow(1 + rIll, Math.max(1, yrs - Math.round(yrs / 2)));
         var grey = '#5f656d';
         wrap.appendChild(bigStat([
-          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' },
+          { k: '$1 invested at ' + cfg.startAge, v: '$' + full.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'at ' + (r * 100).toFixed(1) + '% a year' + (todayV ? ', after inflation' : '') },
           { k: '$1 invested at ' + (cfg.startAge + Math.round(yrs / 2)), v: '$' + half.toFixed(2) + ' by ' + (cfg.startAge + yrs), n: 'half the time, ' + Math.round((half - 1) / (full - 1) * 100) + '% of the growth' }
         ]));
         var stack = C.stackChart({
