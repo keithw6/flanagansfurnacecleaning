@@ -16,3 +16,5 @@ Flanagans-GBP-Setup-Guide.pdf
 # frames, intermediate clips and finished mp4s are deliverables, not site files)
 work/
 video-work/
+__pycache__/
+*.pyc
