@@ -1,0 +1,26 @@
+{
+  "brand": "Flanagan's Furnace & Duct Cleaning",
+  "logo_text": "FLANAGAN'S",
+  "logo_sub": "FURNACE & DUCT CLEANING",
+  "accent": "#E02127",
+  "accent_deep": "#B4161C",
+  "ink": "#16181A",
+  "body_ink": "#33383D",
+  "muted": "#6B7280",
+  "paper": "#F9F7F4",
+  "surface": "#FFFFFF",
+  "line": "#E5E1DA",
+  "panel_bg": "#16181A",
+  "panel_ink": "#FFFFFF",
+  "heading_font": "Montserrat",
+  "body_font": "Source Sans 3",
+  "contact": {
+    "phone": "403-272-0560",
+    "site": "flanagansfurnacecleaning.com",
+    "area": "Calgary, Airdrie, Chestermere & Strathmore"
+  },
+  "lower_bar": true,
+  "progress_dots": true,
+  "photo_tint": 0.0,
+  "motion_scale": 2.6
+}

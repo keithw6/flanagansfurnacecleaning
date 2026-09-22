@@ -11,3 +11,8 @@ Flanagans-GBP-Setup-Guide.pdf
 # but it is also the file a non-developer is meant to download and open, so it
 # has to actually be in the repository. Rebuild it with:
 #   node tools/20-year-test/build-single.mjs
+
+# Scratch directories for the infographic-video skill (unpacked zips, rendered
+# frames, intermediate clips and finished mp4s are deliverables, not site files)
+work/
+video-work/
