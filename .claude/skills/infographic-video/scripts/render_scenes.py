@@ -48,13 +48,32 @@ def focus_point(focus) -> tuple[float, float]:
     return .5, .5
 
 
-def prep_photo(src: Path, region, focus, scale: float, dest: Path) -> None:
+def flatten(im, bg: str):
+    """Put transparent artwork on a solid canvas.
+
+    A plain convert("RGB") drops the alpha channel and keeps whatever colour
+    sits under it - usually black - so dark type drawn for a white page turns
+    into dark-on-black and vanishes. Semi-transparent edges (splashes, shadows)
+    go murky the same way.
+    """
+    from PIL import Image
+
+    if im.mode == "P" and "transparency" in im.info:
+        im = im.convert("RGBA")
+    if im.mode in ("RGBA", "LA", "PA"):
+        rgba = im.convert("RGBA")
+        canvas = Image.new("RGBA", rgba.size, bg)
+        canvas.alpha_composite(rgba)
+        return canvas.convert("RGB")
+    return im.convert("RGB") if im.mode not in ("RGB", "L") else im
+
+
+def prep_photo(src: Path, region, focus, scale: float, dest: Path, bg: str = "#FFFFFF") -> None:
     from PIL import Image, ImageOps
 
     im = Image.open(src)
     im = ImageOps.exif_transpose(im)
-    if im.mode not in ("RGB", "L"):
-        im = im.convert("RGB")
+    im = flatten(im, bg)
     rw, rh = region[2], region[3]
     tw, th = int(rw * scale), int(rh * scale)
     grow = max(tw / im.width, th / im.height)
@@ -101,6 +120,8 @@ def esc(s) -> str:
 
 
 def dots(n: int, i: int) -> str:
+    if n > 14:          # a row of 40 dots is noise, not progress
+        return ""
     return '<div class="dots">' + "".join(
         f'<span class="dot{" on" if k == i else ""}"></span>' for k in range(n)) + "</div>"
 
@@ -136,11 +157,13 @@ def block(c: dict, big: int | None = None) -> str:
 def scene_html(scene: dict, theme: dict, n: int, idx: int) -> str:
     c = scene.get("callout") or {}
     lay = scene.get("layout", "full")
-    use_bar = theme.get("lower_bar", True) and lay not in ("outro",)
+    use_bar = theme.get("lower_bar", True) and lay not in ("outro", "plain")
     bottom = 150 if use_bar else 96
     body = []
 
-    if lay == "title":
+    if lay == "plain":
+        pass                                         # nothing over the artwork
+    elif lay == "title":
         body += ['<div class="scrim left"></div>', '<div class="scrim bottom"></div>',
                  ('' if use_bar else f'<div class="mark"><div class="a">{esc(theme.get("logo_text",""))}</div></div>'),
                  f'<div class="content" style="left:96px;right:560px;top:300px;bottom:{bottom}px">'
@@ -284,7 +307,7 @@ def main():
             if k >= len(imgs):
                 break
             prep_photo(src / imgs[k], region, sc.get("focus", "center"), scale,
-                       work / "photos" / f"{sc['id']}_{k}.jpg")
+                       work / "photos" / f"{sc['id']}_{k}.jpg", theme.get("photo_bg", "#FFFFFF"))
         print(f"  photo  {sc['id']}  {sc['layout']:<12} {', '.join(imgs) or '(none)'}")
 
     # --- plates ---

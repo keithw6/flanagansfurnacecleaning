@@ -41,11 +41,28 @@ python3 $S/scripts/ingest.py --zip delivery.zip --out work/ --project duct-story
 Reads the images, the script, and whichever timestamp convention they used
 (filenames like `00-12_trunk-line.jpg`, `[0:12]` markers in the script, or a
 `shots.csv`). Writes `work/storyboard.json` and a readable `work/storyboard.md`.
+
+A big delivery often arrives in parts: repeat `--zip` for each one, and pass a
+script or shot list sent outside the zips with `--add`. Byte-identical images
+are dropped, so a folder that got zipped twice does not become duplicate scenes.
+
+```bash
+python3 $S/scripts/ingest.py --zip part1.zip --zip part2.zip \
+    --add Narration.txt --add Scene_Timings.csv --out work/ --project name
+```
 Read the `.md` - it is the fastest way to see whether the images and the script
 lined up the way they intended. `references/inputs.md` covers every accepted
 form and what to do when the zip is messier than expected.
 
-**Then write the callouts.** This is the part no script can do: edit
+**First decide whether the images are photos or finished slides.** Open a few.
+If they already carry their own titles, numbers and labels - illustrated
+infographics, a designed deck exported to PNG - anything drawn over them covers
+their type. Ingest with `--layout plain`, set `"lower_bar": false` in the
+storyboard's `theme`, and skip the callouts entirely: the job is timing and
+motion, not copy. Read any README or production notes that came with them too;
+they often say what the canvas colour, transitions and ending should be.
+
+**Otherwise, write the callouts.** This is the part no script can do: edit
 `work/storyboard.json` and fill in each scene's `layout` and `callout`. The
 narration text for each scene is already sitting there - the callout is not a
 transcript of it, it is the two or three words a viewer needs on screen while
@@ -89,8 +106,11 @@ python3 $S/scripts/verify.py --work work/
 ```
 
 `sync_audio.py` weighs each scene's narration text, finds the pauses in the WAV,
-places every cut in a pause where it can, and ends the last scene at the exact
-audio duration. It prints a per-scene table and writes `work/timing.md`.
+and chooses the set of pauses that splits the recording into pieces whose
+lengths best fit each scene's text - solved as a whole, learning the reader's
+pace as it goes, so errors do not pile up over a long take. The last scene ends
+at the exact audio duration. It prints a per-scene table and writes
+`work/timing.md`.
 
 Read that table before rendering. The `moved` column is how far a scene shifted
 from where their timestamp put it, *after* correcting for the recording being
@@ -118,24 +138,35 @@ exists only to get the look approved before someone spends time recording.
 
 | Situation | What to do |
 |---|---|
-| Cuts feel late or early against the voice | `sync_audio.py --window 2.2` lets a cut travel further to find a pause |
+| A cut lands one sentence early or late | Check that scene's `narration` really is what is said there; if the take has no longer pauses at paragraph breaks, fix the odd one by hand in `storyboard.json` |
 | A quiet or noisy recording finds no pauses | `--noise -26` (quiet room) or `--noise -40` (hissy recording) |
 | They want the image order respected over the speech | `--prefer timestamps` |
 | Too many scenes for a short recording | The minimum scene length drops automatically and says so; better to merge scenes |
 | Hard cuts instead of fades | Set `transition.type` to `"none"` in the storyboard |
+| Dissolve must finish on the cut, not straddle it | `"transition": {"type": "fade", "duration": 0.5, "align": "end"}` |
+| Fade to white/black at the very end | `"end_fade": {"color": "white", "duration": 1.5}` |
+| Transparent PNGs | Flattened onto `theme.photo_bg` (default white) - never onto black |
+| Images with text near the edges | `"motion_amount": 0.035` in the theme (default 0.08) so the move never crops it |
 | Motion feels busy | `build_video.py --no-motion`, or set a scene's `motion` to `"none"` |
 | Re-rendering one fixed scene | `render_scenes.py --only s04` then rebuild |
 | Different business / colours | `--theme my-theme.json`; see `references/layouts.md` |
 
-A full render is a few minutes for a 60-90 second piece - the Ken Burns pass is
-the slow part. Use `--draft` while iterating, and only do the full encode once
-the stills look right.
+A full render is a few minutes for a 60-90 second piece and roughly 35-45
+minutes for a 12-minute, 50-scene one - the Ken Burns pass is the slow part, so
+run long builds with `run_in_background`. Use `--draft` while iterating, and
+only do the full encode once the stills look right. For a long piece, render a
+short sample first (copy the storyboard, keep the first five or six scenes) so
+the look is approved before anyone waits on the whole thing.
+
+Clips are joined in batches of ten and then the batches are joined, which keeps
+memory flat however many scenes there are (one graph over fifty clips needed
+7 GB). `IV_BATCH=n` changes the batch size.
 
 ## Reference files
 
 - `references/inputs.md` - every timestamp convention, messy-zip recovery, what
   to ask for when the delivery is incomplete
-- `references/layouts.md` - the nine layouts, the callout schema for each,
+- `references/layouts.md` - the ten layouts (including `plain` for finished slides), the callout schema for each,
   theming, and how to write copy that reads in 4 seconds
 - `references/timing.md` - how the sync maths works, why durations are allowed
   to move, and how to diagnose a video that feels out of step
@@ -150,3 +181,10 @@ the stills look right.
   theirs. If a scene's text is in the wrong scene, move it - don't reword it.
 - **A photo that needs explaining is the wrong photo.** Say so rather than
   burying it under a paragraph of on-screen text.
+- **Flag flawed artwork, don't silently ship it.** A smudge, a scrubbed logo, a
+  generation artefact - the contact sheet is where you catch it, and the person
+  decides whether to replace the image.
+- **A 12-minute voice-over is too big to attach as WAV.** Ask for FLAC
+  (lossless, about half the size) or mono WAV. Not MP3: its encoder adds a few
+  milliseconds of silence at the start, which is exactly the drift this skill
+  exists to prevent.

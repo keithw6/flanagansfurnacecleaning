@@ -61,6 +61,14 @@ debris.jpg,0:42,stat,,
 
 JSON: either a bare array or `{"scenes": [...]}` with the same keys.
 
+Other columns that are read when present: `end` (the last row's end becomes the
+planned running time), `narration` (that scene's spoken text - more reliable
+than splitting the script), `title`, and `animation`/`motion`/`camera`. A free-text
+animation note ("push slowly toward the car", "move across the two drivers") is
+turned into the nearest camera move a still can do and kept in `notes`. Notes
+that ask for things a flat image cannot do - revealing icons one at a time,
+adding rain - cannot be honoured; say so rather than pretend.
+
 Loose text: `0:12  trunk.jpg  One hole sealed properly` (tab or two-space
 separated) is read too.
 
@@ -97,3 +105,9 @@ layout where they only fill part of the width.
   Usually the script is an older draft; ask before guessing.
 - **A zip inside the zip** - unpack it yourself and use `--dir` instead of
   `--zip`.
+- **Split across several zips** - `--zip a.zip --zip b.zip`, plus `--add` for a
+  script or CSV that came separately. Duplicate images are skipped by content.
+- **A Word document that will not open** - uploads get truncated. The text lives
+  in `word/document.xml`, near the start of the file, so it usually survives:
+  walk the local zip headers and inflate that one entry rather than asking for
+  a re-send.

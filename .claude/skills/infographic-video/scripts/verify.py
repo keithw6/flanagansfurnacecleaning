@@ -128,7 +128,10 @@ def main():
     if problems:
         print("\n" + "\n".join("FAILED - " + p for p in problems))
         sys.exit(1)
-    print("\nall checks passed - the video and the narration are the same length.")
+    if audio:
+        print("\nall checks passed - the video and the narration are the same length.")
+    else:
+        print("\ntiming checks passed. No narration yet: sync it with sync_audio.py before delivery.")
 
 
 if __name__ == "__main__":

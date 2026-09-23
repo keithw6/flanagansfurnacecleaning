@@ -39,19 +39,39 @@ Thresholds worth changing:
 
 ## 3. Placing all the cuts at once
 
-The obvious approach - snap each boundary to its nearest pause - is greedy: an
-early scene grabs a pause a later scene needed, and that later cut ends up
-mid-sentence. Instead `place_cuts()` solves the whole set together as a shortest
-path: candidates are the pauses within `--window` of each target plus the option
-of staying put at a fixed penalty, with the constraint that cuts stay in order
-and no scene falls below the minimum length.
+The obvious approach - predict each cut's absolute time from the word counts,
+then snap it to the nearest pause - works for eight scenes and fails badly for
+fifty. Every sentence is read a little faster or slower than predicted, those
+errors add up like a random walk, and by the middle of a 12-minute take the
+prediction is ten seconds out and snapping to the wrong breath. Measured on a
+50-scene, 16-minute test take with known paragraph breaks, that approach put
+3 of 49 cuts in the right place.
 
-The penalty is the interesting part. Staying put costs 0.7s of "displacement",
-so a pause 0.4s away is taken and a pause 1.5s away is not - a cut is worth
-moving for a breath, not worth dragging the story out of step for one.
+So the default (`--method segment`) asks a different question: *which pauses
+divide this recording into pieces whose lengths best match each scene's text?*
+Each scene is scored on its own length - `(ln(actual / expected))^2`, so running
+20% long costs the same anywhere - and nothing accumulates. Longer pauses get a
+small bonus, because a paragraph break is usually a longer breath than a comma.
+Dynamic programming finds the exact best set of cuts.
 
-Widen with `--window 2.2` if too many cuts read as mid-line; tighten to `0.8` if
-scenes are landing noticeably off their intended moment.
+Readers drift: most get faster or slower across a long take. After each pass the
+solver measures how fast each stretch actually ran, smooths that into a pace
+curve, and re-solves with the expectations bent to match (three passes).
+
+On the same test takes:
+
+| take | nearest-pause | segment |
+|---|---|---|
+| normal read, paragraph breaks longer than sentence breaks | 3/49 | **49/49** |
+| adversarial: all pauses the same length, reader slows 20% | 0/49 | 44/49 |
+
+The second row is close to the floor for anything that listens for pauses
+rather than recognising words. If a take really has no difference between
+sentence and paragraph pauses, check the flagged scenes in `timing.md` by ear.
+
+`--method nearest` keeps the old behaviour (with `--window`), and the solver
+falls back to it on its own when there are too few pauses to give every scene a
+cut on a breath - a voice over a music bed, for instance.
 
 ## 4. Why it comes out exact
 
@@ -62,9 +82,11 @@ container is that length to the millisecond and the video track holds
 `round(duration x fps)` frames.
 
 Cross-fades would otherwise eat time - an xfade of T seconds shortens the
-timeline by T at every join - so each clip is cut T longer (T/2 at the ends) and
-every fade is centred on its boundary. The visible scene starts and ends land
-where the sync put them.
+timeline by T at every join - so each clip is cut longer by exactly the part of
+the fade it has to cover. `transition.align` chooses where the fade sits:
+`center` (default) straddles the cut; `end` finishes on it, so the incoming
+image is fully up the moment its narration starts and the dissolve stays inside
+the outgoing scene's window. Either way the total never grows.
 
 `verify.py` re-derives all of this from the rendered file rather than trusting
 the plan.

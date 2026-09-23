@@ -33,7 +33,7 @@ Anything tall going into a wide region needs this - `top` for a person standing,
 `none`. Ingest alternates them; vary it so the video does not pulse, and use
 `none` on any image with text already in it (a screenshot, a certificate).
 
-## The nine layouts
+## The ten layouts
 
 | layout | photo | use it when | callout fields |
 |---|---|---|---|
@@ -46,6 +46,7 @@ Anything tall going into a wide region needs this - `top` for a person standing,
 | `compare` | two halves | before/after pair | `headline`, `labels` |
 | `quote` | full bleed, dimmed | a customer line or a claim | `quote`, `attribution` |
 | `outro` | none, brand card | closing card with contact | `headline`, `contact` |
+| `plain` | full bleed, untouched | the image is already a finished slide | none |
 
 `stat` takes `{"value": "12", "unit": "lbs", "label": "of dust, hair and debris"}`.
 `steps` takes `[{"n": "1", "t": "Pull the blower", "d": "Check the motor"}]` -
@@ -102,6 +103,14 @@ values inline under `"theme"` in the storyboard. Only the keys you set change.
 
 `motion_scale` is how far photos are oversampled for the camera move. 2.6 keeps
 a slow zoom smooth; lower it to about 1.6 to render faster when drafting.
+
+`motion_amount` is how far the camera travels: 0.08 means an 8% zoom or pan. On
+finished slides with a title near the top edge, 0.035 keeps every word in frame.
+A single scene can override it with its own `motion_amount`.
+
+`photo_bg` is the canvas under transparent images (default `#FFFFFF`). Artwork
+exported with a transparent background was almost always drawn for a white
+page; flattening it onto black turns dark type invisible.
 
 Montserrat and Source Sans 3 (the website's own faces) are bundled in
 `assets/fonts` and inlined into the page as data URIs - Chromium refuses

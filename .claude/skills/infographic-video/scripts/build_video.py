@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -27,7 +28,7 @@ import ivlib as iv
 BG = "#0B0C0D"
 
 
-def zoom_filter(idx, region, motion, nframes, fps, photo_wh):
+def zoom_filter(idx, region, motion, nframes, fps, photo_wh, amt=0.08):
     """Ken Burns for one photo, output sized to its region."""
     rw, rh = region[2], region[3]
     pw, ph = photo_wh
@@ -37,7 +38,6 @@ def zoom_filter(idx, region, motion, nframes, fps, photo_wh):
     n = max(nframes, 2)
     if motion in (None, "none", ""):
         return f"[{idx}:v]scale={rw}:{rh}:flags=lanczos,setsar=1[p{idx}]"
-    amt = 0.08
     if motion == "in":
         z = f"1+{amt}*on/{n - 1}"
         x, y = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
@@ -58,7 +58,21 @@ def zoom_filter(idx, region, motion, nframes, fps, photo_wh):
             f"scale={rw}:{rh}:flags=lanczos,setsar=1[p{idx}]")
 
 
-def build_clip(ff, work, sc, clip_len, fps, draft, motion_on, quiet, fade=0.0, is_last=False):
+def xfade_chain(count, lengths, T):
+    """Filter-graph pieces that cross-fade inputs 0..count-1 in order."""
+    parts, last = [], "0:v"
+    offset = lengths[0] - T
+    for i in range(1, count):
+        parts.append(f"[{last}][{i}:v]xfade=transition=fade:duration={T:.4f}:"
+                     f"offset={offset:.4f}[x{i}]")
+        last = f"x{i}"
+        offset += lengths[i] - T
+    parts.append(f"[{last}]null[vout]")
+    return parts, "vout"
+
+
+def build_clip(ff, work, sc, clip_len, fps, draft, motion_on, quiet, fade=0.0, is_last=False,
+               motion_amount=0.08):
     from PIL import Image
 
     region_list = iv.layout_of(sc)["photos"]
@@ -82,7 +96,8 @@ def build_clip(ff, work, sc, clip_len, fps, draft, motion_on, quiet, fade=0.0, i
     for i, (p, region) in enumerate(photos):
         with Image.open(p) as im:
             wh = im.size
-        parts.append(zoom_filter(i, region, sc.get("motion") if motion_on else "none", n, fps, wh))
+        amt = float(sc.get("motion_amount", motion_amount))
+        parts.append(zoom_filter(i, region, sc.get("motion") if motion_on else "none", n, fps, wh, amt))
     last = "base"
     for i, (_, region) in enumerate(photos):
         out = f"b{i}"
@@ -140,48 +155,83 @@ def main():
     dur = [max(0.1, float(s["end"]) - float(s["start"])) for s in scenes]
     T = min(T, min(dur) * 0.6) if dur else 0.0       # never fade longer than the shortest scene
 
+    # Where each dissolve sits relative to its cut. "center" straddles the cut;
+    # "end" finishes on it, so the incoming image is fully up the moment its
+    # narration starts and the dissolve lives inside the outgoing scene's time.
+    align = (tr.get("align") or "center").lower()
+    after = 0.0 if align == "end" else (T if align == "start" else T / 2)   # part of the fade after the cut
+    before = T - after
+
     n = len(scenes)
     clip_len = []
     for i, d in enumerate(dur):
-        extra = 0.0 if n == 1 else (T / 2 if i in (0, n - 1) else T)
-        clip_len.append(d + extra)
+        head = before if i > 0 else 0.0              # starts early to be the incoming side
+        tail = after if i < n - 1 else 0.0           # runs on to be the outgoing side
+        clip_len.append(d + (head + tail if n > 1 else 0.0))
 
+    theme = iv.load_theme(sb)
     clips = [build_clip(ff, work, sc, clip_len[i], fps, args.draft, motion_on, args.quiet,
-                        fade=T, is_last=(i == n - 1))
+                        fade=T, is_last=(i == n - 1),
+                        motion_amount=float(theme.get("motion_amount", 0.08)))
              for i, sc in enumerate(scenes)]
 
     audio = (sb.get("audio") or {}).get("path")
     total = float((sb.get("audio") or {}).get("duration") or sum(dur))
 
+    # Join in batches. One filter graph over every clip makes ffmpeg hold frames
+    # from all of them at once - 7 GB for fifty scenes - so batches of ten are
+    # cross-faded into intermediates first, then the batches are joined. The
+    # fade maths is identical at both levels: a batch is just a longer clip.
+    inputs, lens = list(clips), list(clip_len)
+    batch = int(os.environ.get("IV_BATCH", "10"))
+    if T > 0.001 and len(inputs) > batch:
+        grouped, glens = [], []
+        for g, lo in enumerate(range(0, len(inputs), batch)):
+            chunk, clen = inputs[lo:lo + batch], lens[lo:lo + batch]
+            gout = work / "clips" / f"batch_{g:02d}.mp4"
+            gparts, glast = xfade_chain(len(chunk), clen, T)
+            gcmd = [ff, "-y", "-hide_banner", "-loglevel", "error"]
+            for c in chunk:
+                gcmd += ["-i", str(c)]
+            gcmd += ["-filter_complex", ";".join(gparts), "-map", f"[{glast}]", "-r", str(fps),
+                     "-c:v", "libx264", "-preset", "ultrafast" if args.draft else "veryfast",
+                     "-crf", "22" if args.draft else "16", "-pix_fmt", "yuv420p", str(gout)]
+            r = subprocess.run(gcmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                print(r.stderr[-3000:])
+                sys.exit(f"batch {g} assembly failed")
+            grouped.append(gout)
+            glens.append(sum(clen) - (len(clen) - 1) * T)
+            if not args.quiet:
+                print(f"  batch  {g:02d}  scenes {lo + 1}-{lo + len(chunk)}")
+        inputs, lens = grouped, glens
+
+    m = len(inputs)
     cmd = [ff, "-y", "-hide_banner", "-loglevel", "error", "-stats"]
-    for c in clips:
+    for c in inputs:
         cmd += ["-i", str(c)]
     if audio:
         cmd += ["-i", str(audio)]
 
-    parts, last = [], "0:v"
-    if n == 1:
-        parts.append("[0:v]null[vout]")
-        last = "vout"
+    if m == 1:
+        parts, last = ["[0:v]null[vout]"], "vout"
     elif T <= 0.001:
-        parts.append("".join(f"[{i}:v]" for i in range(n)) + f"concat=n={n}:v=1:a=0[vout]")
+        parts = ["".join(f"[{i}:v]" for i in range(m)) + f"concat=n={m}:v=1:a=0[vout]"]
         last = "vout"
     else:
-        offset = clip_len[0] - T
-        for i in range(1, n):
-            out = f"x{i}"
-            parts.append(f"[{last}][{i}:v]xfade=transition=fade:duration={T:.4f}:"
-                         f"offset={offset:.4f}[{out}]")
-            last = out
-            if i < n - 1:
-                offset += clip_len[i] - T
-        parts.append(f"[{last}]null[vout]")
-        last = "vout"
+        parts, last = xfade_chain(m, lens, T)
+
+    ef = sb.get("end_fade") or {}
+    if ef.get("duration"):
+        d = min(float(ef["duration"]), dur[-1] * 0.8)
+        parts.append(f"[{last}]fade=t=out:st={max(0.0, total - d):.4f}:d={d:.4f}:"
+                     f"color={ef.get('color', 'white')}[vend]")
+        last = "vend"
 
     out_path = Path(args.out) if args.out else work / f"{sb['project']}.mp4"
     cmd += ["-filter_complex", ";".join(parts), "-map", f"[{last}]"]
     if audio:
-        cmd += ["-map", f"{n}:a", "-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
+        cmd += ["-map", f"{m}:a", "-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
     cmd += ["-t", f"{total:.6f}", "-r", str(fps),
             "-c:v", "libx264", "-preset", "veryfast" if args.draft else "medium",
             "-crf", "24" if args.draft else "19", "-pix_fmt", "yuv420p",

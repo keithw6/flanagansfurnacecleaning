@@ -65,13 +65,25 @@ def safe_extract(zip_path: Path, dest: Path) -> None:
 
 
 def collect(root: Path):
-    images, texts, lists = [], [], []
-    for p in sorted(root.rglob("*"), key=lambda q: natural_key(str(q))):
+    """Sort files into images / script candidates / shot lists.
+
+    Identical images are dropped: a delivery split across several zips often
+    carries the same folder twice, and a repeated slide would otherwise become
+    a repeated scene.
+    """
+    import hashlib
+
+    images, texts, lists, seen = [], [], [], {}
+    for p in sorted(root.rglob("*"), key=lambda q: (natural_key(q.name), natural_key(str(q)))):
         if not p.is_file() or p.name.startswith("."):
             continue
         ext = p.suffix.lower()
         stem = p.stem.lower().replace("_", "-")
         if ext in IMAGE_EXT:
+            digest = hashlib.sha1(p.read_bytes()).hexdigest()
+            if digest in seen:
+                continue
+            seen[digest] = p
             images.append(p)
         elif ext in {".csv", ".json"} or (ext in TEXT_EXT and stem in LIST_NAMES):
             lists.append(p)
@@ -178,6 +190,32 @@ def time_from_filename(name: str):
         ms = float(f"0.{m.group(3)}") if m.group(3) else 0.0
         return int(m.group(1)) * 60 + int(m.group(2)) + ms, "filename-mmss"
     return None, None
+
+
+MOTIONS = {"in", "out", "left", "right", "up", "down", "none"}
+
+
+def motion_from_note(note: str) -> str | None:
+    """Turn an animation note ("push slowly toward the car", "move across the
+    two drivers") into the nearest camera move a still can actually do."""
+    t = (note or "").strip().lower()
+    if not t:
+        return None
+    if t in MOTIONS:
+        return t
+    if any(w in t for w in ("widen", "pull back", "zoom out", "reveal the whole")):
+        return "out"
+    if any(w in t for w in ("right to left", "toward the left", "from the right")):
+        return "left"
+    if any(w in t for w in ("left to right", "across", "horizontal", "from left", "track", "follow")):
+        return "right"
+    if any(w in t for w in ("upward", "rise", "toward the top", "tilt up")):
+        return "up"
+    if any(w in t for w in ("downward", "tilt down", "toward the bottom")):
+        return "down"
+    if any(w in t for w in ("hold", "still", "static", "no movement")) and "push" not in t:
+        return "in"
+    return "in"
 
 
 def match_file(ref: str, images: list[Path]) -> Path | None:
@@ -290,7 +328,10 @@ def build(args) -> dict:
     if args.zip:
         if src.exists():
             shutil.rmtree(src)
-        safe_extract(Path(args.zip), src)
+        for z in args.zip:                         # a big delivery often arrives in parts
+            safe_extract(Path(z), src / Path(z).stem if len(args.zip) > 1 else src)
+        for extra in args.add or []:               # loose files sent alongside the zips
+            shutil.copy2(extra, src / Path(extra).name)
     elif args.dir:
         src = Path(args.dir).resolve()
     else:
@@ -328,8 +369,12 @@ def build(args) -> dict:
             callout = {k: r[k] for k in ("eyebrow", "headline", "subline", "label") if r.get(k)}
             if r.get("stat"):
                 callout["stat"] = {"value": str(r.get("stat")), "label": r.get("statlabel", r.get("label", ""))}
-            scenes.append({"image_paths": [p], "requested_time": t,
+            end = next((iv.parse_timecode(r[k]) for k in ("end", "stop", "out") if r.get(k)), None)
+            note = next((r[k] for k in ("animation", "motion", "movement", "camera") if r.get(k)), "")
+            scenes.append({"image_paths": [p], "requested_time": t, "requested_end": end,
                            "layout": (r.get("layout") or "").strip() or None,
+                           "motion": motion_from_note(note), "note": note,
+                           "title": (r.get("title") or "").strip(),
                            "callout": callout, "narration": (r.get("narration") or r.get("script") or "").strip()})
             used.add(p)
 
@@ -385,6 +430,8 @@ def build(args) -> dict:
     known = [s["requested_time"] for s in scenes if s["requested_time"] is not None]
     if known:
         est_total = max(est_total, max(known) + 4.0)
+    if scenes[-1].get("requested_end"):             # the shot list says how long it runs
+        est_total = float(scenes[-1]["requested_end"])
 
     # fill any gaps in requested times so every scene has a planned start
     n = len(scenes)
@@ -412,7 +459,7 @@ def build(args) -> dict:
 
     fps = args.fps
     sb = {
-        "project": args.project or Path(args.zip or args.dir).stem,
+        "project": args.project or Path((args.zip or [args.dir])[0]).stem,
         "canvas": {"w": iv.CANVAS["w"], "h": iv.CANVAS["h"], "fps": fps},
         "source_dir": str(src),
         "script_file": str(script_path) if script_path else None,
@@ -428,17 +475,18 @@ def build(args) -> dict:
         end = round(scenes[i + 1]["requested_time"], 3) if i + 1 < len(scenes) else round(est_total, 3)
         sb["scenes"].append({
             "id": f"s{i + 1:02d}",
-            "layout": s["layout"] or ("title" if i == 0 else DEFAULT_CYCLE[i % len(DEFAULT_CYCLE)]),
+            "layout": args.layout or s["layout"] or ("title" if i == 0 else DEFAULT_CYCLE[i % len(DEFAULT_CYCLE)]),
             "images": [str(Path(p).relative_to(src)) for p in s["image_paths"]],
             "focus": "center",
-            "motion": ["in", "left", "out", "right"][i % 4],
+            "motion": s.get("motion") or ["in", "left", "out", "right"][i % 4],
+            "title": s.get("title", ""),
             "requested_time": start,
             "start": start,
             "end": max(end, start + 1.5),
             "duration": round(max(end - start, 1.5), 3),
             "narration": s["narration"],
             "callout": s["callout"] or {},
-            "notes": "",
+            "notes": s.get("note", ""),
         })
     return sb
 
@@ -457,8 +505,10 @@ def summary(sb: dict) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--zip")
+    ap.add_argument("--zip", action="append", help="repeat for a delivery split across several zips")
+    ap.add_argument("--add", action="append", help="a loose file (script, shots.csv) sent outside the zip")
     ap.add_argument("--dir")
+    ap.add_argument("--layout", help="force one layout on every scene, e.g. 'plain' for finished slides")
     ap.add_argument("--out", required=True)
     ap.add_argument("--project")
     ap.add_argument("--fps", type=int, default=iv.CANVAS["fps"])

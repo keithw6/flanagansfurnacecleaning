@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -109,6 +110,137 @@ def place_cuts(targets, pts, window, min_dur, miss_penalty=0.7):
     return [c[0] for c in chosen], [c[2] for c in chosen]
 
 
+def expected_lengths(scenes, est_total, prefer):
+    """How long each scene *should* run, in arbitrary units.
+
+    Speech weight of the narration where there is some; otherwise the span the
+    timestamps gave it, converted into the same units so the two can mix.
+    """
+    n = len(scenes)
+    req = [s.get("requested_time") for s in scenes]
+    spans = []
+    for i in range(n):
+        a = req[i] if req[i] is not None else None
+        b = req[i + 1] if i + 1 < n else est_total
+        spans.append(max(0.5, (b - a)) if (a is not None and b is not None) else None)
+    words = [iv.speech_weight(s.get("narration", "")) if (s.get("narration") or "").strip() else None
+             for s in scenes]
+    if prefer == "timestamps" and all(x is not None for x in spans):
+        return spans
+    have = [(w, sp) for w, sp in zip(words, spans) if w is not None and sp is not None]
+    k = (sum(w for w, _ in have) / sum(sp for _, sp in have)) if have else 1.0
+    out = []
+    for w, sp in zip(words, spans):
+        out.append(w if w is not None else (sp * k if sp is not None else None))
+    known = [x for x in out if x]
+    fill = (sum(known) / len(known)) if known else 1.0
+    return [x if x else fill for x in out]
+
+
+def segment_cuts(expected, gaps, total, min_dur, pause_weight=0.12, passes=3):
+    """Segment, then learn the reader's pace and segment again.
+
+    One global speaking rate is wrong for a long take: people (and TTS voices)
+    drift faster or slower as they go, which makes early scenes look too long
+    and late ones too short against the text. After each pass, measure how fast
+    each stretch actually ran, smooth that into a pace curve, and re-solve with
+    the expectations bent to match.
+    """
+    n = len(expected)
+    exp = list(expected)
+    cuts = None
+    for _ in range(passes):
+        got = _segment_once(exp, gaps, total, min_dur, pause_weight)
+        if got is None:
+            return cuts
+        cuts = got
+        bounds = [0.0] + cuts + [total]
+        tot = sum(expected)
+        ratios = [math.log(max(0.05, (bounds[i + 1] - bounds[i])) / (total * expected[i] / tot))
+                  for i in range(n)]
+        half = max(3, n // 8)
+        pace = []
+        for i in range(n):                           # smoothed log pace around each scene
+            win = ratios[max(0, i - half): i + half + 1]
+            win = sorted(win)[len(win) // 5: len(win) - len(win) // 5] or win   # trim outliers
+            pace.append(math.exp(sum(win) / len(win)))
+        exp = [e * r for e, r in zip(expected, pace)]
+    return cuts
+
+
+def _segment_once(expected, gaps, total, min_dur, pause_weight=0.12):
+    """Split the recording into len(expected) pieces, cutting only in pauses.
+
+    Predicting each cut's absolute time from word counts is a random walk: a
+    small error per sentence adds up, and by scene 30 of a long take the guess
+    is ten seconds out and pointing at the wrong breath. This asks a different
+    question - which pauses divide the take into pieces whose *lengths* best
+    match each scene's text - so every scene is judged on its own and nothing
+    accumulates. Solved exactly by dynamic programming over the pauses.
+
+    Cost per scene is (ln(actual / expected))^2, so running 20% long costs the
+    same wherever it happens. Longer pauses earn a small bonus because a
+    paragraph break is usually a longer breath than a comma.
+    """
+    import bisect
+
+    n = len(expected)
+    if n <= 1:
+        return []
+    tot_w = sum(expected)
+    exp = [total * e / tot_w for e in expected]
+    cands = []
+    for a, b in gaps:
+        if a <= 0.05 or b >= total - 0.05:          # lead-in / tail silence is not a cut
+            continue
+        L = b - a
+        cands.append(((a + 0.35) if L > 0.9 else (a + b) / 2.0, min(L, 1.5)))
+    cands.sort()
+    m = len(cands)
+    if m < n - 1:
+        return None
+    times = [c[0] for c in cands]
+    INF = float("inf")
+
+    def fit(d, e):
+        return math.log(d / e) ** 2
+
+    prev = [(fit(t, exp[0]) - pause_weight * L) if t >= min_dur else INF for t, L in cands]
+    backs = []
+    for i in range(1, n - 1):
+        e = exp[i]
+        cur, bk = [INF] * m, [-1] * m
+        for k, (tk, Lk) in enumerate(cands):
+            lo = bisect.bisect_left(times, tk - 4.0 * e)
+            hi = min(k, bisect.bisect_right(times, tk - max(min_dur, 0.25 * e)))
+            best, bj = INF, -1
+            for j in range(lo, hi):
+                if prev[j] == INF:
+                    continue
+                c = prev[j] + fit(tk - times[j], e)
+                if c < best:
+                    best, bj = c, j
+            if bj >= 0:
+                cur[k], bk[k] = best - pause_weight * Lk, bj
+        backs.append(bk)
+        prev = cur
+    best, bj = INF, -1
+    for j, tj in enumerate(times):
+        d = total - tj
+        if prev[j] == INF or d < min_dur:
+            continue
+        c = prev[j] + fit(d, exp[-1])
+        if c < best:
+            best, bj = c, j
+    if bj < 0:
+        return None
+    path = [bj]
+    for bk in reversed(backs):
+        path.append(bk[path[-1]])
+    path.reverse()
+    return [times[j] for j in path]
+
+
 def clamp(bounds, total, min_dur):
     n = len(bounds)
     bounds = list(bounds)
@@ -129,7 +261,10 @@ def main():
     ap.add_argument("--work", required=True)
     ap.add_argument("--audio", required=True)
     ap.add_argument("--prefer", choices=["speech", "timestamps"], default="speech")
-    ap.add_argument("--window", type=float, default=1.6, help="how far a cut may move to find a pause")
+    ap.add_argument("--method", choices=["segment", "nearest"], default="segment",
+                    help="segment: fit scene lengths to the pauses as a whole (default); "
+                         "nearest: snap each predicted cut to a pause within --window")
+    ap.add_argument("--window", type=float, default=1.6, help="nearest method: how far a cut may move")
     ap.add_argument("--min", dest="min_dur", type=float, default=1.6)
     ap.add_argument("--noise", type=float, default=-32.0, help="silence threshold in dB")
     ap.add_argument("--silence-len", type=float, default=0.22)
@@ -175,8 +310,15 @@ def main():
             if args.prefer == "speech" and not (s.get("narration") or "").strip():
                 base[i] = t_stamps[i]
 
-    pts = pause_points(gaps)
-    placed, on_pause = place_cuts(base[1:], pts, args.window, min_dur)
+    placed = None
+    if args.method == "segment":
+        placed = segment_cuts(expected_lengths(scenes, est, args.prefer), gaps, total, min_dur)
+        if placed is None:
+            print("  ! too few pauses to cut every scene on a breath - using nearest-pause placement")
+        else:
+            on_pause = [True] * len(placed)
+    if placed is None:
+        placed, on_pause = place_cuts(base[1:], pause_points(gaps), args.window, min_dur)
     bounds = clamp([0.0] + placed, total, min_dur)
     bounds = [iv.snap_to_frame(b, fps) for b in bounds]
     on_pause = [True] + on_pause
@@ -208,7 +350,7 @@ def main():
                    "frames": iv.frames(total, fps)}
     sb["timing"] = {"locked_to_audio": True, "total": round(total, 6),
                     "estimated_total": round(est, 2), "timestamp_scale": round(stamp_scale, 4),
-                    "min_scene": min_dur, "snap_window": args.window,
+                    "min_scene": min_dur, "snap_window": args.window, "method": args.method,
                     "prefer": args.prefer, "report": rows}
     iv.save_storyboard(sb, work / "storyboard.json")
 

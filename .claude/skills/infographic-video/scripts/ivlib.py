@@ -234,6 +234,9 @@ LAYOUTS: dict[str, dict] = {
     "compare":     {"photos": [(0, 0, W // 2, H), (W // 2, 0, W // 2, H)], "fields": ["headline", "labels"]},
     "quote":       {"photos": [(0, 0, W, H)],                              "fields": ["quote", "attribution"]},
     "outro":       {"photos": [],                                          "fields": ["headline", "subline", "contact"]},
+    # The image *is* the slide: finished infographics, title cards, diagrams that
+    # already carry their own type. Anything drawn on top would cover it.
+    "plain":       {"photos": [(0, 0, W, H)],                              "fields": []},
 }
 
 
