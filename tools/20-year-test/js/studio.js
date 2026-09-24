@@ -226,7 +226,10 @@
      that picture, so a slide without one falls back to the studio's
      normal layout rather than cutting to black. */
   function fgFor(b) {
-    var v = optsFor(b).fg || '';
+    /* A pasted script has no chart or numbers for a picture to sit
+       beside: its pictures are the slide, so they take the body by
+       default, large, with the camera still in its corner. */
+    var v = optsFor(b).fg || (b && b.kind === 'own' ? 'main' : '');
     if (!v || v === 'none') { return v; }
     return BCB.media.beatAsset(b.id) ? v : '';
   }
@@ -1501,10 +1504,17 @@
       '<div class="beat-opts">' +
       SLIDE_OPTS.map(function (o) {
         var cur = (prefs.beatOpts[id] || {})[o[0]] || '';
+        /* With a pasted script there is no chart to be "instead of":
+           the same layouts, described for what they do on that slide. */
+        var OWN_LABELS = ownMode() && o[0] === 'fg'
+          ? { '': 'Default - large, camera in the corner', card: 'Small, above the title', main: 'Large, camera in the corner',
+              fill: 'Fills the frame, camera hidden', none: 'Not shown' }
+          : null;
         return '<div class="field"><label for="' + o[0] + '-' + esc(id) + '">' + esc(o[1]) + '</label>' +
           '<select id="' + o[0] + '-' + esc(id) + '" data-beatopt="' + o[0] + '|' + esc(id) + '">' +
           o[2].map(function (v) {
-            return '<option value="' + v[0] + '"' + (cur === v[0] ? ' selected' : '') + '>' + esc(v[1]) + '</option>';
+            var label = OWN_LABELS && OWN_LABELS[v[0]] != null ? OWN_LABELS[v[0]] : v[1];
+            return '<option value="' + v[0] + '"' + (cur === v[0] ? ' selected' : '') + '>' + esc(label) + '</option>';
           }).join('') + '</select></div>';
       }).join('') +
       '</div><div class="hint">Hide the camera and the slide fills the screen on its own. The picture settings ' +
