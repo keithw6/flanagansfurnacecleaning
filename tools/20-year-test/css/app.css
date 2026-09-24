@@ -1244,3 +1244,9 @@ body.st-on { overflow: hidden; }
 .own-lines { margin: 4px 0 10px; font-size: .9rem; }
 .own-lines p { margin: 3px 0; }
 .own-lines .own-note { color: var(--series-b); font-style: italic; padding-left: 10px; border-left: 2px solid var(--series-b); }
+
+/* A picture standing in for the chart needs a box to stand in. Studio
+   One centres the body's children, so the visual's host shrank to
+   nothing around a picture with no intrinsic width of its own - fine
+   for a chart, which brings its viewBox, invisible for a photograph. */
+.st-stage.lay-main #stVis { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; }
