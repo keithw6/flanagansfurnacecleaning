@@ -1127,6 +1127,7 @@
   BCB.narrative = {
     analysis: analysis, youtube: youtube, executiveSummary: executiveSummary,
     episodeScript: episodeScript, setScenarioNote: setScenarioNote,
+    sentences: sentences, beatSeconds: beatSeconds,
     money: money, moneyShort: moneyShort, say: say
   };
 

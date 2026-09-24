@@ -1242,6 +1242,13 @@ body.st-on { overflow: hidden; }
   .dollar-row { grid-template-columns: 110px 1fr 90px; }
 }
 
+/* ---- Studio: script source ---- */
+.st-sources { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 760px) { .st-sources { grid-template-columns: 1fr; } }
+.own-lines { margin: 4px 0 10px; font-size: .9rem; }
+.own-lines p { margin: 3px 0; }
+.own-lines .own-note { color: var(--series-b); font-style: italic; padding-left: 10px; border-left: 2px solid var(--series-b); }
+
 </style>
 <header class="hdr no-print">
   <div class="wrap hdr-in">
@@ -6185,6 +6192,7 @@ body.st-on { overflow: hidden; }
   BCB.narrative = {
     analysis: analysis, youtube: youtube, executiveSummary: executiveSummary,
     episodeScript: episodeScript, setScenarioNote: setScenarioNote,
+    sentences: sentences, beatSeconds: beatSeconds,
     money: money, moneyShort: moneyShort, say: say
   };
 
@@ -8807,6 +8815,11 @@ body.st-on { overflow: hidden; }
        Studio One's markup and CSS are untouched by mode two; the split
        layout is entirely additive, gated on a class. */
     mode: 'one',
+    /* Where the script comes from: 'comparison' generates it from the
+       Setup tab; 'own' is a script you paste, with nothing from the
+       calculator in it. Every studio, the prompter and the camera work
+       the same either way. */
+    source: 'comparison',
     /* Studio Three only: the frame it composes for. */
     vertical: { ratio: '9:16', safeGuides: true },
     /* Studio Two framing. Defaults match a floating presenter card:
@@ -8829,6 +8842,7 @@ body.st-on { overflow: hidden; }
       if (p.prompter) { Object.assign(prefs.prompter, p.prompter); }
       if (typeof p.autoAdvance === 'boolean') { prefs.autoAdvance = p.autoAdvance; }
       if (p.mode === 'one' || p.mode === 'two' || p.mode === 'three') { prefs.mode = p.mode; }
+      if (p.source === 'own') { prefs.source = 'own'; }
       if (p.vertical) { Object.assign(prefs.vertical, p.vertical); }
       if (p.split) { Object.assign(prefs.split, p.split); }
       if (p.beatOpts) { prefs.beatOpts = p.beatOpts; }
@@ -8850,6 +8864,66 @@ body.st-on { overflow: hidden; }
     try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* fine */ }
   }
 
+  /* =====================================================================
+     YOUR OWN SCRIPT
+     A script pasted in, sectioned by headings, with nothing from the
+     calculator in it. Each section is a slide with the same pictures,
+     camera and like-subscribe controls as a generated one.
+     ===================================================================== */
+  var OWN_KEY = 'bcb-20-year-test-v1-own';
+  var own = { title: '', text: '' };
+  try {
+    var savedOwn = localStorage.getItem(OWN_KEY);
+    if (savedOwn) { var o = JSON.parse(savedOwn); if (o && typeof o === 'object') { Object.assign(own, o); } }
+  } catch (e) { /* fine */ }
+  function saveOwn() {
+    try { localStorage.setItem(OWN_KEY, JSON.stringify(own)); } catch (e) { /* fine */ }
+  }
+
+  /* A line starting with # opens a section and names it. A line in
+     [square brackets], or starting with >, is an instruction to yourself:
+     it goes to the prompter, never to the screen, and it costs no time.
+     With no # lines at all, a blank line starts the next section. */
+  function parseOwn(text) {
+    var lines = String(text || '').replace(/\r/g, '').split('\n');
+    var hasHeads = lines.some(function (l) { return /^#/.test(l.trim()); });
+    var sections = [], cur = null;
+    function openSection(title) { cur = { title: title, items: [] }; sections.push(cur); }
+    lines.forEach(function (raw) {
+      var l = raw.trim();
+      if (hasHeads) {
+        if (/^#/.test(l)) { openSection(l.replace(/^#+\s*/, '') || 'Untitled'); return; }
+        if (!l) { return; }
+        if (!cur) { openSection('Section 1'); }
+      } else {
+        if (!l) { if (cur && cur.items.length) { cur = null; } return; }
+        if (!cur) { openSection('Section ' + (sections.length + 1)); }
+      }
+      if (/^\[.*\]$/.test(l) || /^>/.test(l)) {
+        cur.items.push({ note: l.replace(/^\[|\]$/g, '').replace(/^>\s*/, '').trim() });
+        return;
+      }
+      N.sentences(l).forEach(function (sentence) { cur.items.push({ say: sentence }); });
+    });
+    return sections.filter(function (sec) { return sec.items.length; }).map(function (sec, i) {
+      var spoken = sec.items.filter(function (it) { return it.say; }).map(function (it) { return it.say; });
+      return {
+        id: 'own-' + (i + 1), kind: 'own', title: sec.title, kicker: '',
+        lines: spoken, items: sec.items,
+        seconds: spoken.length ? N.beatSeconds(spoken) : 8
+      };
+    });
+  }
+  function ownScript() {
+    var beats = parseOwn(own.text);
+    return {
+      beats: beats,
+      totalSeconds: beats.reduce(function (t, x) { return t + x.seconds; }, 0),
+      titles: [], thumbnails: [], seed: 0, own: true
+    };
+  }
+  function ownMode() { return prefs.source === 'own'; }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
@@ -8870,6 +8944,11 @@ body.st-on { overflow: hidden; }
      THE SCRIPT
      ===================================================================== */
   function build() {
+    if (ownMode()) {
+      script = ownScript();
+      if (idx >= script.beats.length) { idx = Math.max(0, script.beats.length - 1); }
+      return script;
+    }
     var L = BCB.app.getLast();
     if (!L || !L.sim) { return null; }
     /* Give the scenario beat a real sentence rather than a vague one. */
@@ -9216,6 +9295,12 @@ body.st-on { overflow: hidden; }
         return wrap;
       }
 
+      case 'own':
+        /* The title is already on the slide; the pictures come through
+           the inset, the feature or the main layouts. Nothing else, so
+           nothing from the calculator can leak onto a pasted script. */
+        return wrap;
+
       case 'disclaimer': {
         var dc = document.createElement('div');
         dc.className = 'st-disclaimer';
@@ -9501,7 +9586,7 @@ body.st-on { overflow: hidden; }
      PRESENTATION
      ===================================================================== */
   function openPresentation() {
-    if (!build()) { return; }
+    if (!build() || !script.beats.length) { return; }
     if (overlay) { overlay.remove(); }
     var three = prefs.mode === 'three';
     overlay = document.createElement('div');
@@ -9511,7 +9596,8 @@ body.st-on { overflow: hidden; }
 
     var head =
       '<div class="st-top">' +
-        '<div class="st-brand">Blue Collar Business<span>The ' + BCB.app.getLast().sim.cfg.years + '-Year Test</span></div>' +
+        '<div class="st-brand">Blue Collar Business<span>' +
+          (ownMode() ? esc(own.title || 'My episode') : 'The ' + BCB.app.getLast().sim.cfg.years + '-Year Test') + '</span></div>' +
         '<div class="st-meta"><span id="stCount"></span><span id="stClock"></span></div>' +
       '</div>';
     var body =
@@ -9581,7 +9667,7 @@ body.st-on { overflow: hidden; }
     function poke() {
       overlay.classList.remove('idle');
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(function () { overlay.classList.add('idle'); }, 2600);
+      hideTimer = setTimeout(function () { if (overlay) { overlay.classList.add('idle'); } }, 2600);
     }
     overlay.addEventListener('mousemove', poke);
     poke();
@@ -9657,7 +9743,7 @@ body.st-on { overflow: hidden; }
   }
 
   var ONE_INSET = { setup: 1, education: 1, business: 1, dependency: 1, hours: 1, freedom: 1,
-    invest: 1, earlymoney: 1, disclaimer: 1, outro: 1, title: 1 };
+    invest: 1, earlymoney: 1, disclaimer: 1, outro: 1, title: 1, own: 1 };
   function renderStage() {
     if (!overlay) { return; }
     var b = beat();
@@ -9720,7 +9806,13 @@ body.st-on { overflow: hidden; }
     else if (b.kind === 'brand') { asset = BCB.media.assetFor('intro', 'clip'); }
     else if (b.kind === 'outro') { asset = BCB.media.assetFor('outro', 'clip'); }
     else if (b.kind === 'title') { asset = BCB.media.assetFor('title', 'clip'); }
-    if (!asset) {
+    if (!asset && b.kind === 'own') {
+      /* A pasted script has no careers to draw on: the brand library
+         plays behind it, rotating so the episode is not one picture. */
+      var brandKeys = ['title', 'intro', 'outro'];
+      asset = BCB.media.assetFor(brandKeys[idx % 3], idx % 3 === 1 ? 'clip' : 'still') ||
+              BCB.media.assetFor('title', 'still') || BCB.media.assetFor('intro', 'clip') || null;
+    } else if (!asset) {
       /* Otherwise use whichever career the beat is really about, and
          fall back to alternating between the two. */
       var hs = sim.headStart;
@@ -10048,6 +10140,52 @@ body.st-on { overflow: hidden; }
       '<p class="hint" style="color:var(--muted);font-size:.8rem;margin-top:8px">Clear a box or press Remove to go back to the library. ' +
       'Each slide in the script below also has its own box, for a picture that belongs to that one moment. ' +
       'Files and links are kept in this browser only: a different computer, or a cleared browser, starts from the library again.</p>';
+  }
+
+  /* With a pasted script there are no careers to have pictures of; the
+     brand slots still play behind the slides, and the timing rules still
+     govern each section's list. */
+  function ownPicturesMarkup() {
+    var M = BCB.media;
+    var slots = [['brand', 'intro', 'Behind the slides'], ['brand', 'title', 'Behind the slides (2)'], ['brand', 'outro', 'Behind the slides (3)']];
+    return '<h3>Pictures and clips</h3>' +
+      '<p class="sub">Each section takes its own pictures in the script below. These three rotate behind any section ' +
+      'that has none of its own, or that keeps its own pictures in front.</p>' +
+      '<div class="pic-grid">' +
+      slots.map(function (sl) {
+        var e = M.libraryEntry(sl[0], sl[1]);
+        var box = function (field, ownV, has, accept, label) {
+          var f = M.fileInfo(ownV) || (/^file:/.test(ownV) ? { name: 'uploaded file', size: 0 } : null);
+          var id = sl[0] + '|' + esc(sl[1]) + '|' + field;
+          return '<div class="field"><label>' + label + '</label>' +
+            '<div class="pic-row">' +
+            (f
+              ? '<span class="pic-file" title="' + esc(f.name) + '">' + esc(f.name || 'uploaded file') + ' \u00b7 ' + fmtBytes(f.size) + '</span>' +
+                '<button type="button" class="btn btn-o btn-sm" data-picclear="' + id + '">Remove</button>'
+              : '<input type="url" data-pic="' + id + '" value="' + esc(ownV) + '" placeholder="' +
+                (has && !ownV ? 'using the library ' + (field === 'clip' ? 'clip' : 'picture') : 'paste a link') + '">') +
+            '<label class="btn btn-o btn-sm pic-upload">Choose file<input type="file" accept="' + accept + '" data-picfile="' + id + '" hidden></label>' +
+            '</div></div>';
+        };
+        return '<div class="pic-slot">' +
+          '<div class="pic-thumb">' + (e.stillUrl ? '<img src="' + esc(e.stillUrl) + '" alt="" loading="lazy">' : '<span>no picture</span>') + '</div>' +
+          '<div class="pic-fields"><div class="k">' + esc(sl[2]) + '</div>' +
+          box('still', e.ownStill, !!e.still, 'image/*', 'Still image') +
+          box('clip', e.ownClip, !!e.clip, 'video/mp4,video/webm,video/quicktime', 'Clip (mp4)') +
+          '</div></div>';
+      }).join('') +
+      '</div>' +
+      '<div class="field-row" style="margin-top:14px;grid-template-columns:repeat(3,minmax(0,1fr))">' +
+      '<div class="field"><label for="holdPic">Hold each picture</label>' +
+      '<input type="number" id="holdPic" min="2" max="30" step="1" value="' + prefs.media.imageHold + '">' +
+      '<div class="hint">Seconds before the next one takes over.</div></div>' +
+      '<div class="field"><label for="holdClip">Hold each clip</label>' +
+      '<input type="number" id="holdClip" min="3" max="60" step="1" value="' + prefs.media.clipHold + '">' +
+      '<div class="hint">Seconds.</div></div>' +
+      '<div class="field"><label for="fillInset">Margin when a picture fills the frame</label>' +
+      '<input type="number" id="fillInset" min="0" max="20" step="1" value="' + prefs.media.fillInset + '">' +
+      '<div class="hint">% in from the edge.</div></div>' +
+      '</div>';
   }
 
   /* The like / subscribe / bell button, and where in the section it
@@ -10398,6 +10536,9 @@ body.st-on { overflow: hidden; }
       'p{margin:0 0 .55em;color:var(--dim);transition:color .18s}' +
       'p.live{color:var(--live)}' +
       'p.past{color:#3a3d43}' +
+      '.note{margin:0 0 .55em;padding:.2em .6em;border-left:3px solid var(--accent);color:#b8905e;font-size:.62em;' +
+        'font-style:italic;line-height:1.35}' +
+      '.note::before{content:"note  ";font-style:normal;font-size:.8em;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}' +
       '.beat{margin:0 0 .3em;font-size:.42em;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}' +
       '.mirror .scroll{transform-origin:center;}' +
       'body.mirror .stage{transform:scaleX(-1)}' +
@@ -10491,8 +10632,15 @@ body.st-on { overflow: hidden; }
     col.style.font = P.fontSize + 'px/' + P.lineHeight + ' system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
     col.style.maxWidth = P.width + 'em';
     if (!b) { col.innerHTML = ''; return; }
+    /* A pasted script carries instructions between its sentences; they
+       render as notes, which the pacing (which counts <p>) never sees. */
+    var items = b.items || b.lines.map(function (l) { return { say: l }; });
+    var li = 0;
     col.innerHTML = '<div class="beat">' + esc(b.kicker || b.title) + '</div>' +
-      b.lines.map(function (l, i) { return '<p data-i="' + i + '">' + esc(l) + '</p>'; }).join('');
+      items.map(function (it) {
+        return it.note ? '<div class="note">' + esc(it.note) + '</div>'
+                       : '<p data-i="' + (li++) + '">' + esc(it.say) + '</p>';
+      }).join('');
     scrollPrompter(true);
   }
 
@@ -10536,23 +10684,57 @@ body.st-on { overflow: hidden; }
   /* =====================================================================
      THE STUDIO TAB
      ===================================================================== */
+  function ownSectionsMarkup() {
+    if (!script.beats.length) {
+      return '<p class="hint" style="color:var(--muted)">Paste a script above and its sections appear here, each with ' +
+        'its own pictures, camera choice and like-subscribe button.</p>';
+    }
+    return script.beats.map(function (b, i) {
+      return '<details class="fieldset"' + (i === 0 ? ' open' : '') + '><summary>' + (i + 1) + '. ' + esc(b.title) +
+        ' <span style="color:var(--faint);font-weight:400">' + b.seconds + 's</span></summary>' +
+        '<div class="own-lines">' +
+        b.items.map(function (it) {
+          return it.note ? '<p class="own-note">' + esc(it.note) + '</p>' : '<p>' + esc(it.say) + '</p>';
+        }).join('') + '</div>' +
+        beatPicMarkup(b.id) + '</details>';
+    }).join('');
+  }
+  function ownTiles() {
+    var mins = Math.floor(script.totalSeconds / 60), secs = script.totalSeconds % 60;
+    return '<div class="tile"><div class="k">Sections</div><div class="v">' + script.beats.length + '</div></div>' +
+      '<div class="tile"><div class="k">Estimated runtime</div><div class="v">' + mins + 'm ' + secs + 's</div>' +
+        '<div class="n">at about 155 words a minute, instructions not counted</div></div>' +
+      '<div class="tile"><div class="k">Episode</div><div class="v" style="font-size:1.05rem">' +
+        esc(own.title || 'My episode') + '</div></div>';
+  }
+
   function renderStudio() {
     var host = document.getElementById('studioBody');
     if (!host) { return; }
     if (!build()) { host.innerHTML = '<div class="card"><p>Run a comparison first.</p></div>'; return; }
     var P = prefs.prompter, cam = prefs.cam;
     var mins = Math.floor(script.totalSeconds / 60), secs = script.totalSeconds % 60;
+    var isOwn = ownMode();
 
     host.innerHTML =
       '<div class="card"><h2>Recording studio</h2>' +
       '<p class="sub">Slides in this window, script in a second window, camera over the top. Built for one wide ' +
       'screen split in two.</p>' +
-      '<div class="tiles" style="margin-bottom:16px">' +
+      '<div class="st-sources">' +
+        [['comparison', 'This comparison', 'The script, the charts and every number come from the Setup tab.'],
+         ['own', 'My own script', 'Paste a script and add pictures to each section. Nothing from the calculator.']]
+        .map(function (m) {
+          return '<button class="st-mode' + (prefs.source === m[0] ? ' on' : '') + '" data-source="' + m[0] + '">' +
+            '<span class="k">' + esc(m[1]) + '</span><span class="d">' + esc(m[2]) + '</span></button>';
+        }).join('') +
+      '</div>' +
+      '<div class="tiles" id="stTiles" style="margin-bottom:16px">' +
+      (isOwn ? ownTiles() :
         '<div class="tile"><div class="k">Beats</div><div class="v">' + script.beats.length + '</div></div>' +
         '<div class="tile"><div class="k">Estimated runtime</div><div class="v">' + mins + 'm ' + secs + 's</div>' +
           '<div class="n">at about 155 words a minute</div></div>' +
         '<div class="tile"><div class="k">Comparison</div><div class="v" style="font-size:1.05rem">' +
-          esc(BCB.app.getLast().sim.a.name) + ' vs ' + esc(BCB.app.getLast().sim.b.name) + '</div></div>' +
+          esc(BCB.app.getLast().sim.a.name) + ' vs ' + esc(BCB.app.getLast().sim.b.name) + '</div></div>') +
       '</div>' +
       '<div class="st-modes">' +
         [['one', 'Studio One - full frame',
@@ -10568,7 +10750,7 @@ body.st-on { overflow: hidden; }
         }).join('') +
       '</div>' +
       '<div class="field-inline" style="flex-wrap:wrap;gap:8px">' +
-        '<button class="btn" data-st="stage">Start presenting</button>' +
+        '<button class="btn" data-st="stage" id="stStartBtn"' + (isOwn && !script.beats.length ? ' disabled' : '') + '>Start presenting</button>' +
         '<button class="btn btn-o" data-st="prompter">Open prompter window</button>' +
         '<button class="btn btn-o" data-st="cam">' + (cam.on ? 'Turn camera off' : 'Turn camera on') + '</button>' +
       '</div>' +
@@ -10642,9 +10824,29 @@ body.st-on { overflow: hidden; }
 
       '<div class="card" id="recCard">' + recCardMarkup() + '</div>' +
 
-      '<div class="card" id="picCard">' + picturesMarkup() + '</div>' +
+      '<div class="card" id="picCard">' + (isOwn ? ownPicturesMarkup() : picturesMarkup()) + '</div>' +
 
-      '<div class="card"><h2>The script</h2>' +
+      (isOwn
+      ? '<div class="card"><h2>My own script</h2>' +
+        '<p class="sub">Nothing on these slides comes from the comparison. Paste the script; every section becomes a slide ' +
+        'with its own pictures, camera choice and like-subscribe button below. Saved in this browser as you type.</p>' +
+        '<div class="field"><label for="ownTitle">Episode title</label>' +
+        '<input type="text" id="ownTitle" value="' + esc(own.title) + '" placeholder="Shows on the brand plate at the top of every slide"></div>' +
+        '<div class="field"><label for="ownText">Script</label>' +
+        '<textarea id="ownText" rows="18" spellcheck="true" style="width:100%;font:inherit;font-size:.92rem;line-height:1.5;padding:10px;' +
+        'border:1px solid var(--line);border-radius:5px;background:var(--surface-1);color:var(--text)" ' +
+        'placeholder="# Cold open\nToday we are looking at the one number nobody tells you about.\n[show the truck picture here]\n\n# The setup\nHere is how the test works...">' + esc(own.text) + '</textarea>' +
+        '<div class="hint">A line starting with <strong>#</strong> begins a new section and is its title. The sentences under it are what you say. ' +
+        'A line in <strong>[square brackets]</strong>, or starting with <strong>&gt;</strong>, is an instruction to yourself: it shows in the prompter, ' +
+        'it is never on screen, and it is not counted in the time. With no # lines at all, a blank line starts the next section. ' +
+        'Pictures stay with the section number, so add sections at the end rather than in the middle once you have placed them.</div></div>' +
+        '<div id="ownSections">' + ownSectionsMarkup() + '</div>' +
+        '<div class="field-inline" style="flex-wrap:wrap;gap:8px;margin-top:12px">' +
+          '<button class="btn btn-o btn-sm" data-st="camoff">Hide the camera on every slide</button>' +
+          '<button class="btn btn-o btn-sm" data-st="slidereset">Reset every slide to the studio default</button>' +
+        '</div>' +
+        '</div>'
+      : '<div class="card"><h2>The script</h2>' +
       '<p class="sub">Generated from this comparison. Edit any line - the prompter and the timings follow what you type.</p>' +
       script.beats.map(function (b, i) {
         return '<details class="fieldset"' + (i === 0 ? ' open' : '') + '><summary>' + (i + 1) + '. ' + esc(b.title) +
@@ -10663,7 +10865,7 @@ body.st-on { overflow: hidden; }
       '<button class="btn btn-o btn-sm" data-st="regen" style="margin-top:10px;margin-left:6px">Regenerate from the numbers</button>' +
       '<span class="hint" style="margin-left:10px;color:var(--muted)">Both discard your edits. Reshuffle keeps the facts and ' +
       'rewrites every sentence; hit it until it sounds like you.</span>' +
-      '</div>' +
+      '</div>') +
 
       '<div class="card"><h3>Keys while presenting</h3>' +
       '<div class="cats">' +
@@ -10684,8 +10886,46 @@ body.st-on { overflow: hidden; }
       (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
   }
 
+  var ownTimer = null;
   function onStudioEvent(ev) {
     var t = ev.target;
+    var srcBtn = t.closest && t.closest('[data-source]');
+    if (srcBtn && ev.type === 'click') {
+      prefs.source = srcBtn.dataset.source === 'own' ? 'own' : 'comparison';
+      savePrefs();
+      script = null; idx = 0;
+      renderStudio(); renderPrompter();
+      if (overlay) { build(); renderStage(); }
+      return;
+    }
+    if (t.id === 'ownTitle' && ev.type === 'input') {
+      own.title = t.value; saveOwn();
+      var ep = document.querySelector('#stTiles .tile:last-child .v');
+      if (ep) { ep.textContent = own.title || 'My episode'; }
+      if (overlay) { var bs = overlay.querySelector('.st-brand span'); if (bs) { bs.textContent = own.title || 'My episode'; } }
+      return;
+    }
+    if (t.id === 'ownText' && ev.type === 'input') {
+      own.text = t.value; saveOwn();
+      /* Re-parse a beat after the typing pauses; only the section list
+         redraws, so the cursor stays where it is. */
+      clearTimeout(ownTimer);
+      ownTimer = setTimeout(function () {
+        var keep = script && script.beats[idx] ? script.beats[idx].id : null;
+        script = ownScript();
+        var at = keep ? script.beats.map(function (b) { return b.id; }).indexOf(keep) : -1;
+        idx = at >= 0 ? at : Math.max(0, Math.min(idx, script.beats.length - 1));
+        var secs = document.getElementById('ownSections');
+        if (secs) { secs.innerHTML = ownSectionsMarkup(); }
+        var tiles = document.getElementById('stTiles');
+        if (tiles) { tiles.innerHTML = ownTiles(); }
+        var sb = document.getElementById('stStartBtn');
+        if (sb) { sb.disabled = !script.beats.length; }
+        renderPrompter();
+        if (overlay) { if (script.beats.length) { renderStage(); } else { closePresentation(); } }
+      }, 250);
+      return;
+    }
     var modeBtn = t.closest && t.closest('[data-mode]');
     if (modeBtn && ev.type === 'click') {
       prefs.mode = modeBtn.dataset.mode;
@@ -10909,9 +11149,10 @@ body.st-on { overflow: hidden; }
     if (BCB.recorder) {
       BCB.recorder.onChange(onRecorderEvent);
       BCB.recorder.setNameSource(function () {
+        var slug = function (n) { return String(n).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+        if (ownMode()) { return slug(own.title || 'my-episode') || 'my-episode'; }
         var L = BCB.app.getLast();
         if (!L) { return ''; }
-        var slug = function (n) { return String(n).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
         return slug(L.sim.a.name) + '-vs-' + slug(L.sim.b.name);
       });
     }
@@ -10924,6 +11165,7 @@ body.st-on { overflow: hidden; }
       /* A changed comparison means a changed script, unless the user is
          mid-take - interrupting a recording to rewrite the prompter
          would be worse than a slightly stale line. */
+      if (ownMode()) { return; }
       if (!playing) { script = null; renderStudio(); renderPrompter(); }
     }
   };

@@ -39,7 +39,10 @@ tools/20-year-test/
 6. **Analysis** — the written explanation of *why* the numbers came out that way.
 7. **YouTube** — five titles, thumbnail text, an opening hook, key results, verdict.
 8. **Report / PDF** — twenty-five sections. Print to PDF from the browser.
-9. **Studio** — the recording rig. See below.
+9. **Studio** — the recording rig. See below. Its script comes from the comparison,
+   or from **My own script**: paste any script, section it with `#` headings, put
+   instructions to yourself in `[square brackets]`, and give each section its own
+   pictures - nothing from the calculator, same three studios, prompter and camera.
 
 Save keeps the comparison in this browser. Export writes a JSON file you can keep
 or hand to someone else.

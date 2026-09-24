@@ -1237,3 +1237,10 @@ body.st-on { overflow: hidden; }
   .inv-cols { grid-template-columns: 1fr; }
   .dollar-row { grid-template-columns: 110px 1fr 90px; }
 }
+
+/* ---- Studio: script source ---- */
+.st-sources { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+@media (max-width: 760px) { .st-sources { grid-template-columns: 1fr; } }
+.own-lines { margin: 4px 0 10px; font-size: .9rem; }
+.own-lines p { margin: 3px 0; }
+.own-lines .own-note { color: var(--series-b); font-style: italic; padding-left: 10px; border-left: 2px solid var(--series-b); }
