@@ -1,0 +1,9 @@
+{
+  "name": "Prep Planner: Household Command",
+  "short_name": "Prep Planner",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f3f2ee",
+  "theme_color": "#1f4d3a",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prep Planner: Household Command</title>
+<meta name="description" content="Household emergency preparedness planner: profile, scenario plans, checklists, purchase tracker and local suppliers. Works offline.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1f2a24">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="hdr no-print">
+  <div class="wrap hdr-in">
+    <div class="logo">Prep Planner<span>Household Command</span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" aria-selected="true" data-panel="command">Command</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="profile">Profile</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="tracker">Purchases</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="shopping">Shopping list</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="checklists">Checklists</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="report">Scenario report</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="suppliers">Suppliers</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="community">Community</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="backup">Backup</button>
+    </nav>
+    <div class="hdr-status"><span id="netStatus" class="pill"></span><span id="saveStatus" class="pill"></span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel on" id="panel-command" data-title="Command"></section>
+  <section class="panel" id="panel-profile" data-title="Household profile"></section>
+  <section class="panel" id="panel-tracker" data-title="Purchase tracker"></section>
+  <section class="panel" id="panel-shopping" data-title="Shopping list"></section>
+  <section class="panel" id="panel-checklists" data-title="Checklists"></section>
+  <section class="panel" id="panel-report" data-title="Scenario report">
+    <div class="card no-print">
+      <h2>Scenario report</h2>
+      <p class="sub">Pick a scenario. The plan is built from your profile and purchase tracker using the stay-home-by-default rules, then prints to PDF from the browser (choose <b>Save as PDF</b> as the printer).</p>
+      <div class="row">
+        <label class="fld grow"><span>Scenario</span><select id="scenarioSel"></select></label>
+        <button class="btn" id="genBtn">Generate plan</button>
+        <button class="btn btn-o" id="printReportBtn">Print / save PDF</button>
+      </div>
+    </div>
+    <div id="reportOut" class="report"></div>
+  </section>
+  <section class="panel" id="panel-suppliers" data-title="Local suppliers"></section>
+  <section class="panel" id="panel-community" data-title="Community resources"></section>
+  <section class="panel" id="panel-backup" data-title="Backup"></section>
+</main>
+
+<footer class="foot no-print wrap">
+  Everything you enter stays in this browser on this device. Export a backup and print your plan: you will need it most when the internet is down.
+</footer>
+
+<script src="js/scenarios.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/store.js"></script>
+<script src="js/report.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prep Planner: Household Command</title>
+<meta name="description" content="Household emergency preparedness planner: profile, scenario plans, checklists, purchase tracker and local suppliers. Works offline.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1f2a24">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%231f4d3a%22%2F%3E%3Cpath%20d%3D%22M32%2010%2012%2026v28h14V40h12v14h14V26z%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%224%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22M26%2030h12M32%2024v12%22%20stroke%3D%22%23e3a92b%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<style>
+/* Prep Planner - Household Command
+   Light by default, dark under the OS setting. Print layout at the end. */
+:root {
+  color-scheme: light;
+  --bg: #f3f2ee; --card: #fdfdfb; --soft: #eeece6; --line: #d9d5cc; --line-soft: #e8e5de;
+  --ink: #15191a; --text: #30373a; --muted: #687075;
+  --brand: #1f4d3a; --brand-ink: #fff; --brand-soft: #e3eee8;
+  --good: #1d8a3a; --warn: #c98a00; --bad: #c43a32; --go: #c43a32; --stay: #1d6f3f; --cond: #b06d00;
+  --radius: 10px;
+  --h: 'Barlow Condensed', 'Oswald', 'Arial Narrow', system-ui, sans-serif;
+  --b: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #111413; --card: #191d1b; --soft: #222724; --line: #343a36; --line-soft: #2a2f2c;
+    --ink: #f3f5f3; --text: #d4dad6; --muted: #949d98;
+    --brand: #4fae82; --brand-ink: #08130d; --brand-soft: #1d2b24;
+    --good: #4fbf6c; --warn: #e3a92b; --bad: #ef6b62; --go: #ef6b62; --stay: #4fbf6c; --cond: #e3a92b;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--b); }
+h1, h2, h3, h4, h5 { font-family: var(--h); color: var(--ink); line-height: 1.15; margin: 0 0 .5em; letter-spacing: .01em; }
+h1 { font-size: 2rem; } h2 { font-size: 1.45rem; } h3 { font-size: 1.15rem; } h4 { font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; margin-top: 1em; }
+a { color: var(--brand); }
+code { background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 16px; }
+.small { font-size: .82rem; color: var(--muted); }
+.sub { color: var(--muted); margin-top: -.2em; }
+.grow { flex: 1; }
+.print-only { display: none; }
+
+/* header */
+.hdr { position: sticky; top: 0; z-index: 10; background: var(--brand); color: var(--brand-ink); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+@media (prefers-color-scheme: dark) { .hdr { background: #15201a; color: var(--ink); } }
+.hdr-in { display: flex; align-items: center; gap: 16px; min-height: 56px; flex-wrap: wrap; }
+.logo { font-family: var(--h); font-size: 1.35rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.logo span { display: block; font-size: .7rem; font-weight: 400; opacity: .8; letter-spacing: .12em; margin-top: -3px; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; }
+.tab { background: none; border: 0; color: inherit; opacity: .78; font: 600 .86rem var(--b); padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.tab:hover { opacity: 1; background: rgba(255,255,255,.1); }
+.tab[aria-selected="true"] { opacity: 1; background: rgba(255,255,255,.18); box-shadow: inset 0 -2px 0 currentColor; }
+.hdr-status { display: flex; gap: 6px; }
+.pill { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.15); white-space: nowrap; }
+.pill.ok::before { content: '● '; color: #8fe0a8; }
+.pill.warn { background: #e3a92b; color: #1b1300; }
+.pill.bad { background: var(--bad); color: #fff; }
+@media (max-width: 760px) { .tabs { order: 3; flex-basis: 100%; overflow-x: auto; flex-wrap: nowrap; } .tab { white-space: nowrap; } }
+
+main { padding: 18px 16px 30px; }
+.panel { display: none; }
+.panel.on { display: block; }
+.foot { color: var(--muted); font-size: .8rem; padding-bottom: 30px; }
+
+/* cards, layout */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+.row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 8px; }
+.row.end { justify-content: flex-end; }
+.cols2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 980px) { .cols2 { grid-template-columns: 1fr; } }
+.grid-f { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 14px; }
+.grid-f .span2 { grid-column: span 2; } .grid-f .span4 { grid-column: 1 / -1; }
+@media (max-width: 760px) { .grid-f { grid-template-columns: 1fr 1fr; } .grid-f .span2, .grid-f .span4 { grid-column: 1 / -1; } }
+.fld { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fld > span { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; width: 100%; }
+input[type=checkbox] { width: auto; accent-color: var(--brand); transform: scale(1.15); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: transparent; }
+input.sm { width: 84px; padding: 5px 6px; }
+input.sm2 { min-width: 110px; }
+textarea { resize: vertical; }
+.row > input { width: auto; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; cursor: pointer; margin: 2px 12px 2px 0; }
+.chips { display: flex; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; background: var(--brand); color: var(--brand-ink); border: 1px solid var(--brand); border-radius: 7px; padding: 8px 14px; font: 600 .9rem var(--b); cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { filter: brightness(1.08); }
+.btn-o { background: transparent; color: var(--brand); }
+.btn-sm { padding: 5px 10px; font-size: .8rem; }
+.btn.danger { color: var(--bad); border-color: var(--bad); background: transparent; }
+.x, .step { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 5px; cursor: pointer; padding: 2px 7px; font-size: .85rem; }
+.x:hover { color: var(--bad); border-color: var(--bad); }
+.step { padding: 3px 8px; font-weight: 700; }
+
+/* progress */
+.bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin: 5px 0 3px; min-width: 60px; }
+.bar i { display: block; height: 100%; background: var(--brand); border-radius: 99px; transition: width .3s; }
+.bar.crit i { background: var(--warn); }
+.bar.over i { background: var(--bad); }
+
+/* command */
+.hero { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.hero h1 { margin: 0; font-size: 2.2rem; }
+.k { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.warn-t { color: var(--cond); font-weight: 600; margin: .5em 0 0; }
+.ring { --p: 0; width: 120px; height: 120px; flex: none; border-radius: 50%; display: grid; place-content: center; text-align: center;
+  background: radial-gradient(closest-side, var(--card) 78%, transparent 79%), conic-gradient(var(--brand) calc(var(--p) * 1%), var(--soft) 0); }
+.ring b { font: 700 2rem var(--h); color: var(--ink); line-height: 1; }
+.ring span { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+.tiles.slim { margin: 10px 0 4px; }
+@media (max-width: 860px) { .tiles { grid-template-columns: 1fr 1fr; } }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.tiles.slim .tile { background: var(--soft); border: 0; }
+.tile .n { font: 700 1.7rem var(--h); color: var(--ink); line-height: 1.1; }
+.tile .n small { font-size: .9rem; color: var(--muted); font-weight: 400; }
+.verdict { margin-top: 14px; border-radius: 8px; padding: 12px 16px; border-left: 6px solid; background: var(--soft); }
+.verdict b { font: 700 1.6rem var(--h); letter-spacing: .04em; }
+.verdict ul { margin: 6px 0 0; padding-left: 18px; }
+.v-stay { border-color: var(--stay); } .v-stay b { color: var(--stay); }
+.v-go { border-color: var(--go); } .v-go b { color: var(--go); }
+.v-go-only-if { border-color: var(--cond); } .v-go-only-if b { color: var(--cond); }
+.gaps { padding-left: 20px; margin: 0; } .gaps li { margin-bottom: 8px; }
+.alerts { list-style: none; padding: 0; margin: 0; } .alerts li { padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
+.alerts li.bad b { color: var(--bad); } .alerts li.warn b { color: var(--cond); }
+table.mini { width: 100%; border-collapse: collapse; font-size: .88rem; }
+table.mini td { padding: 3px 4px; } table.mini td.w { width: 50%; } table.mini td.r { text-align: right; width: 48px; }
+.quick { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* tables */
+.tscroll { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: .86rem; }
+table.data th, table.data td { padding: 6px 7px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: middle; }
+table.data thead th { font: 600 .72rem var(--b); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1.5px solid var(--line); white-space: nowrap; }
+table.data tr.grp td { background: var(--soft); font: 700 .9rem var(--h); text-transform: uppercase; letter-spacing: .06em; color: var(--ink); }
+table.data td.name { min-width: 220px; }
+table.data td.w { min-width: 110px; }
+table.data .nw { white-space: nowrap; }
+table.data .u { font-size: .75rem; color: var(--muted); }
+table.data tr.na { opacity: .5; }
+table.data tr.done td.name b { color: var(--good); }
+table.data tr.done td.name b::before { content: '✓ '; }
+table.tracker select { min-width: 112px; padding: 5px 6px; }
+table.tracker input[type=date] { padding: 4px 5px; width: 140px; }
+td.bad input { border-color: var(--bad); } td.warn input { border-color: var(--warn); } td.soon input { border-color: var(--cond); }
+td.bad .small { color: var(--bad); font-weight: 700; }
+table.res tr.verify td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.tag { font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--soft); white-space: nowrap; }
+.pri-c { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+.pri-i { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--cond); }
+.pri-n { color: var(--muted); }
+.box { display: inline-block; width: 13px; height: 13px; border: 1.5px solid var(--muted); border-radius: 3px; vertical-align: -2px; margin-right: 6px; flex: none; }
+
+/* shopping & suppliers */
+.shop-h { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 6px; }
+.shop-h h3 { margin: 0; }
+.shop-h .r { font: 700 1.3rem var(--h); color: var(--ink); }
+.sups { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 14px; }
+@media (max-width: 560px) { .sups { grid-template-columns: 1fr; } }
+.sup { margin: 0; }
+.sup-f { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: .86rem; }
+
+/* checklists */
+.lists { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+@media (max-width: 480px) { .lists { grid-template-columns: 1fr; } }
+.list { margin: 0; }
+.list-h { display: flex; align-items: center; gap: 8px; }
+.list-h .title { font: 700 1.15rem var(--h); border-color: transparent; background: transparent; padding: 3px 4px; }
+.list-h .title:hover { border-color: var(--line); }
+ul.cl { list-style: none; padding: 0; margin: 6px 0; }
+ul.cl li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+ul.cl li .t { border-color: transparent; background: transparent; padding: 4px; }
+ul.cl li .t:hover { border-color: var(--line-soft); }
+ul.cl li.done .t { text-decoration: line-through; color: var(--muted); }
+ul.cl li .x { opacity: 0; } ul.cl li:hover .x { opacity: 1; }
+@media (hover: none) { ul.cl li .x { opacity: 1; } }
+
+/* report */
+.report { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 30px; max-width: 980px; }
+.report:empty { display: none; }
+.report-cover { padding: 30px 0 40px; border-bottom: 2px solid var(--ink); margin-bottom: 20px; }
+.cover-k { font: 700 .9rem var(--h); text-transform: uppercase; letter-spacing: .2em; color: var(--brand); }
+.report-cover h1 { font-size: 2.8rem; margin: .2em 0; }
+.cover-meta { font-size: 1.05rem; color: var(--muted); }
+.assume { margin-top: 20px; padding: 10px 14px; border: 1px dashed var(--cond); border-radius: 8px; font-size: .9rem; }
+.assume ul { margin: 4px 0 0; }
+.cover-foot { margin-top: 24px; }
+.toc { columns: 2; column-gap: 30px; padding-left: 22px; } .toc li { margin: 2px 0; break-inside: avoid; }
+.rsec { margin: 26px 0; }
+.rsec h2 { border-bottom: 2px solid var(--brand); padding-bottom: 4px; display: flex; gap: 10px; align-items: baseline; }
+.rsec h2 .num { background: var(--brand); color: var(--brand-ink); font-size: .95rem; min-width: 28px; height: 28px; border-radius: 6px; display: inline-grid; place-content: center; }
+.report ul, .report ol { padding-left: 22px; margin: .3em 0 .6em; }
+.report ul.ck, .report ol.ck { list-style: none; padding-left: 0; }
+.report ol.ck { counter-reset: ck; }
+.report ul.ck li { display: flex; gap: 2px; margin: 3px 0; }
+.report ol.ck li { display: grid; grid-template-columns: 20px 24px 1fr; margin: 3px 0; }
+.report ol.ck li .box { grid-column: 1; grid-row: 1; margin-top: 3px; }
+.report ol.ck li::before { counter-increment: ck; content: counter(ck) '.'; font-weight: 700; grid-column: 2; grid-row: 1; }
+.report ol.ck li > span:last-child { grid-column: 3; grid-row: 1; }
+.report ul.ck li .box { margin-top: 3px; }
+table.grid, table.kv { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .4em 0 .8em; }
+table.grid th, table.grid td, table.kv th, table.kv td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+table.grid thead th { background: var(--soft); font-size: .76rem; text-transform: uppercase; letter-spacing: .05em; }
+table.kv th { width: 32%; background: var(--soft); font-weight: 600; }
+table.grid td.v { font: 700 .95rem var(--h); letter-spacing: .04em; white-space: nowrap; }
+td.v-stay { color: var(--stay); } td.v-go { color: var(--go); } td.v-go-only-if { color: var(--cond); }
+table.supply tr.done td:first-child::before { content: '✓ '; color: var(--good); font-weight: 700; }
+td.line { min-width: 120px; }
+.callout { background: var(--brand-soft); border-left: 4px solid var(--brand); padding: 10px 14px; border-radius: 6px; margin: .6em 0; }
+.callout.warn { background: color-mix(in srgb, var(--bad) 10%, transparent); border-color: var(--bad); }
+pre.tree { white-space: pre-wrap; font: inherit; background: var(--soft); padding: 8px 12px; border-radius: 6px; }
+.qrc { border: 3px solid var(--ink); border-radius: 10px; padding: 16px 18px; max-width: 760px; margin: 0 auto; }
+.qrc-h { display: flex; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--ink); padding-bottom: 6px; font-family: var(--h); font-size: 1.2rem; }
+.qrc-h span { font-size: .9rem; color: var(--muted); }
+.qrc-verdict { text-align: center; font: 700 1.8rem var(--h); letter-spacing: .06em; margin: 10px 0; padding: 8px; background: var(--ink); color: var(--card); border-radius: 6px; }
+.qrc-cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; font-size: .9rem; }
+.qrc h5 { font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; margin: .6em 0 .2em; }
+.qrc p { margin: 0 0 .3em; } .qrc ol { padding-left: 18px; margin: 0; } .qrc li { margin-bottom: 3px; }
+.qrc-page { margin-top: 30px; }
+
+/* ================= PRINT ================= */
+@page { size: letter; margin: 16mm 14mm 18mm;
+  @bottom-right { content: 'Page ' counter(page) ' of ' counter(pages); font: 9pt system-ui, sans-serif; color: #555; }
+  @bottom-left { content: 'Prep Planner · Household Emergency Plan'; font: 9pt system-ui, sans-serif; color: #555; }
+}
+@page :first { @bottom-right { content: none; } @bottom-left { content: none; } }
+@media print {
+  :root { color-scheme: light;
+    --bg: #fff; --card: #fff; --soft: #f1f0ec; --line: #b9b5ac; --line-soft: #d8d5ce; --ink: #000; --text: #111; --muted: #444;
+    --brand: #1f4d3a; --brand-ink: #fff; --brand-soft: #eef4f0; --good: #146b2c; --warn: #9b6a00; --bad: #a3271f; --go: #a3271f; --stay: #146b2c; --cond: #8a5400; }
+  body { background: #fff; font-size: 10.5pt; }
+  .hdr, .foot, .no-print, button, .x, .step { display: none !important; }
+  .print-only { display: block; }
+  main { padding: 0; max-width: none; }
+  .panel { display: none !important; }
+  body[data-print="command"] #panel-command, body[data-print="profile"] #panel-profile, body[data-print="tracker"] #panel-tracker,
+  body[data-print="shopping"] #panel-shopping, body[data-print="checklists"] #panel-checklists, body[data-print="report"] #panel-report,
+  body[data-print="suppliers"] #panel-suppliers, body[data-print="community"] #panel-community, body[data-print="backup"] #panel-backup { display: block !important; }
+  .card, .tile { box-shadow: none; break-inside: avoid; }
+  .card { border-color: var(--line); padding: 8px 10px; margin-bottom: 8px; }
+  input, select, textarea { border: 0; padding: 0; background: none; appearance: none; -webkit-appearance: none; }
+  input[type=checkbox] { appearance: auto; -webkit-appearance: auto; }
+  .lists, .sups { display: block; }
+  .list, .sup { margin-bottom: 10px; }
+  ul.cl li .t { padding: 1px 0; }
+  .report { border: 0; padding: 0; max-width: none; }
+  .report-page { break-after: page; }
+  .report-cover { min-height: 230mm; display: flex; flex-direction: column; justify-content: center; border: 0; }
+  .qrc-page { break-before: page; margin: 0; }
+  .rsec { margin: 14px 0; }
+  .rsec h2, h3, h4 { break-after: avoid; }
+  table.grid tr, table.kv tr, li { break-inside: avoid; }
+  .toc a { color: inherit; text-decoration: none; }
+  a { color: inherit; }
+  .bar { border: 1px solid #999; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rsec h2 .num, .qrc-verdict, .bar i, .callout, table.grid thead th, table.kv th, tr.grp td, .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.tracker th:last-child, table.tracker td:last-child { display: none; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="hdr no-print">
+  <div class="wrap hdr-in">
+    <div class="logo">Prep Planner<span>Household Command</span></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" aria-selected="true" data-panel="command">Command</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="profile">Profile</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="tracker">Purchases</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="shopping">Shopping list</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="checklists">Checklists</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="report">Scenario report</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="suppliers">Suppliers</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="community">Community</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="backup">Backup</button>
+    </nav>
+    <div class="hdr-status"><span id="netStatus" class="pill"></span><span id="saveStatus" class="pill"></span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel on" id="panel-command" data-title="Command"></section>
+  <section class="panel" id="panel-profile" data-title="Household profile"></section>
+  <section class="panel" id="panel-tracker" data-title="Purchase tracker"></section>
+  <section class="panel" id="panel-shopping" data-title="Shopping list"></section>
+  <section class="panel" id="panel-checklists" data-title="Checklists"></section>
+  <section class="panel" id="panel-report" data-title="Scenario report">
+    <div class="card no-print">
+      <h2>Scenario report</h2>
+      <p class="sub">Pick a scenario. The plan is built from your profile and purchase tracker using the stay-home-by-default rules, then prints to PDF from the browser (choose <b>Save as PDF</b> as the printer).</p>
+      <div class="row">
+        <label class="fld grow"><span>Scenario</span><select id="scenarioSel"></select></label>
+        <button class="btn" id="genBtn">Generate plan</button>
+        <button class="btn btn-o" id="printReportBtn">Print / save PDF</button>
+      </div>
+    </div>
+    <div id="reportOut" class="report"></div>
+  </section>
+  <section class="panel" id="panel-suppliers" data-title="Local suppliers"></section>
+  <section class="panel" id="panel-community" data-title="Community resources"></section>
+  <section class="panel" id="panel-backup" data-title="Backup"></section>
+</main>
+
+<footer class="foot no-print wrap">
+  Everything you enter stays in this browser on this device. Export a backup and print your plan: you will need it most when the internet is down.
+</footer>
+
+<script>window.PP_SINGLE = true;</script>
+<script>
+/* Scenario library and the stay-home-by-default rules.
+   Families drive the decision matrix and which supplies matter:
+     grid     - outages of any length
+     cold     - extreme cold, blizzard
+     nuclear  - fallout or detonation
+     unrest   - civil unrest / conflict
+     econ     - economic collapse
+     pandemic - quarantine
+     evac     - wildfire, derailment, chemical spill: the leave-early exceptions
+     water    - municipal water failure
+   "long" scenarios get the Collapse Conditions Modifier.             */
+window.PP = window.PP || {};
+
+PP.SCENARIOS = [
+  {
+    id: 'grid-72h', name: 'Grid down: 72 hours', family: ['grid'], long: false,
+    duration: '72 hours', probability: 'Likely. Several multi-hour to multi-day outages in central Alberta each decade, usually from storms, ice or equipment failure.',
+    summary: 'A regional power outage lasting up to three days. Phones and internet degrade within hours as tower batteries run out. Most gas furnaces stop because the blower and ignition need power.',
+    triggers: ['Ice storm or heavy wet snow on lines', 'Summer windstorm or tornado', 'Substation or transmission failure', 'Grid operator rotating outages during extreme cold demand'],
+    indicators: ['Alberta Emergency Alert or AESO grid alert', 'Flickering power or brownouts', 'Severe weather warning from Environment Canada', 'Neighbouring areas reporting outages'],
+    first60: ['Check everyone is safe and accounted for.', 'Confirm the outage is regional: look outside, check a battery radio (AM 630 CHED / 880 CHQT / CBC 740).', 'Note the time. Start the outage log.', 'Unplug sensitive electronics; leave one lamp switched on to show when power returns.', 'Keep fridge and freezer closed. A full freezer holds about 48 hours, a fridge about 4.', 'Charge phones from power banks only, and switch them to low-power mode.', 'Fill bathtub and pots with water if you are on a well or municipal pressure is failing.', 'Check the CO detectors have working batteries before using any alternative heat or light.', 'Check on elderly or medically dependent neighbours by phone or in person.'],
+    phases: null
+  },
+  {
+    id: 'grid-2w', name: 'Grid down: 2 weeks', family: ['grid'], long: true,
+    duration: '2 weeks', probability: 'Possible but uncommon. Large ice storms (e.g. Quebec 1998) and major equipment failures have caused outages of this length in Canada.',
+    summary: 'Power is out across the region for about two weeks. Fuel stations, debit, grocery restocking and water treatment are all affected. Stores are stripped within days, and roads clog early with people leaving Edmonton.',
+    triggers: ['Catastrophic ice storm', 'Multiple transmission line failures', 'Cyber attack on grid control systems', 'Extreme cold collapsing supply'],
+    indicators: ['Utility saying "multi-day" or giving no restoration estimate', 'Fuel lineups and card payment failures', 'Cell service failing in town', 'Grocery shelves empty within 24 hours'],
+    first60: ['Account for everyone. Recall anyone who is away from home if it is safe for them to travel.', 'Confirm scope by battery radio. Note time in the log.', 'Golden window: decide NOW whether a pre-arranged retreat is in play (see decision matrix). If not, commit to staying.', 'Top up water: fill tubs, pots and containers while pressure lasts.', 'Inventory perishable food; plan to eat fridge food first, freezer second, pantry last.', 'Fuel up the vehicle and jerry cans only if a station is working with no lineup. Do not queue for hours.', 'Withdraw nothing; cash on hand is what you have. Do not advertise it.', 'Close blinds and curtains. Begin light discipline at dusk.', 'Check CO detectors and set up the warm room.'],
+    phases: null
+  },
+  {
+    id: 'grid-long', name: 'Grid down: long-term (EMP / major grid failure)', family: ['grid'], long: true,
+    duration: '3+ months', probability: 'Low probability, very high impact. Treat as a planning ceiling rather than an expectation.',
+    summary: 'A geomagnetic storm, EMP or cascading failure takes the grid down for months. Fuel, medicine, food distribution and communications fail. Social order degrades in phases.',
+    triggers: ['Severe geomagnetic storm (Carrington-class)', 'High-altitude EMP', 'Coordinated attack on grid infrastructure', 'Cascade failure with damaged large transformers'],
+    indicators: ['NOAA / NRCan space weather G5 warning', 'Simultaneous failure of electronics and vehicles (EMP)', 'No official broadcast after 24 hours', 'No restoration estimate at all'],
+    first60: ['Account for everyone. Assume no phones.', 'Check whether vehicles and electronics work (EMP test). Note results.', 'Golden window: if a pre-arranged retreat exists and all GO conditions are met, decide within the hour.', 'Fill every water container while pressure lasts.', 'Secure supplies out of sight. Close blinds.', 'Begin the outage log and rationing plan from hour one.', 'Contact your pre-vetted neighbour group in person.', 'Set up the warm room if it is cold season.', 'Verify CO detectors and fire extinguishers.'],
+    phases: null
+  },
+  {
+    id: 'cold-snap', name: 'Extreme cold snap with power loss (-40°C, multi-day)', family: ['cold', 'grid'], long: false,
+    duration: '2–7 days', probability: 'Likely in any given decade. Central Alberta sees -40°C most winters; the January 2024 cold snap pushed the grid to emergency alerts.',
+    summary: 'Temperatures of -35°C to -45°C with a power outage. An unheated house drops below freezing in 12–36 hours depending on insulation. Pipes freeze, and carbon monoxide from improvised heating becomes the main killer.',
+    triggers: ['Arctic air mass', 'Grid emergency from peak demand', 'Gas supply pressure drop', 'Local line failure that crews cannot reach quickly'],
+    indicators: ['Environment Canada extreme cold warning', 'AESO grid alert and requests to conserve power', 'Furnace short-cycling or not igniting', 'House temperature falling faster than 1°C per hour'],
+    first60: ['Everyone stays indoors. No one travels unless in danger.', 'Check CO detectors on every level have working batteries.', 'Choose the warm room: a small interior room or the centre of the basement.', 'Close off unused rooms; hang blankets over doorways and windows.', 'Dress everyone in layers including hats; keep feet dry.', 'Start safe heat only: a wood stove that is professionally installed, or an indoor-rated propane heater with the window cracked as the label requires. Never a BBQ, camp stove, generator or car.', 'Open taps to a slow drip and open under-sink cabinets to delay frozen pipes.', 'Note the indoor temperature every hour in the log.', 'Prepare to drain the plumbing if the house falls below 5°C and stays there.'],
+    phases: 'short'
+  },
+  {
+    id: 'nuke-distant', name: 'Nuclear event: distant strike, fallout arrives', family: ['nuclear'], long: true,
+    duration: '2 weeks sheltering, months of disruption', probability: 'Very low. Included because the correct response (get in, stay in) is counter-intuitive and the wrong one is deadly.',
+    summary: 'A nuclear detonation hundreds of kilometres away. Fallout may arrive over hours depending on wind. Power, communications and supply chains are disrupted nationally.',
+    triggers: ['Strike on a distant military or urban target', 'Wind carrying fallout toward Parkland County'],
+    indicators: ['National alerting (Alert Ready) broadcast', 'News of a detonation anywhere in North America', 'Official fallout plume maps', 'Radio stations going off air'],
+    first60: ['Get inside. Bring everyone and pets in immediately.', 'Go to the centre of the basement, away from windows and exterior walls.', 'Anyone who was outside: remove outer clothing, bag it, shower or wipe down. Shampoo, no conditioner.', 'Shut off the furnace/HRV fresh-air intake and close windows, doors and fireplace dampers.', 'Fill containers with tap water now if pressure is still on. Covered water is safe from fallout.', 'Bring the shelter kit to the basement: water, food, radio, lights, sanitation, medications.', 'Stack mass (boxes, books, water containers) against basement windows and the walls facing the most exposed side.', 'Tune to the AM emergency broadcast. Do not leave to collect family; they should shelter where they are.', 'Do NOT take potassium iodide unless public health officials tell you to.'],
+    phases: null
+  },
+  {
+    id: 'nuke-regional', name: 'Nuclear event: regional detonation', family: ['nuclear'], long: true,
+    duration: '2 weeks sheltering, months to years of disruption', probability: 'Extremely low. Edmonton-area targets would put Stony Plain inside the fallout zone depending on wind.',
+    summary: 'A detonation in the region (e.g. Edmonton or CFB Edmonton). Flash, blast and fire near the target; heavy fallout downwind within 15–60 minutes. No emergency services for days.',
+    triggers: ['Detonation in the Edmonton region'],
+    indicators: ['Bright flash; do not look at it', 'Delayed blast wave: stay down and away from windows', 'Mushroom cloud to the east', 'Electronics failing (EMP)'],
+    first60: ['If you see a flash: drop, cover your head, stay away from windows until the blast wave passes (it can take up to a minute or more).', 'Get everyone into the centre of the basement within minutes. Fallout can arrive in 15 minutes.', 'If you have no basement and a far better shelter is only a few minutes away on foot, go now; otherwise stay in the most interior room.', 'Decontaminate anyone who was outside: remove and bag outer clothing, shower or wipe down.', 'Shut off fresh-air intakes, close windows, doors and dampers.', 'Fill water containers if pressure remains.', 'Check for fire and injuries; treat with the first-aid kit.', 'Turn on a battery radio for instructions.', 'Do not travel to collect family. Everyone shelters where they are for at least 24–48 hours.'],
+    phases: null
+  },
+  {
+    id: 'unrest', name: 'Civil unrest / civil conflict', family: ['unrest', 'grid'], long: true,
+    duration: 'Days to months', probability: 'Low in Parkland County. Spillover from Edmonton and disruption of supplies are more likely than direct conflict.',
+    summary: 'Protests, riots or conflict disrupt the region. Roads become unsafe, services patchy, and targeted crime rises. The goal is to be unremarkable and stay out of it.',
+    triggers: ['Contested political event', 'Supply shortages', 'Prolonged outage with no information'],
+    indicators: ['Roadblocks or closures on Hwy 16 / 16A', 'Escalating local social media', 'Police unable to respond to calls', 'Businesses boarding up'],
+    first60: ['Bring everyone home if routes are safe; otherwise shelter with trusted people where they are.', 'Lock doors, close blinds, keep lights low.', 'Move vehicles into the garage or out of sight.', 'Check the radio and official sources; ignore rumour.', 'Contact your neighbour group; agree a watch rotation.', 'Keep go-bags by the door in case you have to leave.', 'Stay off social media. Post nothing about your supplies or location.'],
+    phases: null
+  },
+  {
+    id: 'econ', name: 'Economic collapse / hyperinflation', family: ['econ'], long: true,
+    duration: 'Months to years', probability: 'Low for a full collapse; moderate for severe recession with shortages and high inflation.',
+    summary: 'Prices spike, banks restrict withdrawals, supply chains thin out and unemployment rises. The danger is slow: debt, cold, illness and crime over months.',
+    triggers: ['Banking crisis', 'Currency crisis', 'Severe supply-chain shock'],
+    indicators: ['Bank withdrawal limits', 'Rapidly rising prices for food and fuel', 'Empty shelves on staples', 'Layoffs across sectors'],
+    first60: ['Do not panic-buy at inflated prices; use what you have.', 'Review cash on hand, debts and fixed bills.', 'Prioritise heat, housing payments, food and medicine.', 'Refill prescriptions while pharmacies are stocked.', 'Talk with your neighbour group about pooling skills and bulk buying.'],
+    phases: null
+  },
+  {
+    id: 'pandemic', name: 'Pandemic / long-term quarantine', family: ['pandemic'], long: true,
+    duration: 'Weeks to months', probability: 'Moderate. COVID-19 showed how quickly supply and services can tighten.',
+    summary: 'A serious infectious disease spreads. Public health orders restrict movement, hospitals are stretched, and staff shortages hit utilities and stores.',
+    triggers: ['Novel pathogen with high spread and severity'],
+    indicators: ['Public health emergency declaration', 'School and workplace closures', 'Hospital capacity warnings'],
+    first60: ['Follow Alberta Health Services and Health Canada guidance.', 'Check medication supplies; request refills.', 'Set up an isolation room in case someone gets sick.', 'Stock masks, gloves, soap, disinfectant and fever reducers.', 'Plan contact-free resupply with neighbours.'],
+    phases: null
+  },
+  {
+    id: 'wildfire', name: 'Wildfire evacuation (Parkland County)', family: ['evac'], long: false,
+    duration: 'Hours to weeks away from home', probability: 'Moderate. Parkland County has had wildfire evacuation orders (e.g. 2023).',
+    summary: 'A wildfire threatens the area. This is an exception to stay-home-by-default: LEAVE EARLY AND FAST when ordered or when the threat is visible.',
+    triggers: ['Dry spring or summer with high winds', 'Lightning or human ignition nearby'],
+    indicators: ['Alberta Wildfire hazard rating high/extreme', 'Smoke column or ash fall', 'Evacuation alert (be ready) from Parkland County', 'Fire bans in effect'],
+    first60: ['On an evacuation ORDER: leave now by the route officials give. Do not wait to see.', 'On an ALERT: load the go-bags, pets, medications and documents into the vehicle, nose out.', 'Close all windows and doors; leave them unlocked only if officials ask.', 'Shut off propane at the tank if safe; leave lights on so the house is visible in smoke.', 'Move combustibles away from the house only if you have time and no order.', 'Tell your out-of-area contact where you are going.', 'Register with the reception centre or Parkland County once you are safe.'],
+    phases: 'short'
+  },
+  {
+    id: 'blizzard', name: 'Severe blizzard: stranded at home or in a vehicle', family: ['cold'], long: false,
+    duration: '1–3 days', probability: 'Likely. Highway closures on 16 and 16A happen most winters.',
+    summary: 'Heavy snow and wind make roads impassable. At home, prepare for power loss. In a vehicle, staying with the vehicle is almost always safer than walking.',
+    triggers: ['Alberta clipper', 'Spring blizzard with wet snow'],
+    indicators: ['Environment Canada blizzard or snowfall warning', 'Alberta 511 highway closures', 'Visibility dropping quickly'],
+    first60: ['At home: bring everyone in, fill water, charge power banks, ready the warm room.', 'In a vehicle: pull fully off the road if you can, turn on hazard lights.', 'Call 911 if you have signal and give your location.', 'Stay with the vehicle. Do not walk for help in a whiteout.', 'Clear the exhaust pipe of snow before running the engine; run it 10 minutes per hour with a window cracked to avoid CO.', 'Put on all extra clothing; use the winter vehicle kit and candle or heat packs.', 'Tie a bright cloth to the antenna; keep the dome light on when running the engine.'],
+    phases: 'short'
+  },
+  {
+    id: 'water', name: 'Water contamination / municipal system failure', family: ['water'], long: false,
+    duration: 'Days to weeks', probability: 'Moderate. Boil-water advisories are common in Alberta; regional supply comes from Edmonton via pipeline.',
+    summary: 'The municipal water supply is unsafe or stops. Treat all tap water as unsafe until officials say otherwise.',
+    triggers: ['Main break', 'Treatment failure', 'Pipeline damage', 'Contamination event'],
+    indicators: ['Boil-water advisory', 'Low pressure or discoloured water', 'Town notice'],
+    first60: ['Stop drinking tap water. Use stored water.', 'Follow the advisory: boil (rolling boil, 1 minute) or do not use at all if it is a "do not consume" order.', 'Fill containers if the advisory is boil-only and water still flows.', 'Set aside water for infants, the sick and pets first.', 'Use hand sanitizer for hygiene; reserve water for drinking.'],
+    phases: 'short'
+  },
+  {
+    id: 'derailment', name: 'Train derailment / chemical spill (CN line)', family: ['evac'], long: false,
+    duration: 'Hours to days', probability: 'Low but real. The CN main line carries hazardous goods through Stony Plain.',
+    summary: 'A derailment or highway spill releases hazardous material. Authorities will order either evacuation or shelter-in-place. Follow the order exactly.',
+    triggers: ['Derailment on the CN line', 'Tanker crash on Hwy 16 / 16A'],
+    indicators: ['Alberta Emergency Alert', 'Strong chemical smell, visible cloud', 'Emergency vehicles converging on the rail line'],
+    first60: ['If ordered to EVACUATE: leave immediately, upwind and uphill, by the route given.', 'If ordered to SHELTER IN PLACE: get inside, close windows and doors, shut off furnace/HRV/fans, go to an interior room and seal gaps with plastic and tape.', 'If you smell gas or chemicals outside with no order yet: get inside and seal up, then listen for instructions.', 'Do not go near the site to look.', 'Keep the radio on. Do not leave until the all-clear.'],
+    phases: 'short'
+  }
+];
+
+/* Matrix rows. Each row applies to the families listed (or '*').
+   verdict: STAY | GO | GO ONLY IF. note() can personalise from profile. */
+PP.MATRIX = [
+  { fam: ['grid', 'cold', 'unrest', 'econ', 'pandemic', 'water'], cond: 'Home heated or safely heatable, structure sound, water available', verdict: 'STAY', why: 'Staying is the default. Exposure and travel kill more people than staying put.' },
+  { fam: ['grid', 'cold'], cond: 'Heat has failed, outside -25°C or colder, no confirmed heated destination', verdict: 'STAY', why: 'Consolidate into one warm room or the basement. A cold house still beats a road or a vehicle.' },
+  { fam: ['grid', 'cold'], cond: 'Home cannot be heated at all, confirmed heated destination reachable in ONE daylight leg', verdict: 'GO ONLY IF', why: 'Winter-equipped vehicle, full survival kit, roads open, leave at first light, destination confirmed by radio/phone.', retreat: true },
+  { fam: ['nuclear'], cond: 'Fallout warning or first 24–48 hours after detonation', verdict: 'STAY', why: 'Centre of basement. Radiation drops ~90% by 7 hours and ~99% by 48 hours. Travel now is the most dangerous choice.' },
+  { fam: ['nuclear'], cond: 'No basement or shelter damaged, better shelter only minutes away on foot', verdict: 'GO ONLY IF', why: 'Only before fallout arrives (roughly first 10–15 minutes) or if fire/structural collapse forces it.' },
+  { fam: ['nuclear'], cond: 'After 48 hours, official instruction to evacuate', verdict: 'GO', why: 'Follow the official route. Cover nose and mouth, decontaminate on arrival.' },
+  { fam: ['nuclear'], cond: 'After 48 hours, no instruction, shelter adequate', verdict: 'STAY', why: 'Brief essential trips only after the heavy-fallout window. Plan for up to 2 weeks.' },
+  { fam: ['evac'], cond: 'Official evacuation ORDER, or fire/plume visible and approaching', verdict: 'GO', why: 'This is the exception: leave early and fast by the designated route.' },
+  { fam: ['evac'], cond: 'Official SHELTER-IN-PLACE order (chemical release)', verdict: 'STAY', why: 'Seal an interior room, shut off fans and HRV. Do not leave until the all-clear.' },
+  { fam: ['evac'], cond: 'Evacuation ALERT only (be ready)', verdict: 'GO ONLY IF', why: 'Load the vehicle now. Leaving early is fine and avoids traffic; go if conditions worsen or you have vulnerable people.' },
+  { fam: ['grid', 'unrest'], cond: 'Golden window (0–24 h), pre-arranged retreat confirmed, roads clear', verdict: 'GO ONLY IF', why: 'Every condition must be true. Leave at first light, one leg, avoid highways and convoys.', retreat: true },
+  { fam: ['grid', 'unrest', 'econ'], cond: 'Chaos period (day 2 – week 4): gridlock, roadblocks, desperate people on the roads', verdict: 'STAY', why: 'Go quiet and go low. Light, noise and smell discipline. Reassess at day 3, week 2, week 4 and week 8.' },
+  { fam: ['grid', 'unrest', 'econ', 'pandemic'], cond: 'Stabilization (week 8+), roads clearing, destination confirmed', verdict: 'GO ONLY IF', why: 'Only after a reassessment checkpoint shows the route is safe and the destination is better than home.', retreat: true },
+  { fam: ['*'], cond: 'House on fire, structure failing, or a threat to life you cannot avoid', verdict: 'GO', why: 'People before property. Go to the rally point or retreat. Stuff can be replaced.' },
+  { fam: ['cold'], cond: 'Stranded in a vehicle in a blizzard', verdict: 'STAY', why: 'Stay with the vehicle. Run the engine 10 min/hour with exhaust clear and a window cracked.' },
+  { fam: ['*'], cond: 'Medical emergency beyond household ability', verdict: 'GO ONLY IF', why: 'A facility is confirmed operating and the route is safe. Otherwise radio or send for help.' }
+];
+
+PP.CHECKPOINTS = ['Day 3', 'Week 2', 'Week 4', 'Week 8'];
+
+/* Live decision check - a small rule engine following the same rules. */
+PP.decide = function (c, profile) {
+  const out = (verdict, reasons) => ({ verdict, reasons });
+  const r = [];
+  const cold = Number(c.temp) <= -25;
+  const hasBasement = profile && profile.basement && profile.basement !== 'none';
+
+  if (c.structure === 'fire') return out('GO', ['Fire or structural failure: get everyone out now.', c.fallout === 'active' ? 'Move to the nearest intact building and get to its most interior, lowest space.' : 'Go to the rally point. People before property.']);
+  if (c.order === 'evacuate') return out('GO', ['An official evacuation order is in effect. Leave now by the designated route.', cold ? 'Take the full winter kit; dress everyone for the outside temperature.' : 'Take go-bags, medications, documents and pets.']);
+  if (c.order === 'shelter') return out('STAY', ['An official shelter-in-place order is in effect.', 'Seal an interior room, shut off furnace, HRV and fans, and wait for the all-clear.']);
+  if (c.fallout === 'warning' || c.fallout === 'active') {
+    if (!hasBasement && c.fallout === 'warning') return out('GO ONLY IF', ['No basement on your profile.', 'Go only if a far better shelter (a large building with a basement) is a few minutes away on foot and fallout has not arrived.', 'Otherwise shelter in the most interior ground-floor room, away from windows.']);
+    return out('STAY', ['Fallout window: get in, stay in.', hasBasement ? 'Centre of the basement with as much mass around you as possible.' : 'Most interior room, lowest floor, away from windows.', 'Radiation falls ~90% by 7 hours and ~99% by 48 hours.']);
+  }
+  if (c.threat === 'imminent') return out('GO', ['A threat to life you cannot avoid or hide from.', 'Leave to the rally point or retreat by the safest route. Do not fight for property.']);
+
+  const destOk = c.dest === 'confirmed';
+  const roadsOk = c.roads === 'clear';
+  const daylight = c.daylight === 'yes';
+
+  if (c.heat === 'none') {
+    if (cold) {
+      if (destOk && roadsOk && daylight) return out('GO ONLY IF', ['The home cannot be heated and it is -25°C or colder.', 'You have a confirmed heated destination, the roads are clear and it is daylight.', 'Go only with a winter-equipped vehicle and full survival kit, in one leg. Confirm the destination is expecting you.']);
+      r.push('The home cannot be heated, but there is no safe way to move (destination, roads or daylight).');
+      r.push('Consolidate everyone into one small room or the basement, seal it, layer up, use -30°C sleeping bags and shared body heat.');
+      r.push('CO is the main killer now: no generators, BBQs, camp stoves or vehicles indoors.');
+      return out('STAY', r);
+    }
+    r.push('No heat, but outside is above -25°C. The house is survivable with layers and a warm room.');
+  } else if (c.heat === 'failing') {
+    r.push('Heat failing: set up the warm room now while the house still holds heat.');
+  }
+
+  if (c.phase === 'golden') {
+    if (destOk && roadsOk && c.threat !== 'elevated') return out('GO ONLY IF', r.concat(['Golden window with a confirmed retreat and clear roads.', 'Leave at first light in one leg, avoid Hwy 16/16A/60 where possible, use range and township roads.', 'If any condition fails, stay.']));
+    r.push('Golden window, but no confirmed destination or the roads are not clear.');
+    return out('STAY', r.concat(['Commit to staying: go quiet and go low.']));
+  }
+  if (c.phase === 'chaos') return out('STAY', r.concat(['Chaos period. Moving is riskier than staying.', 'Light, noise and smell discipline. Reassess at the next checkpoint (day 3, week 2, week 4, week 8).']));
+  if (c.phase === 'stabilization') {
+    if (destOk && roadsOk) return out('GO ONLY IF', r.concat(['Stabilization phase with a confirmed destination and clear roads.', 'Go only if the destination is genuinely better than home after a checkpoint review.']));
+    return out('STAY', r.concat(['Stabilization phase. Keep improving the home position and community ties.']));
+  }
+  if (c.threat === 'elevated') r.push('Threat elevated: increase OPSEC, watch rotation, keep go-bags ready.');
+  return out('STAY', r.concat(['Staying is the default when no trigger for leaving is met.']));
+};
+
+</script>
+<script>
+/* Starting data. Every price is an approximate 2026 CAD estimate for
+   planning, not a quote. Everything here is editable in the app.
+
+   qty rules (how the target is worked out from the profile):
+     pd    per person per day of the prep target
+     pp    per person
+     fx    fixed
+     lvl   per level of the home (CO / smoke detectors)
+     petd  per pet per day
+     veh   per vehicle
+   when: a profile condition that must hold for the item to apply.
+   fam: scenario families it matters for ('*' = all).              */
+window.PP = window.PP || {};
+
+PP.STORE_TYPES = {
+  grocery: 'Grocery', pharmacy: 'Pharmacy', hardware: 'Hardware', outdoor: 'Outdoor / sporting',
+  electronics: 'Electronics / radio', fuel: 'Fuel / propane', farm: 'Farm & ranch', security: 'Security',
+  bank: 'Bank / cash', other: 'Other'
+};
+
+PP.CATEGORIES = ['Water', 'Food', 'Heat & warmth', 'Power & light', 'Communications', 'Medical', 'Sanitation', 'Fire & CO safety', 'Security', 'Fuel & vehicle', 'Fallout & sealing', 'Documents & cash'];
+
+PP.CATALOG = [
+  // Water
+  { id: 'water', name: 'Stored drinking water', cat: 'Water', unit: 'L', rule: 'pd', n: 4, pri: 'Critical', cost: 0.5, life: 12, store: 'grocery', fam: ['*'], note: '4 L per person per day: 2 L drinking, 2 L cooking and hygiene. Rotate yearly.' },
+  { id: 'jerry-water', name: 'Water containers, 20 L', cat: 'Water', unit: 'each', rule: 'pp', n: 1, pri: 'Important', cost: 25, life: 0, store: 'outdoor', fam: ['*'] },
+  { id: 'filter', name: 'Gravity water filter', cat: 'Water', unit: 'each', rule: 'fx', n: 1, pri: 'Important', cost: 120, life: 0, store: 'outdoor', fam: ['grid', 'water', 'econ'] },
+  { id: 'bleach', name: 'Unscented bleach (5–6%), 1.9 L', cat: 'Water', unit: 'jugs', rule: 'fx', n: 2, pri: 'Important', cost: 6, life: 12, store: 'grocery', fam: ['*'], note: '2 drops per litre, stand 30 min. Loses strength after a year.' },
+  // Food
+  { id: 'food', name: 'Shelf-stable food (person-days)', cat: 'Food', unit: 'person-days', rule: 'pd', n: 1, pri: 'Critical', cost: 12, life: 24, store: 'grocery', fam: ['*'], note: 'Food you already eat: canned, dried, no-cook options. About 2,000 kcal per person-day.' },
+  { id: 'staples', name: 'Bulk staples (rice, oats, beans, pasta)', cat: 'Food', unit: 'kg', rule: 'pp', n: 10, pri: 'Important', cost: 3, life: 60, store: 'grocery', fam: ['grid', 'econ', 'pandemic', 'nuclear'] },
+  { id: 'canopener', name: 'Manual can opener', cat: 'Food', unit: 'each', rule: 'fx', n: 2, pri: 'Critical', cost: 10, life: 0, store: 'grocery', fam: ['*'] },
+  { id: 'petfood', name: 'Pet food (pet-days)', cat: 'Food', unit: 'pet-days', rule: 'petd', n: 1, pri: 'Critical', cost: 2, life: 12, store: 'farm', fam: ['*'], when: 'pets' },
+  { id: 'stove', name: 'Outdoor camp stove + fuel (outdoor use only)', cat: 'Food', unit: 'kit', rule: 'fx', n: 1, pri: 'Nice-to-have', cost: 90, life: 0, store: 'outdoor', fam: ['grid', 'econ'], note: 'Never indoors or in a garage. CO kills.' },
+  // Heat
+  { id: 'bags', name: 'Sleeping bag rated -30°C or lower', cat: 'Heat & warmth', unit: 'each', rule: 'pp', n: 1, pri: 'Critical', cost: 180, life: 0, store: 'outdoor', fam: ['grid', 'cold', 'nuclear'] },
+  { id: 'blankets', name: 'Wool blankets', cat: 'Heat & warmth', unit: 'each', rule: 'pp', n: 2, pri: 'Important', cost: 40, life: 0, store: 'outdoor', fam: ['grid', 'cold', 'nuclear'] },
+  { id: 'base', name: 'Thermal base layers (set)', cat: 'Heat & warmth', unit: 'sets', rule: 'pp', n: 1, pri: 'Important', cost: 60, life: 0, store: 'outdoor', fam: ['grid', 'cold'] },
+  { id: 'warmers', name: 'Hand / body warmers', cat: 'Heat & warmth', unit: 'each', rule: 'pp', n: 20, pri: 'Important', cost: 1, life: 48, store: 'outdoor', fam: ['cold', 'grid'] },
+  { id: 'heater', name: 'Indoor-rated portable propane heater (CSA)', cat: 'Heat & warmth', unit: 'each', rule: 'fx', n: 1, pri: 'Important', cost: 180, life: 0, store: 'hardware', fam: ['grid', 'cold'], when: 'noBackupHeat', note: 'Only models certified for indoor use, with low-oxygen shutoff, per label ventilation, and a working CO alarm.' },
+  { id: 'propane', name: '1 lb propane cylinders', cat: 'Heat & warmth', unit: 'each', rule: 'fx', n: 12, pri: 'Important', cost: 8, life: 0, store: 'hardware', fam: ['grid', 'cold'], when: 'noBackupHeat' },
+  { id: 'firewood', name: 'Seasoned firewood', cat: 'Heat & warmth', unit: 'cords', rule: 'fx', n: 1, pri: 'Critical', cost: 400, life: 0, store: 'farm', fam: ['grid', 'cold'], when: 'woodStove' },
+  { id: 'plastic-insul', name: 'Window insulation film / blankets for the warm room', cat: 'Heat & warmth', unit: 'kit', rule: 'fx', n: 1, pri: 'Nice-to-have', cost: 30, life: 0, store: 'hardware', fam: ['cold', 'grid'] },
+  // Power & light
+  { id: 'headlamp', name: 'LED headlamp', cat: 'Power & light', unit: 'each', rule: 'pp', n: 1, pri: 'Critical', cost: 30, life: 0, store: 'outdoor', fam: ['*'] },
+  { id: 'lantern', name: 'LED lantern', cat: 'Power & light', unit: 'each', rule: 'fx', n: 2, pri: 'Important', cost: 35, life: 0, store: 'hardware', fam: ['*'] },
+  { id: 'batteries', name: 'AA/AAA batteries (24-pack)', cat: 'Power & light', unit: 'packs', rule: 'fx', n: 4, pri: 'Critical', cost: 25, life: 84, store: 'hardware', fam: ['*'] },
+  { id: 'powerbank', name: 'Power bank, 20,000 mAh', cat: 'Power & light', unit: 'each', rule: 'pp', n: 1, pri: 'Important', cost: 50, life: 0, store: 'electronics', fam: ['*'] },
+  { id: 'station', name: 'Portable power station + solar panel', cat: 'Power & light', unit: 'kit', rule: 'fx', n: 1, pri: 'Nice-to-have', cost: 900, life: 0, store: 'electronics', fam: ['grid', 'cold'] },
+  { id: 'blackout', name: 'Blackout covers for windows (light discipline)', cat: 'Power & light', unit: 'kit', rule: 'fx', n: 1, pri: 'Important', cost: 80, life: 0, store: 'hardware', fam: ['grid', 'unrest', 'nuclear'] },
+  // Comms
+  { id: 'radio', name: 'Hand-crank / battery AM-FM emergency radio', cat: 'Communications', unit: 'each', rule: 'fx', n: 1, pri: 'Critical', cost: 60, life: 0, store: 'electronics', fam: ['*'] },
+  { id: 'frs', name: 'FRS/GMRS two-way radios (pair)', cat: 'Communications', unit: 'pairs', rule: 'fx', n: 1, pri: 'Important', cost: 90, life: 0, store: 'electronics', fam: ['*'] },
+  { id: 'maps', name: 'Paper maps: Parkland County + Alberta road map', cat: 'Communications', unit: 'set', rule: 'fx', n: 1, pri: 'Important', cost: 20, life: 0, store: 'outdoor', fam: ['*'] },
+  // Medical
+  { id: 'firstaid', name: 'Comprehensive first-aid kit', cat: 'Medical', unit: 'kit', rule: 'fx', n: 1, pri: 'Critical', cost: 120, life: 36, store: 'pharmacy', fam: ['*'] },
+  { id: 'meds', name: 'Prescription reserve (30 days, ask pharmacist)', cat: 'Medical', unit: 'reserve', rule: 'fx', n: 1, pri: 'Critical', cost: 0, life: 12, store: 'pharmacy', fam: ['*'], when: 'medical' },
+  { id: 'otc', name: 'OTC kit: pain/fever, anti-diarrheal, electrolytes, allergy', cat: 'Medical', unit: 'kit', rule: 'fx', n: 1, pri: 'Important', cost: 60, life: 24, store: 'pharmacy', fam: ['*'] },
+  { id: 'n95', name: 'N95 / KN95 respirators', cat: 'Medical', unit: 'each', rule: 'pp', n: 10, pri: 'Important', cost: 2, life: 60, store: 'hardware', fam: ['nuclear', 'pandemic', 'evac'], note: 'Wildfire smoke, fallout dust, illness.' },
+  { id: 'emblanket', name: 'Emergency (mylar) blankets', cat: 'Medical', unit: 'each', rule: 'pp', n: 2, pri: 'Important', cost: 3, life: 0, store: 'outdoor', fam: ['cold', 'grid', 'evac'] },
+  { id: 'thermo', name: 'Digital thermometer (low-reading)', cat: 'Medical', unit: 'each', rule: 'fx', n: 1, pri: 'Important', cost: 20, life: 0, store: 'pharmacy', fam: ['*'] },
+  // Sanitation
+  { id: 'bucket', name: 'Bucket toilet kit (2 buckets, lids, seat)', cat: 'Sanitation', unit: 'kit', rule: 'fx', n: 1, pri: 'Critical', cost: 45, life: 0, store: 'hardware', fam: ['grid', 'nuclear', 'water', 'cold'] },
+  { id: 'bags-garbage', name: 'Heavy-duty garbage bags (box)', cat: 'Sanitation', unit: 'boxes', rule: 'fx', n: 3, pri: 'Critical', cost: 15, life: 0, store: 'grocery', fam: ['*'] },
+  { id: 'litter', name: 'Kitty litter or sawdust (toilet cover)', cat: 'Sanitation', unit: 'kg', rule: 'fx', n: 20, pri: 'Important', cost: 1, life: 0, store: 'grocery', fam: ['grid', 'nuclear', 'water'] },
+  { id: 'tp', name: 'Toilet paper', cat: 'Sanitation', unit: 'rolls', rule: 'pd', n: 0.5, pri: 'Important', cost: 0.8, life: 0, store: 'grocery', fam: ['*'] },
+  { id: 'sanitizer', name: 'Hand sanitizer, soap, wet wipes', cat: 'Sanitation', unit: 'kit', rule: 'fx', n: 1, pri: 'Important', cost: 40, life: 24, store: 'pharmacy', fam: ['*'] },
+  // Fire & CO
+  { id: 'co', name: 'Battery CO detector', cat: 'Fire & CO safety', unit: 'each', rule: 'lvl', n: 1, pri: 'Critical', cost: 40, life: 84, store: 'hardware', fam: ['*'], note: 'One per level and outside sleeping areas. Replace units at end of life (usually 7–10 yrs).' },
+  { id: 'smoke', name: 'Smoke alarm (battery)', cat: 'Fire & CO safety', unit: 'each', rule: 'lvl', n: 1, pri: 'Critical', cost: 25, life: 120, store: 'hardware', fam: ['*'] },
+  { id: 'extinguisher', name: 'ABC fire extinguisher', cat: 'Fire & CO safety', unit: 'each', rule: 'fx', n: 2, pri: 'Critical', cost: 50, life: 120, store: 'hardware', fam: ['*'] },
+  // Security
+  { id: 'door', name: 'Door reinforcement (strike plate, 3" screws)', cat: 'Security', unit: 'doors', rule: 'fx', n: 2, pri: 'Important', cost: 50, life: 0, store: 'hardware', fam: ['grid', 'unrest', 'econ'] },
+  { id: 'motion', name: 'Battery/solar motion lights or alarms', cat: 'Security', unit: 'each', rule: 'fx', n: 2, pri: 'Important', cost: 40, life: 0, store: 'hardware', fam: ['grid', 'unrest', 'econ'] },
+  { id: 'film', name: 'Window security film (ground floor)', cat: 'Security', unit: 'kit', rule: 'fx', n: 1, pri: 'Nice-to-have', cost: 60, life: 0, store: 'hardware', fam: ['unrest'] },
+  { id: 'safe', name: 'Fire-resistant safe / lockbox', cat: 'Security', unit: 'each', rule: 'fx', n: 1, pri: 'Important', cost: 120, life: 0, store: 'security', fam: ['*'] },
+  // Fuel & vehicle
+  { id: 'jerry-gas', name: 'Gasoline cans, 20 L (stabilized fuel)', cat: 'Fuel & vehicle', unit: 'each', rule: 'fx', n: 2, pri: 'Important', cost: 35, life: 0, store: 'hardware', fam: ['grid', 'evac', 'econ'], note: 'Store outside the living space. Stabilize and rotate every 6–12 months.' },
+  { id: 'stabil', name: 'Fuel stabilizer', cat: 'Fuel & vehicle', unit: 'bottles', rule: 'fx', n: 1, pri: 'Important', cost: 20, life: 24, store: 'hardware', fam: ['grid', 'evac'] },
+  { id: 'genfuel', name: 'Generator fuel (outdoor-only generator)', cat: 'Fuel & vehicle', unit: 'L', rule: 'fx', n: 60, pri: 'Important', cost: 1.6, life: 12, store: 'fuel', fam: ['grid', 'cold'], when: 'generator' },
+  { id: 'carkit', name: 'Winter vehicle survival kit', cat: 'Fuel & vehicle', unit: 'kits', rule: 'veh', n: 1, pri: 'Critical', cost: 90, life: 0, store: 'outdoor', fam: ['cold', 'evac', 'grid'] },
+  { id: 'gobag', name: '72-hour go-bag', cat: 'Fuel & vehicle', unit: 'bags', rule: 'pp', n: 1, pri: 'Critical', cost: 100, life: 12, store: 'outdoor', fam: ['evac', '*'] },
+  // Fallout & sealing
+  { id: 'sheeting', name: '6-mil plastic sheeting + duct tape', cat: 'Fallout & sealing', unit: 'kit', rule: 'fx', n: 1, pri: 'Important', cost: 50, life: 0, store: 'hardware', fam: ['nuclear', 'evac'], note: 'Seal a room for chemical shelter-in-place; cover basement windows.' },
+  { id: 'dosimeter', name: 'Radiation detector / dosimeter', cat: 'Fallout & sealing', unit: 'each', rule: 'fx', n: 1, pri: 'Nice-to-have', cost: 250, life: 0, store: 'electronics', fam: ['nuclear'] },
+  // Documents & cash
+  { id: 'docs', name: 'ID, insurance, prescriptions copies in a waterproof pouch', cat: 'Documents & cash', unit: 'set', rule: 'fx', n: 1, pri: 'Critical', cost: 10, life: 0, store: 'other', fam: ['*'] },
+  { id: 'cash', name: 'Emergency cash, small bills', cat: 'Documents & cash', unit: 'dollars', rule: 'fx', n: 500, pri: 'Critical', cost: 1, life: 0, store: 'bank', fam: ['*'], note: 'Debit and credit fail when the power or network does.' }
+];
+
+/* Suppliers: starter entries by kind of store. Names are generic on
+   purpose - fill in the exact store, address, phone and hours you use. */
+PP.SEED_SUPPLIERS = [
+  { name: 'Grocery store (nearest)', types: ['grocery'], town: 'Stony Plain', address: '', phone: '', hours: '', notes: 'Fill in your usual grocery store.' },
+  { name: 'Warehouse club (bulk staples, water)', types: ['grocery', 'outdoor'], town: 'Edmonton area', address: '', phone: '', hours: '', notes: 'Bulk rice, water, batteries.' },
+  { name: 'Pharmacy (nearest)', types: ['pharmacy'], town: 'Stony Plain', address: '', phone: '', hours: '', notes: 'Ask about an emergency medication reserve.' },
+  { name: 'Hardware / home store', types: ['hardware', 'security'], town: 'Stony Plain / Spruce Grove', address: '', phone: '', hours: '', notes: 'CO detectors, extinguishers, sheeting, door hardware.' },
+  { name: 'Automotive / outdoor department store', types: ['outdoor', 'hardware', 'fuel', 'electronics'], town: 'Stony Plain / Spruce Grove', address: '', phone: '', hours: '', notes: 'Sleeping bags, jerry cans, vehicle kits, radios.' },
+  { name: 'Farm & ranch supply', types: ['farm', 'fuel'], town: 'Parkland County', address: '', phone: '', hours: '', notes: 'Pet and livestock feed, propane exchange, firewood leads.' },
+  { name: 'Electronics / radio shop', types: ['electronics'], town: 'Edmonton area', address: '', phone: '', hours: '', notes: 'GMRS, ham gear, power stations.' },
+  { name: 'Propane refill / fuel station', types: ['fuel'], town: 'Stony Plain', address: '', phone: '', hours: '', notes: '' },
+  { name: 'Bank or credit union branch', types: ['bank'], town: 'Stony Plain', address: '', phone: '', hours: '', notes: 'Small-bill cash withdrawal.' }
+];
+
+/* Official community resources. Phone numbers that are national or
+   provincial short codes are reliable; anything else is marked to verify. */
+PP.SEED_RESOURCES = [
+  { name: 'Emergency services', kind: 'Emergency', contact: '911', url: '', notes: 'Life-threatening emergencies only.' },
+  { name: 'Alberta Emergency Alert', kind: 'Alerts', contact: 'App + broadcast', url: 'https://www.emergencyalert.alberta.ca', notes: 'Install the app. Set Parkland County / Stony Plain as locations.' },
+  { name: 'Health Link (nurse advice)', kind: 'Health', contact: '811', url: '', notes: '24/7 health advice from Alberta Health Services.' },
+  { name: '211 Alberta (community & social services)', kind: 'Community', contact: '211', url: 'https://ab.211.ca', notes: 'Shelter, food, financial help, mental health.' },
+  { name: 'Alberta 511 road reports', kind: 'Roads', contact: '511', url: 'https://511.alberta.ca', notes: 'Highway closures and conditions before any trip.' },
+  { name: 'Town of Stony Plain emergency management', kind: 'Local government', contact: 'Verify number', url: 'https://www.stonyplain.com', notes: 'Local emergency notices and reception centre announcements.' },
+  { name: 'Parkland County emergency management', kind: 'Local government', contact: 'Verify number', url: 'https://www.parklandcounty.com', notes: 'Rural evacuation orders and alerts.' },
+  { name: 'Emergency reception centre', kind: 'Reception centre', contact: 'Announced during an event', url: '', notes: 'Locations are announced by the Town/County at the time. Record any pre-published location here.' },
+  { name: 'Parkland Food Bank', kind: 'Food', contact: 'Verify number', url: '', notes: 'Serves Spruce Grove, Stony Plain and Parkland County. Confirm address and hours.' },
+  { name: 'Alberta Emergency Management Agency', kind: 'Provincial', contact: '', url: 'https://www.alberta.ca/emergency-management', notes: 'Provincial guidance and current emergencies.' },
+  { name: 'Get Prepared (Public Safety Canada)', kind: 'Federal', contact: '', url: 'https://www.getprepared.gc.ca', notes: 'Federal preparedness guides.' },
+  { name: 'Canadian Red Cross', kind: 'Relief', contact: '', url: 'https://www.redcross.ca', notes: 'Disaster relief and first-aid training.' },
+  { name: 'Electricity outage line (your distributor)', kind: 'Utility', contact: 'Verify number', url: '', notes: 'Check your bill for the outage number.' },
+  { name: 'Natural gas emergency line (your distributor)', kind: 'Utility', contact: 'Verify number', url: '', notes: 'Smell gas? Leave the house first, then call.' }
+];
+
+PP.SEED_CHECKLISTS = [
+  { title: 'Go-bag (per person)', items: ['3 days of water and no-cook food', 'Change of clothes, warm layers, toque, gloves', 'Headlamp and spare batteries', 'Medications (7 days) and copies of prescriptions', 'Copies of ID and insurance in a waterproof pouch', 'Cash in small bills', 'Phone charger and power bank', 'Whistle, emergency blanket, small first-aid kit', 'N95 masks', 'Paper map with rally points marked', 'Contact list on paper'] },
+  { title: 'Warm room / basement shelter setup', items: ['Pick the room: centre of basement or smallest interior room', 'CO detector in the room, tested', 'Sleeping bags rated -30°C for everyone', 'Blankets or plastic over windows and doorway', 'Water, food, radio, lights stored in or beside the room', 'Bucket toilet set up in an adjacent space', 'Safe heat source identified (never fuel-burning appliances not rated for indoors)', 'Mass stacked against basement windows (fallout)'] },
+  { title: 'Home hardening', items: ['Door strike plates with 3" screws on every exterior door', 'Ground-floor window locks checked', 'Motion lights on approaches', 'Blackout covers cut and labelled for every window', 'Supplies split into at least two hidden locations', 'Shut-off locations marked: water, gas, electrical panel', 'Wrench stored at the gas meter', 'Fire extinguishers on each level'] },
+  { title: 'Winter vehicle kit', items: ['Shovel, traction aid, booster cables', 'Sleeping bag or blankets', 'Candle in a tin and waterproof matches', 'Hand warmers', 'Water and high-energy food', 'Flashlight, spare batteries', 'Bright cloth for the antenna', 'Tank kept above half full all winter'] },
+  { title: 'Communications plan', items: ['Out-of-province contact chosen and agreed', 'Paper contact tree printed for every member', 'Meeting point near home agreed', 'Meeting point outside the neighbourhood agreed', 'FRS/GMRS channel and check-in times agreed', 'AM emergency stations written on the radio', 'Alberta Emergency Alert app installed on every phone'] },
+  { title: 'Monthly maintenance', items: ['Test CO and smoke alarms', 'Check the expiry alerts in the purchase tracker', 'Rotate water and food nearing expiry', 'Charge power banks and the power station', 'Run the generator under load (outdoors) if you have one', 'Keep the vehicle above half a tank', 'Review the plan with the household'] },
+  { title: 'Drills', items: ['48-hour lights-out basement drill in winter (yearly)', 'Fire escape drill (twice yearly)', 'Go-bag grab-and-go in under 10 minutes', 'Radio check-in with neighbours', 'Drive each bug-out route in daylight (yearly)', 'Shelter-in-place room sealing practice'] }
+];
+
+</script>
+<script>
+/* State, persistence and the calculations everything else reads.
+   All data lives in this browser (localStorage). Nothing is sent anywhere. */
+window.PP = window.PP || {};
+
+PP.KEY = 'prep-planner-v1';
+
+PP.uid = () => Math.random().toString(36).slice(2, 10);
+
+PP.defaultProfile = () => ({
+  householdName: '', location: 'Stony Plain, Alberta',
+  adults: 2, children: 0, childAges: '', seniors: 0, pets: 0, petNotes: '',
+  medical: '', mobility: '', fridgeMeds: false,
+  houseType: '', levels: 2, basement: 'unknown',
+  heat: 'gas-forced', backupHeat: 'none', water: 'municipal',
+  generator: 'none', transferSwitch: false, solar: false, coDetectors: 'unknown',
+  vehicles: 1, vehicleNotes: '', winterVehicle: false,
+  skills: [], pal: false,
+  retreatName: '', retreatKm: '', retreatRoute: '', retreatConfirmed: false, retreatHeated: false,
+  budgetLevel: 'moderate', budget: 2000, prepDays: 14,
+  outOfArea: '', meetNear: '', meetFar: '', contacts: '', neighbourGroup: false,
+  roles: ''
+});
+
+PP.freshState = () => ({
+  version: 1,
+  profile: PP.defaultProfile(),
+  items: PP.CATALOG.map(c => Object.assign({}, c, { targetOverride: null, have: 0, spent: 0, expiry: '', supplierId: '', hidden: false })),
+  suppliers: PP.SEED_SUPPLIERS.map(s => Object.assign({ id: PP.uid() }, s)),
+  resources: PP.SEED_RESOURCES.map(r => Object.assign({ id: PP.uid() }, r)),
+  checklists: PP.SEED_CHECKLISTS.map(l => ({ id: PP.uid(), title: l.title, items: l.items.map(t => ({ id: PP.uid(), text: t, done: false })) })),
+  decision: { temp: -10, heat: 'ok', structure: 'ok', fallout: 'none', order: 'none', phase: 'golden', roads: 'clear', dest: 'none', daylight: 'yes', threat: 'none' },
+  savedAt: null
+});
+
+PP.load = function () {
+  try {
+    const raw = localStorage.getItem(PP.KEY);
+    if (!raw) return PP.freshState();
+    return PP.migrate(JSON.parse(raw));
+  } catch (e) {
+    console.warn('could not load saved data', e);
+    return PP.freshState();
+  }
+};
+
+/* Fill anything missing from older saves or imported files. */
+PP.migrate = function (s) {
+  const f = PP.freshState();
+  s.profile = Object.assign(f.profile, s.profile || {});
+  if (!Array.isArray(s.items)) s.items = f.items;
+  // add catalogue items introduced after this save
+  const have = new Set(s.items.map(i => i.id));
+  PP.CATALOG.forEach(c => { if (!have.has(c.id)) s.items.push(Object.assign({}, c, { targetOverride: null, have: 0, spent: 0, expiry: '', supplierId: '', hidden: false })); });
+  ['suppliers', 'resources', 'checklists'].forEach(k => { if (!Array.isArray(s[k])) s[k] = f[k]; });
+  s.decision = Object.assign(f.decision, s.decision || {});
+  s.version = 1;
+  return s;
+};
+
+PP.save = function (s) {
+  s.savedAt = new Date().toISOString();
+  try { localStorage.setItem(PP.KEY, JSON.stringify(s)); return true; }
+  catch (e) { console.warn('save failed', e); return false; }
+};
+
+/* ---------------- household maths ---------------- */
+PP.persons = p => Math.max(1, (+p.adults || 0) + (+p.children || 0) + (+p.seniors || 0));
+
+PP.conditionMet = function (when, p) {
+  switch (when) {
+    case 'pets': return +p.pets > 0;
+    case 'medical': return !!(p.medical && p.medical.trim()) || p.fridgeMeds;
+    case 'woodStove': return p.backupHeat === 'wood' || p.heat === 'wood';
+    case 'noBackupHeat': return p.backupHeat === 'none' && p.heat !== 'wood';
+    case 'generator': return p.generator !== 'none';
+    default: return true;
+  }
+};
+
+PP.applies = (item, p) => !item.hidden && (!item.when || PP.conditionMet(item.when, p));
+
+PP.target = function (item, p) {
+  if (item.targetOverride !== null && item.targetOverride !== '' && item.targetOverride !== undefined) return +item.targetOverride;
+  const n = +item.n || 0, days = +p.prepDays || 14;
+  switch (item.rule) {
+    case 'pd': return Math.ceil(n * PP.persons(p) * days);
+    case 'pp': return Math.ceil(n * PP.persons(p));
+    case 'lvl': return Math.ceil(n * Math.max(1, +p.levels || 1));
+    case 'petd': return Math.ceil(n * (+p.pets || 0) * days);
+    case 'veh': return Math.ceil(n * Math.max(0, +p.vehicles || 0));
+    case 'meds': return Math.ceil(n * PP.persons(p));
+    default: return Math.ceil(n);
+  }
+};
+
+PP.perPersonLabel = function (item, p) {
+  const days = +p.prepDays || 14;
+  switch (item.rule) {
+    case 'pd': return `${item.n} ${item.unit}/day (${+(item.n * days).toFixed(1)} for ${days} d)`;
+    case 'pp': return `${item.n} ${item.unit}`;
+    case 'lvl': return `${item.n} per level`;
+    case 'petd': return `${item.n} per pet/day`;
+    case 'veh': return `${item.n} per vehicle`;
+    default: return `${item.n} ${item.unit} (household)`;
+  }
+};
+
+PP.daysUntil = function (iso) {
+  if (!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return null;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.round((d - now) / 86400000);
+};
+
+PP.supplierFor = function (item, s) {
+  if (item.supplierId) {
+    const x = s.suppliers.find(v => v.id === item.supplierId);
+    if (x) return x;
+  }
+  return s.suppliers.find(v => (v.types || []).includes(item.store)) || null;
+};
+
+/* Totals for the dashboard and the tracker. */
+PP.summary = function (s) {
+  const p = s.profile;
+  const rows = s.items.filter(i => PP.applies(i, p)).map(i => {
+    const t = PP.target(i, p);
+    const have = +i.have || 0;
+    const need = Math.max(0, t - have);
+    return { item: i, target: t, have, need, pct: t ? Math.min(1, have / t) : 1, toBuy: need * (+i.cost || 0), exp: PP.daysUntil(i.expiry) };
+  });
+  const weight = { 'Critical': 3, 'Important': 2, 'Nice-to-have': 1 };
+  let w = 0, got = 0;
+  rows.forEach(r => { const k = weight[r.item.pri] || 1; w += k; got += k * r.pct; });
+  const crit = rows.filter(r => r.item.pri === 'Critical');
+  const spent = s.items.reduce((a, i) => a + (+i.spent || 0), 0);
+  const toBuy = rows.reduce((a, r) => a + r.toBuy, 0);
+  const toBuyCritical = crit.reduce((a, r) => a + r.toBuy, 0);
+  const expiring = rows.filter(r => r.exp !== null && r.exp <= 60 && r.have > 0).sort((a, b) => a.exp - b.exp);
+  const byCat = {};
+  rows.forEach(r => { const c = byCat[r.item.cat] || (byCat[r.item.cat] = { w: 0, got: 0 }); const k = weight[r.item.pri] || 1; c.w += k; c.got += k * r.pct; });
+  return {
+    rows, overall: w ? got / w : 0,
+    critical: crit.length ? crit.reduce((a, r) => a + r.pct, 0) / crit.length : 1,
+    criticalDone: crit.filter(r => r.pct >= 1).length, criticalCount: crit.length,
+    spent, toBuy, toBuyCritical, budget: +p.budget || 0, expiring, byCat,
+    waterDays: (() => { const wt = rows.find(r => r.item.id === 'water'); return wt ? (wt.have / (4 * PP.persons(p))) : 0; })(),
+    foodDays: (() => { const f = rows.find(r => r.item.id === 'food'); return f ? (f.have / PP.persons(p)) : 0; })()
+  };
+};
+
+/* Which profile fields are still unknown - the plan lists assumptions for these. */
+PP.missing = function (p) {
+  const m = [];
+  if (!p.householdName) m.push('Household name');
+  if (p.basement === 'unknown') m.push('Basement type (assumed: unfinished concrete basement)');
+  if (p.coDetectors === 'unknown') m.push('CO detectors (assumed: not on every level)');
+  if (!p.houseType) m.push('House type (assumed: detached house)');
+  if (!p.retreatName) m.push('Retreat option (assumed: none confirmed)');
+  if (!p.outOfArea) m.push('Out-of-area contact');
+  if (!p.meetNear) m.push('Meeting point near home');
+  return m;
+};
+
+/* Top gaps, ranked. Draws on the profile and the tracker. */
+PP.gaps = function (s, scenario) {
+  const p = s.profile, sum = PP.summary(s);
+  const get = id => sum.rows.find(r => r.item.id === id);
+  const short = id => { const r = get(id); return r && r.pct < 1; };
+  const fam = scenario ? scenario.family : ['*'];
+  const g = [];
+  const add = (score, text, fix) => g.push({ score, text, fix });
+
+  if (p.coDetectors !== 'every' ) add(100, 'Battery CO detectors are not confirmed on every level.', 'Buy and install one per level and outside sleeping areas. CO is the #1 cold-weather grid-down killer.');
+  if (short('water')) add(95, `Stored water covers ${sum.waterDays.toFixed(1)} of ${p.prepDays} days.`, `Bring stored water up to ${get('water').target} L.`);
+  if (p.backupHeat === 'none' && p.heat !== 'wood' && (fam.includes('cold') || fam.includes('grid') || fam.includes('*'))) add(92, 'No safe backup heat source.', 'Have a wood stove professionally installed (WETT-certified inspection), or keep an indoor-rated propane heater with CO alarm. Plan the warm room.');
+  if (short('bags') && (fam.some(f => ['cold', 'grid', 'nuclear', '*'].includes(f)))) add(90, 'Not everyone has a sleeping bag rated -30°C.', 'Buy one per person; it is the cheapest heat insurance there is.');
+  if (p.basement === 'none' && fam.includes('nuclear')) add(89, 'No basement for fallout shelter.', 'Identify the most interior ground-floor room and a nearby building with a basement you could reach in minutes.');
+  if (short('food')) add(85, `Food covers ${sum.foodDays.toFixed(1)} of ${p.prepDays} days.`, 'Build up shelf-stable food you already eat.');
+  if ((p.medical && p.medical.trim()) || p.fridgeMeds) add(88, 'Medical needs in the household depend on pharmacy access or power.', 'Talk to the pharmacist and doctor about a 30-day reserve; plan cooling for fridge medications.');
+  if (short('radio')) add(84, 'No emergency AM/FM radio.', 'Buy a hand-crank/battery radio; it is your main information source when cell and internet fail.');
+  if (!p.outOfArea || !p.meetNear) add(80, 'Communications plan incomplete (out-of-area contact or meeting point missing).', 'Fill in the contact tree and meeting points on the profile, then print them.');
+  if (short('bucket')) add(75, 'No sanitation plan without plumbing.', 'Assemble a two-bucket toilet kit with bags and cover material.');
+  if (short('firstaid')) add(74, 'No comprehensive first-aid kit.', 'Buy or build one; take a Red Cross or St. John Ambulance first-aid course.');
+  if (short('extinguisher')) add(72, 'Fire extinguishers missing.', 'One ABC extinguisher per level at least.');
+  if (!p.retreatConfirmed && (fam.includes('grid') || fam.includes('evac') || fam.includes('*'))) add(70, 'No confirmed retreat destination.', 'Arrange a pre-agreed rural retreat with trusted people, with routes that avoid Hwy 16/16A/60.');
+  if (short('gobag') && (fam.includes('evac') || fam.includes('*'))) add(78, 'Go-bags are not ready for everyone.', 'Pack one per person and keep them by the door or in the vehicle.');
+  if (short('carkit') && +p.vehicles > 0) add(68, 'Winter vehicle kit missing.', 'Assemble one per vehicle; keep tanks above half in winter.');
+  if (!p.neighbourGroup) add(60, 'No neighbour mutual-aid group.', 'Quietly identify 2–3 trustworthy neighbours and agree to check on each other.');
+  if (p.generator !== 'none' && !p.transferSwitch) add(65, 'Generator without a transfer switch.', 'Have a licensed electrician install a transfer switch or interlock. Never back-feed through a dryer outlet. Run outdoors only, far from windows.');
+  if (sum.budget && sum.spent > sum.budget) add(50, 'Spending is over budget.', 'Focus remaining money on Critical items only.');
+  if (short('cash')) add(55, 'Emergency cash short of target.', 'Keep small bills in the safe.');
+  return g.sort((a, b) => b.score - a.score);
+};
+
+PP.money = n => {
+  const v = Math.round((+n || 0) * 100) / 100, d = Number.isInteger(v) ? 0 : 2;
+  return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+PP.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+</script>
+<script>
+/* Scenario report generator. Builds a printable plan from the
+   scenario, the household profile and the purchase tracker.     */
+window.PP = window.PP || {};
+
+PP.buildReport = function (s, scenarioId) {
+  const sc = PP.SCENARIOS.find(x => x.id === scenarioId) || PP.SCENARIOS[0];
+  const p = s.profile, e = PP.esc, n = PP.persons(p);
+  const has = f => sc.family.includes(f);
+  const long = sc.long;
+  const basement = p.basement === 'unknown' ? 'concrete' : p.basement;
+  const today = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  const sum = PP.summary(s);
+  const waterT = PP.target(s.items.find(i => i.id === 'water') || { rule: 'pd', n: 4 }, p);
+  const ul = a => '<ul>' + a.filter(Boolean).map(x => `<li>${x}</li>`).join('') + '</ul>';
+  const ck = a => '<ul class="ck">' + a.filter(Boolean).map(x => `<li><span class="box"></span><span>${x}</span></li>`).join('') + '</ul>';
+  const ol = a => '<ol class="ck">' + a.filter(Boolean).map(x => `<li><span class="box"></span><span>${x}</span></li>`).join('') + '</ol>';
+  const sections = [];
+  const sec = (title, html) => sections.push({ title, html });
+
+  const members = [
+    `${p.adults} adult${p.adults == 1 ? '' : 's'}`,
+    +p.children ? `${p.children} child${p.children == 1 ? '' : 'ren'}${p.childAges ? ' (' + e(p.childAges) + ')' : ''}` : '',
+    +p.seniors ? `${p.seniors} senior${p.seniors == 1 ? '' : 's'}` : '',
+    +p.pets ? `${p.pets} pet${p.pets == 1 ? '' : 's'}${p.petNotes ? ' (' + e(p.petNotes) + ')' : ''}` : ''
+  ].filter(Boolean).join(', ');
+
+  const heatName = { 'gas-forced': 'natural gas forced-air furnace', 'gas-boiler': 'gas boiler', electric: 'electric heat', wood: 'wood heat', propane: 'propane furnace', other: 'other heat' }[p.heat] || p.heat;
+  const backupName = { none: 'no backup heat', wood: 'wood stove', 'indoor-propane': 'indoor-rated propane heater', fireplace: 'gas fireplace (direct vent)', other: 'other backup heat' }[p.backupHeat] || p.backupHeat;
+
+  /* 1 */
+  sec('Scenario Summary', `
+    <p>${e(sc.summary)}</p>
+    <table class="kv"><tr><th>Realistic duration</th><td>${e(sc.duration)}</td></tr>
+    <tr><th>Probability (central Alberta)</th><td>${e(sc.probability)}</td></tr>
+    <tr><th>Household</th><td>${members}; ${e(p.location)}</td></tr>
+    <tr><th>Default strategy</th><td><b>${has('evac') ? 'LEAVE EARLY AND FAST when ordered or when the threat is visible.' : has('nuclear') ? 'GET INSIDE, STAY INSIDE. Centre of the basement.' : 'STAY HOME. Bug-in is the default; leave only when the triggers below are met.'}</b></td></tr></table>
+    <h4>Likely triggers</h4>${ul(sc.triggers.map(e))}
+    ${long ? `<div class="callout"><b>Collapse Conditions Modifier applies.</b> Assume no police, fire or EMS (911 down or unanswered), no resupply (stores stripped within 24–72 hours), and a sharp rise in theft and opportunistic crime. Social order degrades in phases; see sections 6, 7 and 14.</div>` : ''}`);
+
+  /* 2 */
+  sec('Early Warning Indicators', ck(sc.indicators.map(e)) + `<p class="small">Sources to watch: Alberta Emergency Alert, Environment Canada warnings, AM emergency broadcast, Alberta 511, Town of Stony Plain and Parkland County notices.</p>`);
+
+  /* 3 */
+  const rows = PP.MATRIX.filter(r => r.fam.includes('*') || r.fam.some(f => sc.family.includes(f)));
+  sec('Bug-In vs Bug-Out Decision Matrix', `
+    <table class="grid matrix"><thead><tr><th>Conditions</th><th>Verdict</th><th>Why / what to do</th></tr></thead><tbody>
+    ${rows.map(r => {
+      let why = e(r.why);
+      let verdict = r.verdict;
+      if (r.retreat && !p.retreatConfirmed) { why += ' <b>Your profile has no confirmed retreat, so this verdict is STAY until one is arranged.</b>'; verdict = 'STAY'; }
+      return `<tr><td>${e(r.cond)}</td><td class="v v-${verdict.replace(/\s+/g, '-').toLowerCase()}">${verdict}</td><td>${why}</td></tr>`;
+    }).join('')}
+    </tbody></table>
+    <p><b>Weigh every time:</b> outside temperature and weather; the home's heat, structure, water and security; fallout or contamination status; the phase of the event; road conditions and threats on the route; and whether a confirmed destination can be reached in one leg.</p>
+    <p><b>Reassessment checkpoints:</b> ${has('evac') ? 'every hour while an alert is active; again when the order changes.' : PP.CHECKPOINTS.join(' · ') + '. At each one, rerun the decision check on the Command tab.'}</p>`);
+
+  /* 4 */
+  sec('First 60 Minutes', ol(sc.first60.map(e)));
+
+  /* 5 */
+  const p72 = [
+    ['Safety', [`Head count: ${n} people${+p.pets ? ' and ' + p.pets + ' pet(s)' : ''}.`, 'Treat injuries. Check for gas smell, fire and structural damage.', 'Test CO detectors; no fuel-burning appliance indoors unless rated for it.', p.mobility ? 'Mobility needs: ' + e(p.mobility) + '. Set up their space on the level you will shelter on.' : '']],
+    ['Warmth & shelter', [has('nuclear') ? 'Stay in the centre of the basement for at least 24–48 hours.' : 'Set up the warm room before the house cools. Close off unused rooms.', `Primary heat: ${heatName}. Backup: ${backupName}.`, p.backupHeat === 'none' && p.heat !== 'wood' ? '<b>No backup heat:</b> rely on layers, sleeping bags rated -30°C, the warm room and body heat.' : '', 'Everyone in layers, hats and dry socks; no cotton next to skin in deep cold.']],
+    ['Water', [`Target ${waterT} L stored (4 L/person/day for ${p.prepDays} days). Ration drinking water last.`, p.water === 'well' ? 'Well pump needs power: fill every container in the first hour.' : 'Municipal pressure may fail; fill tubs and pots early.', 'Purify doubtful water: rolling boil 1 minute, or 2 drops unscented 5–6% bleach per litre and wait 30 min.', 'Your hot-water tank holds 150–270 L of usable water: shut the inlet and drain from the bottom valve.']],
+    ['Food', ['Eat fridge food first, then freezer, then pantry.', 'Keep freezer closed: full freezer ~48 h, half full ~24 h.', 'No-cook meals first; cook only with safe, ventilated methods.', +p.pets ? 'Pet food and water accounted for.' : '']],
+    ['Communications', ['Battery/crank AM radio on the hour for official updates.', 'Text rather than call; texts get through when calls fail.', `Out-of-area contact: ${p.outOfArea ? e(p.outOfArea) : '<i>not set</i>'}.`, 'Agree radio check-in times with neighbours.']],
+    ['Security', ['Lock doors, close blinds, keep lights low after dark.', 'Do not advertise supplies, generator or heat.', long ? 'Begin watch rotation with your neighbour group if the outage continues past day 2.' : '']],
+    ['Sanitation', ['If water or sewer is down: bucket toilet with bag liner and cover material; double-bag and store waste outside.', 'Hand sanitizer before food and after toilet.', 'Garbage sealed and stored away from the house.']]
+  ];
+  sec('First 72 Hours', p72.map(([h, a]) => `<h4>${h}</h4>${ul(a)}`).join(''));
+
+  /* 6 */
+  if (long) {
+    sec('Weeks 1–4: The Chaos Period', `
+      <p>The first 30–60 days are the most dangerous. Panic, failed medical care, exposure, unsafe heating, violence and disease drive mortality in the general population. Roads become dangerous within 24–72 hours as people move outward from Edmonton along Hwy 16, 16A and 60.</p>
+      <p><b>Strategy: go quiet and go low.</b> Stay low-profile, operate from the basement if needed, keep strict light, noise and smell discipline, and let the initial chaos burn itself out.</p>
+      <table class="grid"><thead><tr><th>Phase</th><th>What to expect</th><th>How the plan changes</th></tr></thead><tbody>
+      <tr><td>Days 1–3</td><td>Confusion; most people expect a quick fix. Stores emptied. Opportunist theft.</td><td>Stay home. Lock up. Finish water fill. Quiet check-ins with trusted neighbours.</td></tr>
+      <tr><td>Days 4–14</td><td>Fuel gone, medications running out, people on the move, scams and people claiming authority.</td><td>Full OPSEC. Watch rotation. Ration. No visible cooking or generator use at night.</td></tr>
+      <tr><td>Weeks 3–4</td><td>Organized groups may form. Disease from poor sanitation. Deaths from cold and CO.</td><td>Stay hidden. Strict sanitation. Pool resources with vetted neighbours. Reassess at week 4.</td></tr>
+      </tbody></table>
+      <h4>Staying healthy</h4>${ul(['Hydration and calorie tracking; nobody skips meals silently.', 'Sanitation discipline prevents diarrheal disease, the classic killer after disasters.', 'Sleep in shifts if on watch; fatigue causes bad decisions.', 'Watch mental health: routines, daylight, tasks for everyone.'])}`);
+    sec('Months 1–6+: Long-Term', `
+      ${ul(['<b>Stabilization:</b> the population settles; community structures re-form. Re-evaluate bugging out only now (checkpoint week 8).', '<b>Food production:</b> gardens (Alberta last frost around late May), seed saving, preserving, hunting and fishing within legal limits.', '<b>Water:</b> rain and snow collection with filtering and boiling.', '<b>Heat:</b> firewood for next winter needs cutting and seasoning months ahead.', '<b>Community:</b> skills exchange, shared watch, shared medical care, schooling for children.', '<b>Rebuilding:</b> when services return, document everything for insurance, and expect order to be restored with the legal system intact.'])}`);
+  } else {
+    sec('After the First 72 Hours', ul([has('evac') ? 'Stay registered with the reception centre or Parkland County until return is allowed.' : 'Keep the outage log; report damage to the utility.', 'Check on neighbours, especially elderly and medically dependent people.', 'Inspect the furnace, pipes and appliances before restarting; call a professional if anything is damaged.', 'Throw out food that rose above 4°C for more than 2 hours.', 'Restock what you used, using the shopping list.', 'Debrief: what went wrong? Update the plan and checklists.']));
+    sec('Longer-Term Recovery', ul(['Insurance claims with photos and receipts.', 'Mental health check-ins for everyone, especially children.', 'Schedule a drill to test the fixes within three months.']));
+  }
+
+  /* 8 */
+  sec('Shelter-in-Place Plan', `
+    <h4>Basement / shelter room</h4>${ul([
+      basement === 'none' ? '<b>No basement.</b> Use the most interior ground-floor room with the fewest windows. Identify a nearby building with a basement for fallout.' : `Basement: ${e(basement)}. Use the centre, away from windows and exterior walls.`,
+      has('nuclear') ? 'Fallout: stack mass (water containers, books, soil-filled bins) against basement windows and on the floor above the shelter corner. Plan for up to 2 weeks with only brief trips out after 48 hours.' : '',
+      'Store water, food, radio, lights, sanitation and medications in or beside the room.'
+    ])}
+    <h4>Heat</h4>${ul([
+      `Primary: ${heatName}. Most gas furnaces need electricity for the blower and ignition.`,
+      `Backup: ${backupName}.`,
+      'Warm room: one small space, blankets over doors and windows, everyone in it, sleeping bags rated -30°C or lower.',
+      '<b>Professional required:</b> wood stove installs (WETT inspection), generator transfer switches, gas appliance work.'
+    ])}
+    <h4>Power</h4>${ul([
+      p.generator === 'none' ? 'No generator: rely on power banks, batteries and a power station for lights and radio.' : `Generator: ${e(p.generator)}. Run outdoors only, at least 6 m from doors and windows, never in a garage. ${p.transferSwitch ? 'Transfer switch installed.' : '<b>No transfer switch:</b> use extension cords only; never back-feed.'}`,
+      p.solar ? 'Solar on site: confirm whether it works during a grid outage (many grid-tied systems shut off without a battery).' : ''
+    ])}
+    <h4>Water</h4>${ul([`${p.water === 'well' ? 'Well' : 'Municipal'} supply. Stored target ${waterT} L.`, 'Hot-water tank and toilet tanks (not bowls) are reserves.', 'Drain plumbing if the house will drop below freezing for long.'])}
+    <h4>Food rationing</h4>${ul(['Plan about 2,000 kcal per adult per day; more in cold.', 'Track food in person-days on the purchase tracker.', 'Eat perishables first.'])}
+    <h4>Sanitation without plumbing</h4>${ul(['Two-bucket system: one for urine (dilute and dump away from water sources if allowed), one lined bag for solids with litter/sawdust.', 'Double-bag, seal, store in a covered bin outside.', 'Hand washing station with a jug and soap.'])}
+    <h4>Carbon monoxide</h4><div class="callout warn">CO is the #1 killer in cold-weather grid-down. Never run generators, BBQs, camp stoves, propane heaters not rated for indoor use, or vehicles in enclosed spaces. Battery CO detectors on every level are mandatory. ${p.coDetectors === 'every' ? 'Your profile says you have them: test monthly.' : '<b>Your profile does not confirm detectors on every level.</b>'}</div>`);
+
+  /* 9 */
+  const retreat = p.retreatName ? `${e(p.retreatName)}${p.retreatKm ? ', ' + e(p.retreatKm) + ' km' : ''}${p.retreatConfirmed ? ' (pre-arranged)' : ' (<b>not confirmed</b>)'}${p.retreatHeated ? ', heated' : ''}` : '<i>none on profile</i>';
+  sec('Bug-Out Plan', `
+    ${has('nuclear') ? '<div class="callout">During the fallout window, bugging out does not apply. Leave early only if the shelter is inadequate or officials give a specific evacuation order, and only after the heavy-fallout window where possible.</div>' : ''}
+    <h4>Triggers to leave</h4>${ul([has('evac') ? 'Official evacuation order, or fire / plume visible and approaching.' : 'Home cannot be heated at all AND confirmed heated destination reachable in one daylight leg.', 'Fire, structural failure, or a threat to life you cannot avoid.', 'Defending the home is no longer worth the risk to people. Stuff can be replaced.'])}
+    <h4>Destinations, ranked</h4>${ol(['Pre-arranged rural retreat with trusted people. Yours: ' + retreat, 'Owned rural property or cabin.', has('evac') ? 'Official reception centre.' : 'Family or friends outside the affected area.', 'Never a winter bush camp as the primary option.'])}
+    <h4>Routes</h4>${ul([p.retreatRoute ? 'Your route notes: ' + e(p.retreatRoute) : 'Write down primary, secondary and tertiary routes on the profile.', 'Prefer range and township roads; avoid Hwy 16, 16A and 60 choke points and population centres.', 'Leave at first light. Avoid convoys. Check Alberta 511 if it is working.', 'Cache sites: a few days of water, food and warm gear along each route, with permission of the landowner.'])}
+    <h4>Vehicle and on-foot</h4>${ul(['Vehicle: full tank, winter kit, go-bags, paper maps, radios, and a printed copy of this plan.', 'On foot (only if the vehicle fails and staying is worse): go-bags, layered clothing, travel in daylight, stay together.', `If separated: meet at ${p.meetNear ? e(p.meetNear) : 'the near meeting point'}; if that is unsafe, ${p.meetFar ? e(p.meetFar) : 'the far meeting point'}. Wait a set time, leave a note, then continue to the destination.`])}`);
+
+  /* 10 */
+  const items = sum.rows.filter(r => r.item.fam.includes('*') || r.item.fam.some(f => sc.family.includes(f)));
+  sec('Supply List', `
+    <p class="small">Quantities are for ${n} people over ${p.prepDays} days. "Have" comes from your purchase tracker. Prices are approximate CAD planning estimates.</p>
+    <table class="grid supply"><thead><tr><th>Item</th><th>Qty per person</th><th>Priority</th><th>Target</th><th>Have</th><th>Approx. cost</th><th>Shelf life</th></tr></thead><tbody>
+    ${items.sort((a, b) => ({ Critical: 0, Important: 1, 'Nice-to-have': 2 }[a.item.pri] - { Critical: 0, Important: 1, 'Nice-to-have': 2 }[b.item.pri])).map(r => `<tr class="${r.pct >= 1 ? 'done' : ''}"><td>${e(r.item.name)}</td><td>${e(PP.perPersonLabel(r.item, p))}</td><td>${r.item.pri}</td><td>${r.target} ${e(r.item.unit)}</td><td>${r.have}</td><td>${PP.money(r.item.cost)} / ${e(r.item.unit.replace(/s$/, ''))}</td><td>${r.item.life ? (r.item.life >= 12 ? (r.item.life / 12).toFixed(r.item.life % 12 ? 1 : 0) + ' yr' : r.item.life + ' mo') : 'n/a'}</td></tr>`).join('')}
+    </tbody></table>
+    <p>Still to buy for this scenario: <b>${PP.money(items.reduce((a, r) => a + r.toBuy, 0))}</b>. Critical items first.</p>
+    ${has('nuclear') ? '<p><b>Potassium iodide (KI):</b> protects only the thyroid, and only against radioactive iodine. It does not protect against other radiation. Take it only when public health officials tell you to.</p>' : ''}`);
+
+  /* 11 */
+  sec('Communications Plan', `
+    <table class="kv"><tr><th>Out-of-area contact</th><td>${e(p.outOfArea) || '<i>not set</i>'}</td></tr>
+    <tr><th>Meeting point (near home)</th><td>${e(p.meetNear) || '<i>not set</i>'}</td></tr>
+    <tr><th>Meeting point (outside neighbourhood)</th><td>${e(p.meetFar) || '<i>not set</i>'}</td></tr></table>
+    <h4>Contact tree</h4>${p.contacts ? '<pre class="tree">' + e(p.contacts) + '</pre>' : '<p><i>Add contacts on the profile.</i></p>'}
+    <h4>Radios</h4>${ul(['AM emergency broadcast: CHED 630, CBC Radio One 740 (Edmonton). Confirm locally.', 'FRS/GMRS: agree a channel and check-in times (e.g. on the hour, 5 minutes). GMRS needs an ISED-compliant radio; no licence needed in Canada.', 'Amateur (ham) radio needs an ISED Basic Qualification; worth getting for long-term scenarios.'])}
+    <h4>Signals between households</h4>${ul(['Agreed window sign (e.g. a coloured cloth) meaning "we are OK" / "need help".', 'Note on the door for family arriving: where you went and when (only if leaving).'])}`);
+
+  /* 12 */
+  sec('Medical & Health', `
+    ${p.medical ? `<div class="callout">Household medical needs: ${e(p.medical)}${p.fridgeMeds ? ' (includes medication that needs refrigeration; plan a cooler and cold packs, or outdoor cold storage in winter kept above freezing)' : ''}.</div>` : ''}
+    <h4>Likely injuries and illnesses</h4>${ul(['Hypothermia and frostbite', 'CO poisoning (headache, nausea, confusion: get to fresh air, call for help)', 'Burns from improvised heat and light', 'Cuts and sprains from cleanup', 'Diarrheal illness from water and sanitation', 'Medication withdrawal or uncontrolled chronic conditions', has('nuclear') ? 'Radiation exposure: decontaminate; nausea within hours suggests a significant dose' : ''])}
+    <h4>Hypothermia</h4>${ul(['Signs: shivering, slurred speech, clumsiness, confusion. Shivering stopping is a bad sign.', 'Move to the warm room, remove wet clothing, insulate from the floor, warm the core (chest, neck, groin) first.', 'Warm sweet drinks only if fully alert. No alcohol. Handle gently.'])}
+    <h4>Frostbite</h4>${ul(['White or grey, hard, numb skin.', 'Do not rub. Rewarm in warm (not hot) water only if there is no risk of refreezing.', 'Seek medical care when possible.'])}
+    <h4>Medication reserve</h4>${ul(['Ask your pharmacist and doctor about a 30-day reserve and early refills.', 'Keep a written list of medications and doses for everyone.', 'Rotate stock; check expiry alerts monthly.'])}
+    <h4>First-aid kit additions</h4>${ul(['Israeli bandage / pressure dressings', 'Burn gel and dressings', 'Low-reading thermometer', 'Oral rehydration salts', 'Splints and elastic bandages'])}`);
+
+  /* 13 */
+  sec('Cold-Weather Modifier: January at -35°C', ul([
+    'Exposure without shelter kills in hours. A cold house is still far safer than a road, vehicle or tent.',
+    'Unheated houses drop below freezing in 12–36 hours; plan to drain plumbing if heat cannot be restored.',
+    'Basements stay warmer than upper floors because the ground is warmer than the air.',
+    'Bug out in extreme cold ONLY if the home cannot be heated at all, AND a heated destination is confirmed, AND it can be reached in daylight in one leg with a winter-equipped vehicle and full survival kit.',
+    'Vehicles: tank above half all winter; block heater; winter tyres. ' + (p.winterVehicle ? 'Your profile says your vehicle is winter-equipped.' : '<b>Your profile does not confirm a winter-equipped vehicle.</b>'),
+    'Batteries lose capacity in cold; keep them inside the warm room.',
+    'Daylight is about 8 hours: do outdoor tasks midday.'
+  ]));
+
+  /* 14 */
+  sec('Threat Assessment by Phase', `
+    <table class="grid"><thead><tr><th>Phase</th><th>Threat</th><th>Response</th></tr></thead><tbody>
+    <tr><td>Days 1–3</td><td>Opportunists: theft from vehicles, sheds, unattended homes</td><td>Lock up, lights low, keep supplies out of sight.</td></tr>
+    <tr><td>Weeks 2–4</td><td>Organized groups; people claiming authority</td><td>Stay hidden, neighbour watch, verify authority by radio before opening the door.</td></tr>
+    <tr><td>Long term</td><td>Desperate locals</td><td>Community structures; controlled, anonymous charity through a group, not from your door.</td></tr>
+    </tbody></table>
+    <h4>What attracts attention</h4>${ul(['Light at night', 'Generator noise', 'Cooking smells', 'Wood smoke when no one else has heat', 'Visible supplies, deliveries and fuel cans', 'Social media posts'])}`);
+
+  /* 15 */
+  sec('OPSEC & Gray Man Plan', ul(['Do not discuss supplies outside the household and the vetted group.', 'Light discipline: blackout covers, red headlamps, no light leaks after dark.', 'Noise: muffled generator in a ventilated enclosure outdoors, short daytime run schedule.', 'Smell: cook in the daytime, simple meals, seal food waste.', 'The home looks as unremarkable as its neighbours: same snow on the drive, same dark windows.', 'Zero social media about the household, location or preparations.']));
+
+  /* 16 */
+  sec('Home Hardening & Protection', `
+    <h4>Physical security</h4>${ul(['Exterior door strike plates with 3" screws into the framing; deadbolts.', 'Ground-floor window locks and security film.', 'Clear sightlines; trim shrubs near windows.', 'Safe room: an interior room with a solid door and communications.'])}
+    <h4>Early warning</h4>${ul(['Dogs are the best alarm.', 'Battery motion sensors and lights on approaches.', 'Watch rotation with neighbours in long scenarios.'])}
+    <h4>Caches</h4>${ul(['Split supplies: at least two hidden locations in the home, and one off-site with trusted people.', 'Never one obvious stockpile.'])}
+    <h4>Firearms (legal ownership only)</h4>${ul(['Only with a valid PAL, stored unloaded and locked as the law requires, ammunition separate.', p.pal ? 'Profile: PAL holder. Keep training current.' : 'Profile: no PAL. Firearms are not part of this plan.', 'Household safety rules taught to everyone, including children.'])}
+    <p class="small">No booby traps or improvised weapons: they are illegal in Canada and injure children, neighbours and first responders.</p>`);
+
+  /* 17 */
+  sec('Neighbourhood & Community Defence', ul([p.neighbourGroup ? 'Profile: you have a neighbour group. Agree roles and radio channel.' : 'Vet 2–3 trustworthy neighbours in advance. Start with ordinary favours.', 'Form a mutual aid and watch group; share skills (medical, mechanical, trades).', 'Coordinate access points to the street or cul-de-sac only as a group.', 'Share resources deliberately; help the vulnerable through the group, not as individuals.']));
+
+  /* 18 */
+  sec('Confrontation Avoidance & De-escalation', `
+    <table class="grid"><thead><tr><th>Situation</th><th>Rule</th></tr></thead><tbody>
+    <tr><td>Stranger asking for help</td><td>Talk through a closed door or window. Point to the reception centre, food bank or group help. Give from a separate small cache, never from the main store.</td></tr>
+    <tr><td>Approaching group</td><td>Do not engage. Stay out of sight. Alert neighbours by radio. Leave by the back if it escalates.</td></tr>
+    <tr><td>Person claiming authority</td><td>Ask for ID and confirm by radio or phone before opening the door. Real officials will wait.</td></tr>
+    <tr><td>Threat to life</td><td>Hide or leave. People before property.</td></tr>
+    </tbody></table>`);
+
+  /* 19 */
+  sec('Legal Reality Check', ul(['The Criminal Code still applies: s.34 (defence of the person) and s.35 (defence of property).', 'Force must be reasonable and proportionate. People come before property.', 'Everything you do will be judged when order returns.', 'Hunting, fishing and firearm laws still apply.']));
+
+  /* 20 */
+  sec('Roles & Responsibilities', p.roles ? '<pre class="tree">' + e(p.roles) + '</pre>' : `<table class="grid"><thead><tr><th>Role</th><th>Duties</th><th>Who</th></tr></thead><tbody>
+    ${[['Lead', 'Decisions, decision checkpoints, the log'], ['Heat & CO', 'Warm room, safe heat, detector checks'], ['Water & food', 'Rationing, purification, cooking'], ['Communications', 'Radio schedule, contact tree, neighbours'], ['Medical', 'First aid, medications, hygiene'], ['Security', 'Doors, light discipline, watch rota']].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="line"></td></tr>`).join('')}
+    </tbody></table>`);
+
+  /* 21 */
+  sec('Skills & Drills', ck(['48-hour lights-out basement drill in winter (yearly)', 'Fire escape drill (twice yearly)', 'Go-bag grab in under 10 minutes (twice yearly)', 'First-aid / CPR course (every 3 years)', 'Drive each route in daylight (yearly)', 'Radio check with neighbours (monthly)', has('nuclear') ? 'Fallout shelter setup: stack mass, seal intakes (yearly)' : '', has('evac') ? 'Evacuation load-out in 15 minutes (yearly)' : '']));
+
+  /* 22 */
+  sec('Local Resources & Where to Buy', `
+    <h4>Official community resources</h4>
+    <table class="grid"><thead><tr><th>Resource</th><th>Contact</th><th>Notes</th></tr></thead><tbody>
+    ${s.resources.map(r => `<tr><td>${e(r.name)}</td><td>${e(r.contact)}${r.url ? '<br><span class="small">' + e(r.url) + '</span>' : ''}</td><td>${e(r.notes)}</td></tr>`).join('')}
+    </tbody></table>
+    <h4>Local suppliers</h4>
+    <table class="grid"><thead><tr><th>Store</th><th>Sells</th><th>Address / phone / hours</th></tr></thead><tbody>
+    ${s.suppliers.map(v => `<tr><td>${e(v.name)}</td><td>${(v.types || []).map(t => PP.STORE_TYPES[t] || t).join(', ')}</td><td>${[v.address, v.town, v.phone, v.hours].filter(Boolean).map(e).join(' · ') || '<i>fill in</i>'}</td></tr>`).join('')}
+    </tbody></table>`);
+
+  /* 23 */
+  const gaps = PP.gaps(s, sc).slice(0, 5);
+  sec('Top 5 Gaps', gaps.length ? '<ol class="gaps">' + gaps.map(g => `<li><b>${e(g.text)}</b><br>${e(g.fix)}</li>`).join('') + '</ol>' : '<p>No major gaps found from your profile and tracker. Keep drilling.</p>');
+
+  /* assumptions */
+  const miss = PP.missing(p);
+
+  /* quick reference card */
+  const qrc = `
+    <div class="qrc">
+      <div class="qrc-h"><b>${e(sc.name)}</b><span>${e(p.householdName || 'Household')} · ${e(p.location)}</span></div>
+      <div class="qrc-verdict">${has('evac') ? 'ORDERED OR THREAT VISIBLE? LEAVE NOW.' : has('nuclear') ? 'GET IN · STAY IN · TUNE IN' : 'DEFAULT: STAY HOME'}</div>
+      <div class="qrc-cols">
+        <div><h5>First steps</h5><ol>${sc.first60.slice(0, 6).map(x => `<li>${e(x)}</li>`).join('')}</ol></div>
+        <div>
+          <h5>Contacts</h5>
+          <p>Emergency 911 · Health Link 811 · 211 · Roads 511<br>Out-of-area: ${e(p.outOfArea) || '________________'}<br>Meet near: ${e(p.meetNear) || '________________'}<br>Meet far: ${e(p.meetFar) || '________________'}</p>
+          <h5>Never</h5><p>Generator, BBQ, camp stove or car running indoors or in the garage. CO kills.</p>
+          <h5>Water</h5><p>Boil 1 min, or 2 drops bleach/L, wait 30 min.</p>
+          ${has('nuclear') ? '<h5>Fallout</h5><p>Centre of basement 24–48 h minimum. KI only when officials say.</p>' : ''}
+          <h5>Radio</h5><p>AM 630 / 740 · FRS/GMRS ch. ____ on the hour</p>
+        </div>
+      </div>
+    </div>`;
+
+  return {
+    scenario: sc,
+    html: `
+    <div class="report-page report-cover">
+      <div class="cover-k">Household Emergency Plan</div>
+      <h1>${e(sc.name)}</h1>
+      <div class="cover-meta">${e(p.householdName || 'Household')} · ${e(p.location)}<br>${today}</div>
+      ${miss.length ? `<div class="assume"><b>Assumptions</b> (profile fields not yet filled in):${ul(miss.map(e))}</div>` : ''}
+      <p class="small cover-foot">Based on guidance from Public Safety Canada, the Alberta Emergency Management Agency, the Canadian Red Cross, Health Canada and Ready.gov. Follow official instructions when they differ from this plan.</p>
+    </div>
+    <div class="report-page">
+      <h2>Contents</h2>
+      <ol class="toc">${sections.map((x, i) => `<li><a href="#rs-${i + 1}">${x.title}</a></li>`).join('')}<li>Quick Reference Card</li></ol>
+    </div>
+    <div class="report-body">
+      ${sections.map((x, i) => `<section class="rsec" id="rs-${i + 1}"><h2><span class="num">${i + 1}</span>${x.title}</h2>${x.html}</section>`).join('')}
+    </div>
+    <div class="report-page qrc-page">${qrc}</div>`
+  };
+};
+
+</script>
+<script>
+/* UI: tabs, forms, binding, rendering. Plain DOM, no framework. */
+(function () {
+  const S = PP.load();
+  window.PP.state = S;
+  const e = PP.esc, $ = (q, r) => (r || document).querySelector(q), $$ = (q, r) => Array.from((r || document).querySelectorAll(q));
+  let current = 'command';
+  let saveTimer = null;
+  let lastReport = PP.SCENARIOS[1].id;
+
+  /* ------------- persistence ------------- */
+  function persist() {
+    clearTimeout(saveTimer);
+    $('#saveStatus').textContent = 'Saving…';
+    saveTimer = setTimeout(() => {
+      const ok = PP.save(S);
+      $('#saveStatus').textContent = ok ? 'Saved' : 'Not saved: storage full or blocked';
+      $('#saveStatus').className = 'pill ' + (ok ? 'ok' : 'bad');
+    }, 250);
+  }
+
+  /* ------------- path binding -------------
+     data-path="profile.adults" or "items.<id>.have" or
+     "checklists.<id>.items.<id>.text". Arrays are walked by id. */
+  function walk(path) {
+    const seg = path.split('.');
+    let o = S;
+    for (let i = 0; i < seg.length - 1; i++) {
+      o = Array.isArray(o) ? o.find(x => x.id === seg[i]) : o[seg[i]];
+      if (o == null) return null;
+    }
+    return { obj: o, key: seg[seg.length - 1] };
+  }
+  function readInput(el) {
+    if (el.type === 'checkbox' && el.dataset.multi !== undefined) {
+      const w = walk(el.dataset.path); const arr = Array.isArray(w.obj[w.key]) ? w.obj[w.key].slice() : [];
+      const v = el.dataset.multi; const i = arr.indexOf(v);
+      if (el.checked && i < 0) arr.push(v); if (!el.checked && i >= 0) arr.splice(i, 1);
+      return arr;
+    }
+    if (el.type === 'checkbox') return el.checked;
+    if (el.type === 'number') return el.value === '' ? (el.dataset.nullable !== undefined ? null : 0) : Number(el.value);
+    return el.value;
+  }
+  function bind(el) {
+    const w = walk(el.dataset.path);
+    if (!w) return;
+    w.obj[w.key] = readInput(el);
+    persist();
+  }
+  document.addEventListener('input', ev => {
+    const el = ev.target;
+    if (!el.dataset || !el.dataset.path) return;
+    bind(el);
+    if (el.dataset.live !== undefined) refreshSoon();
+  });
+  document.addEventListener('change', ev => {
+    const el = ev.target;
+    if (!el.dataset || !el.dataset.path) return;
+    bind(el);
+    /* Nothing on the profile tab is computed from other fields. */
+    if (el.dataset.norender !== undefined || current === 'profile') return;
+    /* Defer until focus has moved, so the field the user is moving
+       into is the one that gets focus back after the rebuild. */
+    if (pointerDown) pending = true; else setTimeout(render, 0);
+  });
+  /* Re-rendering while a mouse button is down would swallow the click
+     that caused the blur, so wait until that click has landed. */
+  let pointerDown = false, pending = false;
+  document.addEventListener('pointerdown', () => { pointerDown = true; }, true);
+  document.addEventListener('pointerup', () => setTimeout(() => { pointerDown = false; if (pending) { pending = false; render(); } }, 0), true);
+  let rTimer = null;
+  function refreshSoon() { clearTimeout(rTimer); rTimer = setTimeout(render, 600); }
+
+  /* ------------- tabs ------------- */
+  function show(panel) {
+    current = panel;
+    $$('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.panel === panel ? 'true' : 'false'));
+    $$('.panel').forEach(p => p.classList.toggle('on', p.id === 'panel-' + panel));
+    if (location.hash !== '#' + panel) history.replaceState(null, '', '#' + panel);
+    render();
+    window.scrollTo(0, 0);
+  }
+  $$('.tab').forEach(t => t.addEventListener('click', () => show(t.dataset.panel)));
+  document.addEventListener('click', ev => {
+    const go = ev.target.closest('[data-go]');
+    if (go) { ev.preventDefault(); show(go.dataset.go); }
+  });
+
+  /* ------------- render with focus kept ------------- */
+  function render() {
+    const a = document.activeElement;
+    const key = a && a.dataset && (a.dataset.path || a.id) ? (a.dataset.path ? 'p:' + a.dataset.path + ':' + (a.dataset.multi || '') : 'i:' + a.id) : null;
+    const sel = a && 'selectionStart' in a ? [a.selectionStart, a.selectionEnd] : null;
+    const fn = R[current];
+    if (fn) fn($('#panel-' + current));
+    if (key) {
+      let el = null;
+      if (key.startsWith('p:')) {
+        const parts = key.slice(2).split(':');
+        el = $$('[data-path]').find(x => x.dataset.path === parts[0] && (x.dataset.multi || '') === parts[1] && x.offsetParent !== null);
+      } else el = document.getElementById(key.slice(2));
+      if (el && el !== document.activeElement) {
+        el.focus({ preventScroll: true });
+        try { if (sel && el.setSelectionRange && sel[0] != null) el.setSelectionRange(sel[0], sel[1]); } catch (_) { }
+      }
+    }
+  }
+
+  /* ------------- small builders ------------- */
+  const opt = (v, label, cur) => `<option value="${e(v)}"${String(cur) === String(v) ? ' selected' : ''}>${e(label)}</option>`;
+  const fld = (label, inner, cls) => `<label class="fld ${cls || ''}"><span>${label}</span>${inner}</label>`;
+  const txt = (path, val, ph, extra) => `<input type="text" data-path="${path}" value="${e(val)}" placeholder="${e(ph || '')}" ${extra || ''}>`;
+  const num = (path, val, extra) => `<input type="number" inputmode="decimal" data-path="${path}" value="${val === null || val === undefined ? '' : e(val)}" ${extra || ''}>`;
+  const sel = (path, cur, opts) => `<select data-path="${path}">${opts.map(o => opt(o[0], o[1], cur)).join('')}</select>`;
+  const chk = (path, val, label) => `<label class="chk"><input type="checkbox" data-path="${path}" ${val ? 'checked' : ''}> ${label}</label>`;
+  const bar = (pct, cls) => `<div class="bar ${cls || ''}"><i style="width:${Math.round(pct * 100)}%"></i></div>`;
+  const pctTxt = x => Math.round(x * 100) + '%';
+  const priCls = p => ({ 'Critical': 'pri-c', 'Important': 'pri-i', 'Nice-to-have': 'pri-n' }[p] || '');
+
+  const R = {};
+
+  /* ================= COMMAND ================= */
+  R.command = el => {
+    const sum = PP.summary(S), p = S.profile, gaps = PP.gaps(S).slice(0, 5), miss = PP.missing(p);
+    const d = S.decision, v = PP.decide(d, p);
+    const rem = sum.budget - sum.spent;
+    el.innerHTML = `
+      <div class="card hero">
+        <div>
+          <div class="k">Household</div>
+          <h1>${e(p.householdName || 'Your household')}</h1>
+          <div class="sub">${PP.persons(p)} people${+p.pets ? ' · ' + p.pets + ' pet(s)' : ''} · ${e(p.location)} · ${p.prepDays}-day target</div>
+          ${miss.length ? `<p class="warn-t">Profile incomplete: ${miss.length} field(s) missing. <a href="#profile" data-go="profile">Finish the profile</a> so the plans fit your home.</p>` : ''}
+        </div>
+        <div class="ring" style="--p:${Math.round(sum.overall * 100)}"><b>${pctTxt(sum.overall)}</b><span>ready</span></div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="k">Critical items complete</div><div class="n">${sum.criticalDone}<small>/${sum.criticalCount}</small></div>${bar(sum.critical, 'crit')}</div>
+        <div class="tile"><div class="k">Water stored</div><div class="n">${sum.waterDays.toFixed(1)}<small> days</small></div>${bar(Math.min(1, sum.waterDays / p.prepDays))}</div>
+        <div class="tile"><div class="k">Food stored</div><div class="n">${sum.foodDays.toFixed(1)}<small> days</small></div>${bar(Math.min(1, sum.foodDays / p.prepDays))}</div>
+        <div class="tile"><div class="k">Spent / budget</div><div class="n">${PP.money(sum.spent)}<small> / ${PP.money(sum.budget)}</small></div>${bar(sum.budget ? Math.min(1, sum.spent / sum.budget) : 0, sum.spent > sum.budget ? 'over' : '')}<div class="small">${rem >= 0 ? PP.money(rem) + ' left' : PP.money(-rem) + ' over'} · ${PP.money(sum.toBuy)} to finish (${PP.money(sum.toBuyCritical)} critical)</div></div>
+      </div>
+
+      <div class="cols2">
+        <div class="card">
+          <h2>Decision check: stay or go?</h2>
+          <p class="sub">Set what is true right now. The verdict follows the stay-home-by-default rules.</p>
+          <div class="grid-f">
+            ${fld('Outside temp (°C)', num('decision.temp', d.temp))}
+            ${fld('Home heat', sel('decision.heat', d.heat, [['ok', 'Working'], ['failing', 'Failing / falling'], ['none', 'Cannot be heated']]))}
+            ${fld('Structure', sel('decision.structure', d.structure, [['ok', 'Sound'], ['damaged', 'Damaged'], ['fire', 'Fire / failing']]))}
+            ${fld('Fallout', sel('decision.fallout', d.fallout, [['none', 'None'], ['warning', 'Warning, not arrived'], ['active', 'Active, first 48 h'], ['after', 'After 48 h']]))}
+            ${fld('Official order', sel('decision.order', d.order, [['none', 'None'], ['alert', 'Evacuation alert (be ready)'], ['evacuate', 'Evacuation ORDER'], ['shelter', 'Shelter-in-place order']]))}
+            ${fld('Event phase', sel('decision.phase', d.phase, [['golden', 'Golden window (0–24 h)'], ['chaos', 'Chaos (day 2 – week 4)'], ['stabilization', 'Stabilization (week 8+)']]))}
+            ${fld('Roads', sel('decision.roads', d.roads, [['clear', 'Clear'], ['congested', 'Congested'], ['dangerous', 'Dangerous / blocked']]))}
+            ${fld('Destination', sel('decision.dest', d.dest, [['none', 'None'], ['uncertain', 'Not confirmed'], ['confirmed', 'Confirmed, one leg']]))}
+            ${fld('Daylight for the trip', sel('decision.daylight', d.daylight, [['yes', 'Yes'], ['no', 'No']]))}
+            ${fld('Threat at home', sel('decision.threat', d.threat, [['none', 'None'], ['elevated', 'Elevated'], ['imminent', 'Threat to life']]))}
+          </div>
+          <div class="verdict v-${v.verdict.replace(/\s+/g, '-').toLowerCase()}"><b>${v.verdict}</b>${'<ul>' + v.reasons.map(r => `<li>${e(r)}</li>`).join('') + '</ul>'}</div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Top 5 gaps right now</h2>
+            ${gaps.length ? '<ol class="gaps">' + gaps.map(g => `<li><b>${e(g.text)}</b><br><span class="small">${e(g.fix)}</span></li>`).join('') + '</ol>' : '<p>No major gaps. Keep drilling.</p>'}
+          </div>
+          <div class="card">
+            <h2>Expiry alerts</h2>
+            ${sum.expiring.length ? '<ul class="alerts">' + sum.expiring.map(r => `<li class="${r.exp < 0 ? 'bad' : r.exp <= 30 ? 'warn' : ''}"><b>${e(r.item.name)}</b> ${r.exp < 0 ? 'expired ' + (-r.exp) + ' days ago' : r.exp === 0 ? 'expires today' : 'expires in ' + r.exp + ' days'}</li>`).join('') + '</ul>' : '<p class="small">Nothing expires in the next 60 days. Add expiry dates in the purchase tracker.</p>'}
+          </div>
+          <div class="card">
+            <h2>Readiness by category</h2>
+            <table class="mini">${Object.entries(sum.byCat).map(([c, x]) => `<tr><td>${e(c)}</td><td class="w">${bar(x.w ? x.got / x.w : 0)}</td><td class="r">${pctTxt(x.w ? x.got / x.w : 0)}</td></tr>`).join('')}</table>
+          </div>
+        </div>
+      </div>
+      <div class="card quick">
+        <a class="btn" href="#report" data-go="report">Build a scenario plan</a>
+        <a class="btn btn-o" href="#shopping" data-go="shopping">Open shopping list</a>
+        <a class="btn btn-o" href="#checklists" data-go="checklists">Checklists</a>
+        <a class="btn btn-o" href="#backup" data-go="backup">Export a backup</a>
+      </div>`;
+  };
+
+  /* ================= PROFILE ================= */
+  R.profile = el => {
+    const p = S.profile, P = k => 'profile.' + k;
+    const skills = ['First aid / CPR', 'Hunting', 'Fishing', 'Mechanical', 'Electrical', 'Carpentry / trades', 'Gardening', 'Food preserving', 'Ham radio', 'Wilderness / winter survival', 'Medical professional'];
+    el.innerHTML = `
+      <div class="card"><h2>Household profile</h2><p class="sub">Everything else reads from this: quantities, checklists, the decision check, the gap list and every scenario plan. Saved as you type.</p></div>
+      <div class="card"><h3>Household</h3><div class="grid-f">
+        ${fld('Household name', txt(P('householdName'), p.householdName, 'e.g. The Smith household'), 'span2')}
+        ${fld('Location', txt(P('location'), p.location), 'span2')}
+        ${fld('Adults', num(P('adults'), p.adults, 'min="0"'))}
+        ${fld('Children', num(P('children'), p.children, 'min="0"'))}
+        ${fld('Children ages', txt(P('childAges'), p.childAges, 'e.g. 4, 9'))}
+        ${fld('Seniors', num(P('seniors'), p.seniors, 'min="0"'))}
+        ${fld('Pets', num(P('pets'), p.pets, 'min="0"'))}
+        ${fld('Pet details', txt(P('petNotes'), p.petNotes, 'e.g. 1 dog, 2 cats'))}
+        ${fld('Medical needs', txt(P('medical'), p.medical, 'e.g. insulin, CPAP, heart meds'), 'span2')}
+        ${fld('Mobility needs', txt(P('mobility'), p.mobility, 'e.g. cannot use stairs'), 'span2')}
+        <div class="fld span2">${chk(P('fridgeMeds'), p.fridgeMeds, 'A medication needs refrigeration')}</div>
+      </div></div>
+      <div class="card"><h3>Home</h3><div class="grid-f">
+        ${fld('House type', sel(P('houseType'), p.houseType, [['', 'Choose…'], ['detached', 'Detached house'], ['semi', 'Semi / duplex'], ['townhouse', 'Townhouse'], ['apartment', 'Apartment / condo'], ['acreage', 'Acreage / farm'], ['mobile', 'Mobile home']]))}
+        ${fld('Levels (incl. basement)', num(P('levels'), p.levels, 'min="1"'))}
+        ${fld('Basement', sel(P('basement'), p.basement, [['unknown', 'Not set'], ['unfinished concrete', 'Unfinished, concrete walls'], ['finished concrete', 'Finished, concrete walls'], ['partial', 'Partial / crawlspace'], ['none', 'No basement']]))}
+        ${fld('Primary heat', sel(P('heat'), p.heat, [['gas-forced', 'Natural gas forced air'], ['gas-boiler', 'Gas boiler / in-floor'], ['propane', 'Propane furnace'], ['electric', 'Electric'], ['wood', 'Wood'], ['other', 'Other']]))}
+        ${fld('Backup heat', sel(P('backupHeat'), p.backupHeat, [['none', 'None'], ['wood', 'Wood stove (installed)'], ['fireplace', 'Direct-vent gas fireplace (no power needed)'], ['indoor-propane', 'Indoor-rated propane heater'], ['other', 'Other']]))}
+        ${fld('Water', sel(P('water'), p.water, [['municipal', 'Municipal'], ['well', 'Well'], ['cistern', 'Cistern / hauled']]))}
+        ${fld('Generator', sel(P('generator'), p.generator, [['none', 'None'], ['portable', 'Portable'], ['inverter', 'Inverter (quiet)'], ['standby', 'Standby (installed)']]))}
+        ${fld('CO detectors', sel(P('coDetectors'), p.coDetectors, [['unknown', 'Not sure'], ['none', 'None'], ['some', 'Some levels'], ['every', 'Every level, battery']]))}
+        <div class="fld">${chk(P('transferSwitch'), p.transferSwitch, 'Transfer switch / interlock')}</div>
+        <div class="fld">${chk(P('solar'), p.solar, 'Solar on site')}</div>
+      </div></div>
+      <div class="card"><h3>Vehicles, skills, people</h3><div class="grid-f">
+        ${fld('Vehicles', num(P('vehicles'), p.vehicles, 'min="0"'))}
+        ${fld('Vehicle details', txt(P('vehicleNotes'), p.vehicleNotes, 'e.g. 4x4 truck, block heater'), 'span2')}
+        <div class="fld">${chk(P('winterVehicle'), p.winterVehicle, 'Winter tyres + kit')}</div>
+        <div class="fld span4"><span>Skills in the household</span><div class="chips">${skills.map(k => `<label class="chk"><input type="checkbox" data-path="profile.skills" data-multi="${e(k)}" ${p.skills.includes(k) ? 'checked' : ''}> ${e(k)}</label>`).join('')}</div></div>
+        <div class="fld">${chk(P('pal'), p.pal, 'PAL holder (firearms)')}</div>
+        <div class="fld">${chk(P('neighbourGroup'), p.neighbourGroup, 'Have a trusted neighbour group')}</div>
+        ${fld('Household roles (who does what)', `<textarea data-path="profile.roles" rows="3" placeholder="Lead: …\nHeat & CO: …\nMedical: …">${e(p.roles)}</textarea>`, 'span4')}
+      </div></div>
+      <div class="card"><h3>Retreat option</h3><div class="grid-f">
+        ${fld('Destination', txt(P('retreatName'), p.retreatName, "e.g. Parents' acreage near Entwistle"), 'span2')}
+        ${fld('Distance (km)', num(P('retreatKm'), p.retreatKm, 'min="0"'))}
+        <div class="fld">${chk(P('retreatConfirmed'), p.retreatConfirmed, 'Pre-arranged / confirmed')}<br>${chk(P('retreatHeated'), p.retreatHeated, 'Has heat without grid')}</div>
+        ${fld('Routes (primary, secondary, tertiary)', `<textarea data-path="profile.retreatRoute" rows="3" placeholder="Primary: Range Rd … north to Twp Rd …\nSecondary: …\nTertiary: …">${e(p.retreatRoute)}</textarea>`, 'span4')}
+      </div></div>
+      <div class="card"><h3>Communications</h3><div class="grid-f">
+        ${fld('Out-of-area contact', txt(P('outOfArea'), p.outOfArea, 'Name and phone, outside Alberta ideally'), 'span2')}
+        ${fld('Meeting point near home', txt(P('meetNear'), p.meetNear, 'e.g. the big spruce at the end of the street'), 'span2')}
+        ${fld('Meeting point outside the neighbourhood', txt(P('meetFar'), p.meetFar, 'e.g. church parking lot on …'), 'span2')}
+        ${fld('Contact tree', `<textarea data-path="profile.contacts" rows="4" placeholder="Mum: 780-…  (calls Uncle Rob)\nNeighbour Jo: 780-…">${e(p.contacts)}</textarea>`, 'span4')}
+      </div></div>
+      <div class="card"><h3>Budget and target</h3><div class="grid-f">
+        ${fld('Budget level', sel(P('budgetLevel'), p.budgetLevel, [['low', 'Low'], ['moderate', 'Moderate'], ['high', 'High']]))}
+        ${fld('Prep budget (CAD)', num(P('budget'), p.budget, 'min="0" step="50"'))}
+        ${fld('Days of supplies to aim for', num(P('prepDays'), p.prepDays, 'min="3" max="365"'))}
+      </div><p class="small">Government of Canada guidance is at least 72 hours; 14 days is a sensible household target for Alberta winters.</p></div>`;
+  };
+
+  /* ================= TRACKER ================= */
+  let trackFilter = { cat: '', pri: '', short: false };
+  R.tracker = el => {
+    const p = S.profile, sum = PP.summary(S);
+    const rowsAll = S.items.map(i => ({ i, applies: PP.applies(i, p), r: sum.rows.find(r => r.item === i) }));
+    const rows = rowsAll.filter(x => (!trackFilter.cat || x.i.cat === trackFilter.cat) && (!trackFilter.pri || x.i.pri === trackFilter.pri) && (!trackFilter.short || (x.r && x.r.need > 0)));
+    const supOpts = [['', 'Auto (by store type)']].concat(S.suppliers.map(s => [s.id, s.name]));
+    const cats = PP.CATEGORIES.concat(Array.from(new Set(S.items.map(i => i.cat))).filter(c => !PP.CATEGORIES.includes(c)));
+    el.innerHTML = `
+      <div class="card">
+        <h2>Purchase tracker</h2>
+        <p class="sub">Targets are worked out from your profile (${PP.persons(p)} people, ${p.prepDays} days). Override any target, record what you have, what you spent and when it expires.</p>
+        <div class="tiles slim">
+          <div class="tile"><div class="k">Overall</div><div class="n">${pctTxt(sum.overall)}</div>${bar(sum.overall)}</div>
+          <div class="tile"><div class="k">Critical</div><div class="n">${sum.criticalDone}<small>/${sum.criticalCount}</small></div>${bar(sum.critical, 'crit')}</div>
+          <div class="tile"><div class="k">Spent</div><div class="n">${PP.money(sum.spent)}<small> of ${PP.money(sum.budget)}</small></div>${bar(sum.budget ? Math.min(1, sum.spent / sum.budget) : 0, sum.spent > sum.budget ? 'over' : '')}</div>
+          <div class="tile"><div class="k">To finish</div><div class="n">${PP.money(sum.toBuy)}</div><div class="small">${PP.money(sum.toBuyCritical)} of it critical${sum.budget ? ' · ' + (sum.budget - sum.spent >= sum.toBuy ? 'fits the budget' : PP.money(sum.toBuy - (sum.budget - sum.spent)) + ' over budget') : ''}</div></div>
+        </div>
+        <div class="row no-print">
+          <label class="fld"><span>Category</span><select id="fCat">${[['', 'All']].concat(cats.map(c => [c, c])).map(o => opt(o[0], o[1], trackFilter.cat)).join('')}</select></label>
+          <label class="fld"><span>Priority</span><select id="fPri">${[['', 'All'], ['Critical', 'Critical'], ['Important', 'Important'], ['Nice-to-have', 'Nice-to-have']].map(o => opt(o[0], o[1], trackFilter.pri)).join('')}</select></label>
+          <label class="chk"><input type="checkbox" id="fShort" ${trackFilter.short ? 'checked' : ''}> Only items still needed</label>
+          <span class="grow"></span>
+          <button class="btn btn-o btn-sm" onclick="PP.printPanel('tracker')">Print</button>
+        </div>
+      </div>
+      <div class="card tscroll">
+        <table class="data tracker">
+          <thead><tr><th>Item</th><th>Priority</th><th>Target</th><th>Have</th><th>Progress</th><th>Cost each</th><th>Spent</th><th>Expires</th><th>Where to buy</th><th class="no-print"></th></tr></thead>
+          <tbody>
+          ${cats.map(c => {
+            const rs = rows.filter(x => x.i.cat === c);
+            if (!rs.length) return '';
+            return `<tr class="grp"><td colspan="10">${e(c)}</td></tr>` + rs.map(({ i, applies, r }) => {
+              const path = 'items.' + i.id + '.';
+              const t = PP.target(i, p);
+              const exp = PP.daysUntil(i.expiry);
+              const expCls = exp === null ? '' : exp < 0 ? 'bad' : exp <= 30 ? 'warn' : exp <= 60 ? 'soon' : '';
+              return `<tr class="${applies ? '' : 'na'} ${r && r.pct >= 1 ? 'done' : ''}">
+                <td class="name">${i.custom ? txt(path + 'name', i.name, 'Item') : `<b>${e(i.name)}</b>`}${i.note ? `<div class="small">${e(i.note)}</div>` : ''}${!applies ? `<div class="small">${i.hidden ? 'Hidden' : 'Not needed for your profile'}</div>` : ''}</td>
+                <td>${sel(path + 'pri', i.pri, [['Critical', 'Critical'], ['Important', 'Important'], ['Nice-to-have', 'Nice']])}</td>
+                <td class="nw"><input type="number" class="sm" data-path="${path}targetOverride" data-nullable value="${i.targetOverride === null || i.targetOverride === undefined ? '' : e(i.targetOverride)}" placeholder="${t}" title="Leave blank to use the profile-based target"> <span class="u">${e(i.unit)}</span></td>
+                <td class="nw"><button class="step no-print" data-step="${i.id}" data-d="-1">−</button><input type="number" class="sm" data-path="${path}have" value="${e(i.have)}" min="0"><button class="step no-print" data-step="${i.id}" data-d="1">+</button></td>
+                <td class="w">${applies ? bar(r ? r.pct : 0, i.pri === 'Critical' ? 'crit' : '') + `<span class="small">${r ? r.have + '/' + r.target : ''}</span>` : ''}</td>
+                <td><input type="number" class="sm" step="0.01" data-path="${path}cost" value="${e(i.cost)}"></td>
+                <td><input type="number" class="sm" step="0.01" data-path="${path}spent" value="${e(i.spent)}"></td>
+                <td class="${expCls}"><input type="date" data-path="${path}expiry" value="${e(i.expiry)}">${exp !== null ? `<div class="small">${exp < 0 ? 'expired' : exp + ' d'}</div>` : ''}</td>
+                <td>${sel(path + 'supplierId', i.supplierId, supOpts)}</td>
+                <td class="no-print">${i.custom ? `<button class="x" data-del-item="${i.id}" title="Delete">✕</button>` : `<button class="x" data-hide-item="${i.id}" title="${i.hidden ? 'Show' : 'Hide (not needed)'}">${i.hidden ? '↺' : '–'}</button>`}</td>
+              </tr>`;
+            }).join('');
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="card no-print">
+        <h3>Add an item</h3>
+        <div class="row">
+          <label class="fld grow"><span>Name</span><input id="niName" placeholder="e.g. Infant formula"></label>
+          <label class="fld"><span>Category</span><select id="niCat">${cats.map(c => opt(c, c, 'Food')).join('')}</select></label>
+          <label class="fld"><span>Priority</span><select id="niPri">${opt('Critical', 'Critical')}${opt('Important', 'Important', 'Important')}${opt('Nice-to-have', 'Nice-to-have')}</select></label>
+          <label class="fld"><span>Target qty</span><input id="niQty" type="number" value="1" class="sm"></label>
+          <label class="fld"><span>Unit</span><input id="niUnit" value="each" class="sm"></label>
+          <label class="fld"><span>Cost each</span><input id="niCost" type="number" step="0.01" value="0" class="sm"></label>
+          <label class="fld"><span>Store type</span><select id="niStore">${Object.entries(PP.STORE_TYPES).map(([k, v]) => opt(k, v, 'grocery')).join('')}</select></label>
+          <button class="btn" id="niAdd">Add</button>
+        </div>
+      </div>`;
+    $('#fCat').onchange = ev => { trackFilter.cat = ev.target.value; render(); };
+    $('#fPri').onchange = ev => { trackFilter.pri = ev.target.value; render(); };
+    $('#fShort').onchange = ev => { trackFilter.short = ev.target.checked; render(); };
+    $('#niAdd').onclick = () => {
+      const name = $('#niName').value.trim(); if (!name) { $('#niName').focus(); return; }
+      S.items.push({ id: 'c-' + PP.uid(), custom: true, name, cat: $('#niCat').value, unit: $('#niUnit').value || 'each', rule: 'fx', n: +$('#niQty').value || 1, pri: $('#niPri').value, cost: +$('#niCost').value || 0, life: 0, store: $('#niStore').value, fam: ['*'], targetOverride: null, have: 0, spent: 0, expiry: '', supplierId: '', hidden: false });
+      persist(); render();
+    };
+  };
+  document.addEventListener('click', ev => {
+    const st = ev.target.closest('[data-step]');
+    if (st) { const i = S.items.find(x => x.id === st.dataset.step); i.have = Math.max(0, (+i.have || 0) + (+st.dataset.d)); persist(); render(); return; }
+    const del = ev.target.closest('[data-del-item]');
+    if (del) { if (confirm('Delete this item?')) { S.items = S.items.filter(x => x.id !== del.dataset.delItem); persist(); render(); } return; }
+    const hid = ev.target.closest('[data-hide-item]');
+    if (hid) { const i = S.items.find(x => x.id === hid.dataset.hideItem); i.hidden = !i.hidden; persist(); render(); }
+  });
+
+  /* ================= SHOPPING LIST ================= */
+  let shopCritical = false;
+  R.shopping = el => {
+    const sum = PP.summary(S);
+    const need = sum.rows.filter(r => r.need > 0 && (!shopCritical || r.item.pri === 'Critical'));
+    const groups = new Map();
+    need.forEach(r => {
+      const sup = PP.supplierFor(r.item, S);
+      const key = sup ? sup.id : '_none';
+      if (!groups.has(key)) groups.set(key, { sup, rows: [] });
+      groups.get(key).rows.push(r);
+    });
+    const order = { Critical: 0, Important: 1, 'Nice-to-have': 2 };
+    const total = need.reduce((a, r) => a + r.toBuy, 0);
+    el.innerHTML = `
+      <div class="card">
+        <h2>Shopping list by store</h2>
+        <p class="sub">Everything still short of target, grouped by the supplier it is assigned to (or the first supplier that sells that type of item). Change assignments on the Purchases tab or edit stores on the Suppliers tab.</p>
+        <div class="row no-print">
+          <label class="chk"><input type="checkbox" id="shopCrit" ${shopCritical ? 'checked' : ''}> Critical items only</label>
+          <span class="grow"></span>
+          <b>${need.length} items · about ${PP.money(total)}</b>
+          <button class="btn btn-o btn-sm" onclick="PP.printPanel('shopping')">Print list</button>
+        </div>
+        <div class="print-only"><b>${need.length} items · about ${PP.money(total)}</b> · printed ${new Date().toLocaleDateString('en-CA')}</div>
+      </div>
+      ${need.length ? Array.from(groups.values()).map(g => {
+        const st = g.rows.reduce((a, r) => a + r.toBuy, 0);
+        const sp = g.sup;
+        return `<div class="card shop">
+          <div class="shop-h"><div><h3>${sp ? e(sp.name) : 'Not linked to a store yet'}</h3>
+            <div class="small">${sp ? [sp.address, sp.town, sp.phone, sp.hours].filter(Boolean).map(e).join(' · ') || 'Add address and hours on the Suppliers tab' : '<a href="#suppliers" data-go="suppliers">Add a supplier</a>'}</div></div>
+            <div class="r"><b>${PP.money(st)}</b></div></div>
+          <table class="data">
+            <thead><tr><th></th><th>Item</th><th>Priority</th><th>Buy</th><th>Est. cost</th><th class="no-print">Bought</th></tr></thead>
+            <tbody>${g.rows.sort((a, b) => order[a.item.pri] - order[b.item.pri]).map(r => `
+              <tr><td><span class="box"></span></td><td>${e(r.item.name)}</td><td><span class="tag ${priCls(r.item.pri)}">${r.item.pri}</span></td>
+              <td>${r.need} ${e(r.item.unit)}</td><td>${PP.money(r.toBuy)}</td>
+              <td class="no-print nw"><input type="number" class="sm" step="0.01" id="paid-${r.item.id}" value="${Math.round(r.toBuy * 100) / 100}" title="Amount actually paid"><button class="btn btn-sm" data-bought="${r.item.id}">Bought</button></td></tr>`).join('')}
+            </tbody></table></div>`;
+      }).join('') : '<div class="card"><p>Nothing left to buy. Check the expiry alerts on the Command tab.</p></div>'}`;
+    $('#shopCrit').onchange = ev => { shopCritical = ev.target.checked; render(); };
+  };
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-bought]');
+    if (!b) return;
+    const i = S.items.find(x => x.id === b.dataset.bought);
+    const paid = +($('#paid-' + i.id) || {}).value || 0;
+    i.have = PP.target(i, S.profile);
+    i.spent = (+i.spent || 0) + paid;
+    if (i.life && !i.expiry) { const d = new Date(); d.setMonth(d.getMonth() + i.life); i.expiry = d.toISOString().slice(0, 10); }
+    persist(); render();
+  });
+
+  /* ================= CHECKLISTS ================= */
+  R.checklists = el => {
+    el.innerHTML = `
+      <div class="card"><h2>Checklists</h2><p class="sub">Edit any line, add your own, tick as you go. Reset clears ticks for the next drill.</p>
+        <div class="row no-print"><input id="newList" placeholder="New checklist name" class="grow"><button class="btn" id="addList">Add checklist</button><span class="grow"></span><button class="btn btn-o btn-sm" onclick="PP.printPanel('checklists')">Print all</button></div></div>
+      <div class="lists">
+      ${S.checklists.map(l => {
+        const done = l.items.filter(x => x.done).length;
+        return `<div class="card list">
+          <div class="list-h"><input class="title" data-path="checklists.${l.id}.title" value="${e(l.title)}" data-norender><span class="small">${done}/${l.items.length}</span></div>
+          ${bar(l.items.length ? done / l.items.length : 0)}
+          <ul class="cl">${l.items.map(it => `<li class="${it.done ? 'done' : ''}"><input type="checkbox" data-path="checklists.${l.id}.items.${it.id}.done" ${it.done ? 'checked' : ''}><input type="text" class="t" data-path="checklists.${l.id}.items.${it.id}.text" value="${e(it.text)}" data-norender><button class="x no-print" data-del-ci="${l.id}:${it.id}" title="Remove">✕</button></li>`).join('')}</ul>
+          <div class="row no-print"><input placeholder="Add an item" id="ni-${l.id}" class="grow" data-add-ci="${l.id}"><button class="btn btn-sm" data-add-ci-btn="${l.id}">Add</button></div>
+          <div class="row no-print end"><button class="btn btn-o btn-sm" data-reset-list="${l.id}">Reset ticks</button><button class="btn btn-o btn-sm danger" data-del-list="${l.id}">Delete list</button></div>
+        </div>`;
+      }).join('')}
+      </div>`;
+    $('#addList').onclick = () => { const t = $('#newList').value.trim(); if (!t) return; S.checklists.push({ id: PP.uid(), title: t, items: [] }); persist(); render(); };
+  };
+  function addCI(id) {
+    const inp = $('#ni-' + id); const t = inp.value.trim(); if (!t) return;
+    S.checklists.find(l => l.id === id).items.push({ id: PP.uid(), text: t, done: false }); persist(); render();
+    const again = $('#ni-' + id); if (again) again.focus();
+  }
+  document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.dataset && ev.target.dataset.addCi) { ev.preventDefault(); addCI(ev.target.dataset.addCi); } });
+  document.addEventListener('click', ev => {
+    const a = ev.target.closest('[data-add-ci-btn]'); if (a) return addCI(a.dataset.addCiBtn);
+    const d = ev.target.closest('[data-del-ci]');
+    if (d) { const [l, i] = d.dataset.delCi.split(':'); const L = S.checklists.find(x => x.id === l); L.items = L.items.filter(x => x.id !== i); persist(); render(); return; }
+    const r = ev.target.closest('[data-reset-list]');
+    if (r) { S.checklists.find(x => x.id === r.dataset.resetList).items.forEach(x => x.done = false); persist(); render(); return; }
+    const dl = ev.target.closest('[data-del-list]');
+    if (dl && confirm('Delete this checklist?')) { S.checklists = S.checklists.filter(x => x.id !== dl.dataset.delList); persist(); render(); }
+  });
+
+  /* ================= REPORT ================= */
+  R.report = () => {
+    const s = $('#scenarioSel');
+    if (!s.options.length) s.innerHTML = PP.SCENARIOS.map((x, i) => opt(x.id, (i + 1) + '. ' + x.name, lastReport)).join('');
+    s.value = lastReport;
+    genReport();
+  };
+  function genReport() {
+    lastReport = $('#scenarioSel').value;
+    const r = PP.buildReport(S, lastReport);
+    $('#reportOut').innerHTML = r.html;
+    document.title = r.scenario.id + '-plan-' + new Date().toISOString().slice(0, 10);
+  }
+  $('#genBtn').onclick = genReport;
+  $('#scenarioSel').onchange = genReport;
+  $('#printReportBtn').onclick = () => { genReport(); PP.printPanel('report'); };
+
+  /* ================= SUPPLIERS ================= */
+  R.suppliers = el => {
+    const sum = PP.summary(S);
+    el.innerHTML = `
+      <div class="card"><h2>Local suppliers directory</h2>
+        <p class="sub">The stores you would buy food, medicine, fuel, radios and security gear from. Each one is linked to your shopping list: items are routed to the first store that sells that type, unless you assign a store on the Purchases tab. The starter entries are generic; replace them with your actual stores, addresses and hours.</p>
+        <div class="row no-print"><button class="btn" id="addSup">Add supplier</button><span class="grow"></span><button class="btn btn-o btn-sm" onclick="PP.printPanel('suppliers')">Print</button></div></div>
+      <div class="sups">
+      ${S.suppliers.map(v => {
+        const P = 'suppliers.' + v.id + '.';
+        const linked = sum.rows.filter(r => r.need > 0 && (PP.supplierFor(r.item, S) || {}).id === v.id);
+        return `<div class="card sup">
+          <div class="grid-f">
+            ${fld('Store name', txt(P + 'name', v.name, '', 'data-norender'), 'span2')}
+            ${fld('Town', txt(P + 'town', v.town, '', 'data-norender'))}
+            ${fld('Phone', txt(P + 'phone', v.phone, '', 'data-norender'))}
+            ${fld('Address', txt(P + 'address', v.address, '', 'data-norender'), 'span2')}
+            ${fld('Hours', txt(P + 'hours', v.hours, '', 'data-norender'), 'span2')}
+            <div class="fld span4"><span>Sells</span><div class="chips">${Object.entries(PP.STORE_TYPES).map(([k, lab]) => `<label class="chk"><input type="checkbox" data-path="suppliers.${v.id}.types" data-multi="${k}" ${(v.types || []).includes(k) ? 'checked' : ''}> ${lab}</label>`).join('')}</div></div>
+            ${fld('Notes', txt(P + 'notes', v.notes, '', 'data-norender'), 'span4')}
+          </div>
+          <div class="sup-f"><span>${linked.length ? `<b>${linked.length}</b> item(s) on your shopping list here, about <b>${PP.money(linked.reduce((a, r) => a + r.toBuy, 0))}</b>: ${linked.slice(0, 6).map(r => e(r.item.name)).join(', ')}${linked.length > 6 ? '…' : ''}` : 'Nothing on the shopping list routed here.'}</span>
+          <button class="btn btn-o btn-sm danger no-print" data-del-sup="${v.id}">Delete</button></div>
+        </div>`;
+      }).join('')}
+      </div>`;
+    $('#addSup').onclick = () => { S.suppliers.push({ id: PP.uid(), name: 'New supplier', types: [], town: '', address: '', phone: '', hours: '', notes: '' }); persist(); render(); };
+  };
+  document.addEventListener('click', ev => {
+    const d = ev.target.closest('[data-del-sup]');
+    if (d && confirm('Delete this supplier? Items assigned to it will go back to automatic routing.')) {
+      S.suppliers = S.suppliers.filter(x => x.id !== d.dataset.delSup);
+      S.items.forEach(i => { if (i.supplierId === d.dataset.delSup) i.supplierId = ''; });
+      persist(); render();
+    }
+  });
+
+  /* ================= COMMUNITY ================= */
+  R.community = el => {
+    el.innerHTML = `
+      <div class="card"><h2>Official community resources</h2>
+        <p class="sub">Emergency reception centres, the food bank, alerts and the numbers to call. Short codes (911, 811, 211, 511) are province-wide. Anything marked "verify" needs checking against your Town, County or utility bill; write the confirmed details in.</p>
+        <div class="row no-print"><button class="btn" id="addRes">Add resource</button><span class="grow"></span><button class="btn btn-o btn-sm" onclick="PP.printPanel('community')">Print</button></div></div>
+      <div class="card tscroll"><table class="data res">
+        <thead><tr><th>Resource</th><th>Type</th><th>Phone / contact</th><th>Website</th><th>Notes</th><th class="no-print"></th></tr></thead>
+        <tbody>${S.resources.map(r => { const P = 'resources.' + r.id + '.'; return `<tr class="${/verify/i.test(r.contact) ? 'verify' : ''}">
+          <td>${txt(P + 'name', r.name, '', 'data-norender')}</td><td>${txt(P + 'kind', r.kind, '', 'data-norender class="sm2"')}</td>
+          <td>${txt(P + 'contact', r.contact, '', 'class="sm2"')}</td>
+          <td>${txt(P + 'url', r.url, '', 'data-norender')}${r.url ? ` <a class="no-print" href="${e(r.url)}" target="_blank" rel="noopener">open</a>` : ''}</td>
+          <td>${txt(P + 'notes', r.notes, '', 'data-norender')}</td>
+          <td class="no-print"><button class="x" data-del-res="${r.id}">✕</button></td></tr>`; }).join('')}
+        </tbody></table></div>`;
+    $('#addRes').onclick = () => { S.resources.push({ id: PP.uid(), name: 'New resource', kind: '', contact: '', url: '', notes: '' }); persist(); render(); };
+  };
+  document.addEventListener('click', ev => {
+    const d = ev.target.closest('[data-del-res]');
+    if (d && confirm('Delete this resource?')) { S.resources = S.resources.filter(x => x.id !== d.dataset.delRes); persist(); render(); }
+  });
+
+  /* ================= BACKUP ================= */
+  R.backup = el => {
+    const offline = 'serviceWorker' in navigator && location.protocol.startsWith('http');
+    el.innerHTML = `
+      <div class="card"><h2>Backup and offline use</h2>
+        <p>Your data is stored in this browser only${S.savedAt ? ', last saved ' + new Date(S.savedAt).toLocaleString('en-CA') : ''}. Clearing browser data deletes it. Export a backup after every big update and keep a copy on a USB stick.</p>
+        <div class="row"><button class="btn" id="expBtn">Export backup (.json)</button>
+        <label class="btn btn-o">Import backup<input type="file" id="impFile" accept="application/json,.json" hidden></label>
+        <span class="grow"></span><button class="btn btn-o danger" id="resetBtn">Reset everything</button></div>
+      </div>
+      <div class="card"><h3>Working without internet</h3>
+        <ul>
+          <li>${offline ? 'This copy is cached for offline use: once loaded, it opens with no connection.' : 'Opened as a file: it already works with no connection.'}</li>
+          <li>For a phone or second computer, copy the single-file version (<code>dist/prep-planner.html</code>) and open it in any browser, then import your backup.</li>
+          <li>Print the scenario plans, shopping list and checklists. Paper works when batteries do not.</li>
+        </ul></div>`;
+    $('#expBtn').onclick = () => {
+      const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'prep-planner-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    $('#impFile').onchange = ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const data = PP.migrate(JSON.parse(rd.result));
+          if (!confirm('Replace everything here with the backup?')) return;
+          Object.keys(S).forEach(k => delete S[k]); Object.assign(S, data);
+          PP.save(S); $('#reportOut').innerHTML = ''; alert('Backup restored.'); render();
+        } catch (err) { alert('That file is not a valid Prep Planner backup.'); }
+      };
+      rd.readAsText(f);
+    };
+    $('#resetBtn').onclick = () => {
+      if (!confirm('Delete all your data and start over? Export a backup first if you want to keep it.')) return;
+      const f = PP.freshState(); Object.keys(S).forEach(k => delete S[k]); Object.assign(S, f); PP.save(S); $('#reportOut').innerHTML = ''; show('profile');
+    };
+  };
+
+  /* ------------- printing ------------- */
+  PP.printPanel = key => {
+    document.body.dataset.print = key;
+    const done = () => { delete document.body.dataset.print; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => window.print(), 50);
+  };
+  window.addEventListener('beforeprint', () => { if (!document.body.dataset.print) document.body.dataset.print = current; if (document.body.dataset.print === 'report' && !$('#reportOut').innerHTML) genReport(); });
+  window.addEventListener('afterprint', () => { setTimeout(() => delete document.body.dataset.print, 100); });
+
+  /* ------------- network status + offline cache ------------- */
+  function net() { const on = navigator.onLine; const n = $('#netStatus'); n.textContent = on ? 'Online' : 'Offline: all features work'; n.className = 'pill ' + (on ? '' : 'warn'); }
+  window.addEventListener('online', net); window.addEventListener('offline', net); net();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.PP_SINGLE) {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('offline cache unavailable', err));
+  }
+
+  $('#saveStatus').textContent = S.savedAt ? 'Saved' : 'Not saved yet';
+  $('#saveStatus').className = 'pill ' + (S.savedAt ? 'ok' : '');
+  const start = location.hash.slice(1);
+  show(R[start] ? start : (S.savedAt ? 'command' : 'profile'));
+})();
+
+</script>
+</body>
+</html>
