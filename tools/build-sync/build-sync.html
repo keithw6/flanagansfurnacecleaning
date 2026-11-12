@@ -1,0 +1,1106 @@
+<title>Build Sync</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a site trailer's whiteboard. Navy header with a hazard stripe, then
+   scannable rows: lot chip, job, trade, a GO / HOLD / WAIT stamp. Phone-first,
+   because trades read this standing in a driveway. */
+:root{
+  --bg:#ECEFF1; --surface:#FFFFFF; --surface2:#E2E6E9; --ink:#15202B; --muted:#56626D; --line:#C9D0D6;
+  --brand:#1C3553; --brand-ink:#F4F7FA; --accent:#F2A900; --accent-ink:#1E1500;
+  --go:#17804A; --go-bg:#DDF1E5; --hold:#C42F1A; --hold-bg:#FADFD9; --wait:#8A6500; --wait-bg:#F8EDC9;
+  --late:#B5501A; --late-bg:#F8E2D3; --done:#66727D; --done-bg:#E3E7EA; --info:#245F9E; --info-bg:#DCE8F5;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1419; --surface:#162029; --surface2:#1E2A35; --ink:#E5EBF0; --muted:#97A4AF; --line:#2B3946;
+  --brand:#0F1D2B; --brand-ink:#E9EFF5; --accent:#F5B82E; --accent-ink:#1E1500;
+  --go:#45C882; --go-bg:#173326; --hold:#FF7A62; --hold-bg:#3A1C17; --wait:#E9C45A; --wait-bg:#352C12;
+  --late:#F29A5E; --late-bg:#3A2416; --done:#8C99A4; --done-bg:#232E38; --info:#7FB2EA; --info-bg:#17293C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1419; --surface:#162029; --surface2:#1E2A35; --ink:#E5EBF0; --muted:#97A4AF; --line:#2B3946;
+  --brand:#0F1D2B; --brand-ink:#E9EFF5; --accent:#F5B82E; --accent-ink:#1E1500;
+  --go:#45C882; --go-bg:#173326; --hold:#FF7A62; --hold-bg:#3A1C17; --wait:#E9C45A; --wait-bg:#352C12;
+  --late:#F29A5E; --late-bg:#3A2416; --done:#8C99A4; --done-bg:#232E38; --info:#7FB2EA; --info-bg:#17293C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--info)}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:30px} h2{font-size:22px} h3{font-size:18px}
+.mono{font-family:var(--mono);font-size:.86em;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--brand);color:var(--brand-ink)}
+.hdr::after{content:"";display:block;height:5px;background:repeating-linear-gradient(-45deg,var(--accent) 0 10px,var(--brand) 10px 20px)}
+.hdr-in{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:10px}
+.logo{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo i{display:inline-block;width:14px;height:14px;background:var(--accent);transform:rotate(45deg)}
+.logo small{font-family:var(--body);font-weight:500;font-size:12px;opacity:.7;letter-spacing:.06em;text-transform:uppercase}
+nav.tabs{display:flex;gap:2px;flex-wrap:wrap;flex:1}
+nav.tabs a{color:var(--brand-ink);text-decoration:none;white-space:nowrap;flex:none;padding:6px 10px;border-radius:var(--r);font-weight:600;font-size:14px;opacity:.82;position:relative}
+nav.tabs a:hover{opacity:1;background:rgba(255,255,255,.08)}
+nav.tabs a[aria-current="page"]{opacity:1;background:rgba(255,255,255,.14);box-shadow:inset 0 -3px 0 var(--accent)}
+nav.tabs .badge{position:static;margin-left:5px}
+.conn{font-size:12px;opacity:.85;white-space:nowrap}
+.conn b{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:middle}
+.conn.live b{background:#4fd48a}
+
+main{padding-block:20px 60px}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.page-h p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.grid{display:grid;gap:16px}
+.cols{display:grid;gap:16px;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card>h2,.card>h3{margin-bottom:10px;display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--muted)}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:460px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit}
+.kpi b{font-family:var(--display);font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--muted);font-weight:500}
+.kpi.bad b{color:var(--hold)} .kpi.warn b{color:var(--late)} .kpi.ok b{color:var(--go)}
+
+/* rows */
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row>.lot,.row>.chip,.row>.stamp{justify-self:start}
+.row .main{min-width:0}
+.row .t{font-weight:600}
+.row .s{font-size:13px;color:var(--muted)}
+.row .why{font-size:13px;margin-top:2px}
+.row .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:640px){.row{grid-template-columns:auto minmax(0,1fr) auto}.row .acts{grid-column:1/-1;justify-content:flex-start}}
+.lot{font-family:var(--mono);font-size:12px;font-weight:500;background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:3px 6px;white-space:nowrap;text-decoration:none;color:var(--ink)}
+a.lot:hover{border-color:var(--ink)}
+.empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r)}
+.date-h{font-family:var(--display);font-size:17px;padding:14px 0 4px;display:flex;gap:10px;align-items:baseline;border-bottom:2px solid var(--ink)}
+.date-h.today{border-color:var(--accent)}
+
+/* stamps and chips */
+.stamp{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.06em;padding:2px 8px;border-radius:4px;border:2px solid currentColor;white-space:nowrap;text-transform:uppercase}
+.st-go{color:var(--go);background:var(--go-bg)} .st-hold{color:var(--hold);background:var(--hold-bg)}
+.st-pending{color:var(--wait);background:var(--wait-bg)} .st-done{color:var(--done);background:var(--done-bg)}
+.st-delayed{color:var(--late);background:var(--late-bg)}
+.chip{font-size:12px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.chip.info{background:var(--info-bg);color:var(--info)} .chip.late{background:var(--late-bg);color:var(--late)}
+.chip.go{background:var(--go-bg);color:var(--go)} .chip.hold{background:var(--hold-bg);color:var(--hold)}
+.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--hold);color:#fff;font-size:11px;font-weight:700}
+
+/* buttons and forms */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:6px 11px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--ink)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(.95)}
+.btn.danger{color:var(--hold);border-color:var(--hold)}
+.btn.go{color:var(--go);border-color:var(--go)}
+.btn.sm{padding:4px 8px;font-size:13px}
+.btn.big{padding:10px 14px;font-size:15px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+input[type=text],input[type=date],input[type=number],input[type=tel],input[type=email],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;font-weight:500;color:var(--ink);width:100%;min-width:0}
+textarea{min-height:70px;resize:vertical}
+.form{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.form .full{grid-column:1/-1}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink);font-weight:500}
+.check input{margin-top:3px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+.filters label.f{width:auto;min-width:160px}
+
+/* home cards */
+.homes{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.home{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
+.home:hover{border-color:var(--ink)}
+.home .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.prog{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;display:flex}
+.prog i{display:block;background:var(--go)}
+.prog i.l{background:var(--late)}
+.meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+
+/* home detail table */
+.tbl-wrap{overflow-x:auto}
+table.tasks{width:100%;border-collapse:collapse;font-size:14px}
+table.tasks th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:2px solid var(--ink)}
+table.tasks td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.tasks tr.phase td{font-family:var(--display);font-size:16px;font-weight:700;padding-top:16px;border-bottom:1px solid var(--ink);background:none}
+table.tasks tr.task{cursor:pointer}
+table.tasks tr.task:hover td{background:var(--surface2)}
+table.tasks tr.isdone td{color:var(--muted)}
+
+/* photos */
+.photos{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.photo{margin:0;display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.photo .ph{aspect-ratio:4/3;max-width:100%;border-radius:4px;background:var(--surface2) center/cover no-repeat;border:1px solid var(--line);display:grid;place-items:center;font-size:11px;text-align:center;padding:4px;overflow:hidden}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo figcaption{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up{display:inline-flex}
+.up input{position:absolute;opacity:0;width:1px;height:1px}
+
+/* notices */
+.notice{border:1px solid var(--line);border-left:6px solid var(--info);border-radius:var(--r);padding:12px 14px;background:var(--surface);display:grid;gap:6px}
+.notice.hold{border-left-color:var(--hold)} .notice.reschedule{border-left-color:var(--late)} .notice.go{border-left-color:var(--go)}
+.notice .nt{font-weight:700;font-size:16px}
+.notice.acked{opacity:.72}
+.sms{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px;white-space:pre-wrap;word-break:break-word}
+
+/* trade view job cards */
+.jobs{display:grid;gap:10px}
+.job{display:grid;gap:8px;border-left:6px solid var(--line)}
+.job.go{border-left-color:var(--go)} .job.hold{border-left-color:var(--hold)} .job.pending{border-left-color:var(--wait)} .job.delayed{border-left-color:var(--late)} .job.done{border-left-color:var(--done)}
+.job .jt{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.job .when{font-family:var(--display);font-size:20px}
+
+/* modal + toast */
+.scrim{position:fixed;inset:0;background:rgba(10,16,22,.55);z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 4vh) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px));overflow-y:auto}
+.modal{background:var(--surface);border-radius:8px;border:1px solid var(--line);width:min(640px,100%);padding:18px;display:grid;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.modal .mh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.x{border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px}
+.preview{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;font-size:14px}
+.preview ul{margin:6px 0 0;padding-left:18px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r);font-weight:600;z-index:30;max-width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.banner{background:var(--wait-bg);color:var(--ink);border:1px solid var(--wait);border-radius:var(--r);padding:10px 14px;margin-bottom:16px;font-size:14px}
+
+/* empty state */
+.hero-empty{display:grid;gap:14px;max-width:720px}
+.hero-empty .steps{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.hero-empty .steps div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+
+/* playbook */
+.ideas{columns:2 340px;column-gap:16px}
+.ideas .card{break-inside:avoid;margin-bottom:16px}
+.ideas ol{margin:0;padding-left:22px;display:grid;gap:6px}
+.ideas li{padding-left:2px}
+.ideas li .chip{margin-left:4px}
+details summary{cursor:pointer;font-weight:600}
+.timeline{font-size:13px}
+.timeline .row{grid-template-columns:auto minmax(0,1fr)}
+@media (max-width:760px){nav.tabs{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;margin:0 -4px;padding-bottom:2px}.conn{margin-left:auto}.logo small{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="hdr">
+  <div class="wrap hdr-in">
+    <div class="logo"><i aria-hidden="true"></i>Build Sync <small>Site &amp; trade board</small></div>
+    <nav class="tabs" id="nav" aria-label="Sections">
+      <a href="#today">Today</a>
+      <a href="#homes">Homes</a>
+      <a href="#lookahead">Lookahead</a>
+      <a href="#trade">My jobs</a>
+      <a href="#playbook">Playbook</a>
+      <a href="#setup">Setup</a>
+    </nav>
+    <div class="conn" id="conn"><b></b>Connecting…</div>
+  </div>
+</header>
+<main class="wrap" id="app" aria-live="polite">
+  <div class="card"><h2>Loading the board…</h2><p class="muted">Homes, schedules, trade notices and site photos appear here once the shared board connects.</p></div>
+</main>
+<div id="modal"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid = p => p + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const pad = n => String(n).padStart(2, '0');
+const ds = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const pd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+let TODAY = ds(new Date());
+const addCal = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return ds(d); };
+const isSun = s => pd(s).getDay() === 0;
+const nextWork = s => { while (isSun(s)) s = addCal(s, 1); return s; };
+const addWork = (s, n) => { s = nextWork(s); const step = n < 0 ? -1 : 1; while (n !== 0) { s = addCal(s, step); if (!isSun(s)) n -= step; } return s; };
+const finishOf = (date, dur) => addWork(date, Math.max(1, dur || 1) - 1);
+const fin = t => finishOf(t.date, t.dur);
+const after = s => addWork(s, 1);
+const daysTo = s => Math.round((pd(s) - pd(TODAY)) / 864e5);
+const fmt = s => s ? pd(s).toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+const fmtShort = s => s ? pd(s).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : '';
+const rel = s => { const n = daysTo(s); return n === 0 ? 'today' : n === 1 ? 'tomorrow' : n === -1 ? 'yesterday' : n < 0 ? (-n) + ' days ago' : 'in ' + n + ' days'; };
+const ago = iso => { if (!iso) return ''; const m = Math.round((Date.now() - new Date(iso)) / 6e4); if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 24) return h + ' h ago'; const d = Math.round(h / 24); return d + ' d ago'; };
+const nowIso = () => new Date().toISOString();
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms); }
+
+/* ---------- the build template ----------
+   [key, job, trade category, phase, working days, depends on]
+   Order is topological. Dates are worked out from the dependencies. */
+const TEMPLATE = [
+  ['survey','Survey & stake-out','Surveyor','Foundation',1,[]],
+  ['excav','Excavation','Excavation','Foundation',2,['survey']],
+  ['footings','Footings','Concrete','Foundation',2,['excav']],
+  ['walls','Foundation walls','Concrete','Foundation',3,['footings']],
+  ['weeping','Damp-proofing & weeping tile','Waterproofing','Foundation',1,['walls']],
+  ['ugPlumb','Under-slab plumbing','Plumbing','Foundation',1,['walls']],
+  ['backfill','Backfill & rough grade','Excavation','Foundation',1,['weeping']],
+  ['slab','Basement slab','Concrete','Foundation',1,['ugPlumb','backfill']],
+  ['framing','Framing','Framing','Framing',10,['slab']],
+  ['roof','Roofing','Roofing','Framing',2,['framing']],
+  ['windows','Windows & exterior doors','Windows','Framing',2,['framing']],
+  ['plumbRough','Rough plumbing','Plumbing','Rough-in',3,['roof','windows']],
+  ['hvacRough','Rough HVAC & ductwork','HVAC','Rough-in',3,['roof','windows']],
+  ['elecRough','Rough electrical','Electrical','Rough-in',3,['plumbRough','hvacRough']],
+  ['lowV','Low-voltage pre-wire','Low voltage','Rough-in',1,['elecRough']],
+  ['roughInsp','Framing & rough-in inspections','Inspection','Rough-in',1,['lowV']],
+  ['exterior','Siding, stone & eaves','Exterior','Exterior',6,['windows']],
+  ['insul','Insulation & vapour barrier','Insulation','Drywall',2,['roughInsp']],
+  ['insulInsp','Insulation inspection','Inspection','Drywall',1,['insul']],
+  ['heat','Furnace start-up (temporary heat)','HVAC','Drywall',1,['insulInsp']],
+  ['drywall','Drywall: board, tape & mud','Drywall','Drywall',8,['heat']],
+  ['paint','Prime & paint','Painting','Finishing',3,['drywall']],
+  ['cabinets','Cabinets & vanities','Cabinets','Finishing',2,['paint']],
+  ['trim','Doors & finish carpentry','Finish carpentry','Finishing',3,['paint']],
+  ['counters','Countertops','Countertops','Finishing',1,['cabinets']],
+  ['tile','Tile & backsplash','Tile','Finishing',2,['counters']],
+  ['hardwood','Hardwood flooring','Flooring','Finishing',2,['trim','tile']],
+  ['ductClean','Duct & furnace cleaning','Duct cleaning','Finishing',1,['hardwood']],
+  ['elecFin','Finish electrical','Electrical','Finishing',2,['hardwood']],
+  ['plumbFin','Finish plumbing','Plumbing','Finishing',2,['hardwood']],
+  ['carpet','Carpet','Flooring','Finishing',1,['ductClean','elecFin','plumbFin']],
+  ['grade','Final grade, sod & driveway','Landscaping','Exterior',3,['exterior']],
+  ['appliances','Appliances','Appliances','Final',1,['carpet']],
+  ['touchup','Paint touch-up','Painting','Final',1,['carpet']],
+  ['clean','Final clean','Cleaning','Final',1,['appliances','touchup']],
+  ['finalInsp','Occupancy inspection','Inspection','Final',1,['clean']],
+  ['pdi','PDI walkthrough with buyer','Customer care','Final',1,['finalInsp','grade']],
+  ['possession','Possession day','Customer care','Final',1,['pdi']],
+];
+const PHASES = ['Foundation','Framing','Exterior','Rough-in','Drywall','Finishing','Final'];
+const CATEGORIES = [...new Set(TEMPLATE.map(t => t[2]))].sort();
+const DELAY_REASONS = ['Material not delivered','Previous trade not finished','Trade unavailable / no-show','Failed inspection','Weather','Site not ready (access, power, heat)','Buyer change order','Other'];
+
+/* ---------- state ---------- */
+const S = { homes: {}, trades: {}, notices: {}, photos: {}, issues: {}, log: {} };
+const loaded = {};
+let db = null, user = null, assets = null, meId = null, canWrite = true, preview = false, live = false;
+const names = {};
+let localBlobs = {};
+
+/* in-memory stand-in, used only where the shared store isn't available (a local file, a preview) */
+function memDB() {
+  const cols = {}, subs = {};
+  const emit = c => (subs[c] || []).forEach(f => f());
+  const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object' && !Array.isArray(a[k])) merge(a[k], b[k]); else a[k] = b[k]; } return a; };
+  const col = c => { cols[c] = cols[c] || {}; const ref = {
+    doc(id) { id = id || rid('d'); return { id,
+      set: async d => { cols[c][id] = JSON.parse(JSON.stringify(d)); emit(c); },
+      update: async d => { if (!cols[c][id]) throw { code: 'invalid_argument' }; merge(cols[c][id], JSON.parse(JSON.stringify(d))); emit(c); },
+      delete: async () => { delete cols[c][id]; emit(c); } }; },
+    orderBy() { return ref; }, limit() { return ref; },
+    onSnapshot(next) { const f = () => next({ docs: Object.entries(cols[c]).map(([id, v]) => ({ id, exists: true, data: () => v })), metadata: { fromCache: false } }); (subs[c] = subs[c] || []).push(f); setTimeout(f); return () => {}; } };
+    return ref; };
+  return { collection: col };
+}
+
+/* one write at a time per document */
+const chains = {};
+function serial(key, fn) { const p = (chains[key] || Promise.resolve()).then(fn, fn); chains[key] = p.catch(() => {}); return p; }
+function failed(e) {
+  console.warn(e);
+  if (e && e.code === 'invalid_argument') { canWrite = false; toast('This board is view-only for you. Ask the owner to share it with you as a Contributor.', 5000); render(); }
+  else if (e && e.code === 'quota_exceeded') toast('The board is full. Remove old homes or photos in Setup, then try again.', 5000);
+  else toast('That change did not save. Check your connection and try again.', 4000);
+  throw e;
+}
+const stamp = () => ({ updatedAt: nowIso(), updatedBy: meId || null });
+const put = (col, id, data) => serial(col + '/' + id, () => db.collection(col).doc(id).set(data)).catch(failed);
+const patch = (col, id, data) => serial(col + '/' + id, () => db.collection(col).doc(id).update(data)).catch(failed);
+const del = (col, id) => serial(col + '/' + id, () => db.collection(col).doc(id).delete()).catch(failed);
+const patchHome = (homeId, tasks, extra = {}) => patch('homes', homeId, { ...extra, tasks, ...stamp() });
+async function runPool(jobs, n = 4) { let i = 0; const w = async () => { while (i < jobs.length) { const j = jobs[i++]; await j(); } }; await Promise.all(Array.from({ length: n }, w)); }
+function addLog(homeId, text, taskId) { const id = rid('l'); return put('log', id, { homeId: homeId || null, taskId: taskId || null, text, at: nowIso(), by: meId || null }); }
+function addNotice(n) { const id = rid('n'); return put('notices', id, { ack: false, ackAt: null, ackBy: null, at: nowIso(), by: meId || null, ...n }); }
+
+/* ---------- derived data ---------- */
+const homeList = () => Object.values(S.homes).sort((a, b) => (a.community || '').localeCompare(b.community || '') || String(a.lot).localeCompare(String(b.lot), undefined, { numeric: true }));
+const liveTasks = h => Object.entries(h.tasks || {}).filter(([, t]) => !t.removed).map(([id, t]) => ({ ...t, id, homeId: h.id }));
+const allTasks = () => homeList().flatMap(liveTasks);
+const tradeName = id => (S.trades[id] && S.trades[id].name) || 'No trade assigned';
+const lotLabel = h => 'Lot ' + (h.lot || '?');
+const homeAddr = h => [h.address, h.community].filter(Boolean).join(', ');
+
+function readiness(h, t) {
+  if (t.status === 'done') return { s: 'done', label: 'Done', why: [] };
+  if (t.tbd) return { s: 'delayed', label: 'Delayed', why: ['New date not set yet' + (t.delayReason ? ': ' + t.delayReason.toLowerCase() : '')] };
+  const bl = [], wait = [];
+  for (const d of t.deps || []) {
+    const p = h.tasks[d]; if (!p || p.removed || p.status === 'done') continue;
+    const pf = fin(p);
+    if (p.tbd) bl.push(p.name + ' is delayed, no new date yet');
+    else if (pf >= t.date) bl.push(p.name + ' runs until ' + fmt(pf));
+    else if (pf < TODAY) bl.push(p.name + ' was due ' + fmtShort(pf) + ' and isn’t marked done');
+    else wait.push(p.name + ' (' + fmtShort(p.date) + (p.dur > 1 ? '–' + fmtShort(pf) : '') + ')');
+  }
+  if (bl.length) return { s: 'hold', label: 'Hold', why: bl };
+  if (t.delayed) return { s: 'delayed', label: 'Moved', why: ['Rescheduled' + (t.delayReason ? ': ' + t.delayReason.toLowerCase() : '')] };
+  if (wait.length) return { s: 'pending', label: 'Wait', why: ['After ' + wait.join(', ')] };
+  return { s: 'go', label: 'Go', why: [] };
+}
+const stampHtml = r => `<span class="stamp st-${r.s}">${esc(r.label)}</span>`;
+const statusChip = t => t.status === 'onsite' ? '<span class="chip info">On site</span>' : t.status === 'done' ? '' : t.confirmed ? '<span class="chip go">Confirmed</span>' : '<span class="chip">Not confirmed</span>';
+function homePhase(h) { const ts = liveTasks(h).sort((a, b) => a.seq - b.seq); const n = ts.find(t => t.status !== 'done'); return n ? n.phase : 'Complete'; }
+function homeProgress(h) { const ts = liveTasks(h); const d = ts.filter(t => t.status === 'done').length; return { done: d, total: ts.length, pct: ts.length ? Math.round(d / ts.length * 100) : 0 }; }
+function possessionDate(h) { const p = liveTasks(h).find(t => t.key === 'possession'); return h.possession || (p && p.date) || ''; }
+
+/* downstream: which jobs a date change pushes, and to when */
+function planShift(h, changedId, newDate, shift) {
+  const tasks = h.tasks, dates = { [changedId]: newDate }, down = new Set([changedId]), out = [];
+  const order = Object.entries(tasks).filter(([, t]) => !t.removed).sort((a, b) => a[1].seq - b[1].seq);
+  for (const [id, t] of order) {
+    if (id === changedId || t.status === 'done' || !(t.deps || []).some(d => down.has(d))) continue;
+    let req = t.date;
+    for (const pid of t.deps) { const p = tasks[pid]; if (!p || p.removed || p.status === 'done') continue; const a = after(finishOf(dates[pid] || p.date, p.dur)); if (a > req) req = a; }
+    if (req > t.date) { out.push({ id, from: t.date, to: req }); down.add(id); if (shift) dates[id] = req; }
+  }
+  return out;
+}
+function downstreamAll(h, startId, withinDays = 21) {
+  const down = new Set([startId]), out = [];
+  for (const [id, t] of Object.entries(h.tasks).filter(([, t]) => !t.removed).sort((a, b) => a[1].seq - b[1].seq)) {
+    if (id === startId || t.status === 'done') continue;
+    if ((t.deps || []).some(d => down.has(d))) { down.add(id); if (daysTo(t.date) <= withinDays) out.push({ id, from: t.date, to: null }); }
+  }
+  return out;
+}
+function smsText(n) {
+  const h = S.homes[n.homeId], tr = S.trades[n.tradeId];
+  return `${n.title}\n${h ? lotLabel(h) + ' · ' + homeAddr(h) : ''}\n${n.body}${tr ? '' : ''}\nReply or open Build Sync > My jobs to confirm.`;
+}
+
+/* ---------- actions on jobs ---------- */
+async function setStatus(homeId, tid, status) {
+  const h = S.homes[homeId], t = h.tasks[tid];
+  const p = { status, ...stamp() };
+  if (status === 'done') Object.assign(p, { delayed: false, tbd: false, doneAt: nowIso() });
+  if (status === 'onsite') Object.assign(p, { confirmed: true, tbd: false });
+  await patchHome(homeId, { [tid]: p });
+  await addLog(homeId, `${t.name}: ${status === 'done' ? 'marked done' : status === 'onsite' ? 'trade on site' : status}`, tid);
+  if (status === 'done') {
+    const sim = { ...h.tasks, [tid]: { ...t, status: 'done' } };
+    for (const [id, d] of Object.entries(h.tasks)) {
+      if (d.removed || d.status === 'done' || !(d.deps || []).includes(tid) || !d.tradeId) continue;
+      const r = readiness({ ...h, tasks: sim }, d);
+      if (r.s === 'go' && daysTo(d.date) <= 7) await addNotice({ kind: 'go', tradeId: d.tradeId, homeId, taskId: id, title: `GO: ${d.name} on ${fmt(d.date)}`, body: `${t.name} is finished. You are clear to proceed on ${fmt(d.date)}.` });
+    }
+    toast(t.name + ' marked done');
+  } else toast(t.name + (status === 'onsite' ? ': on site' : ' updated'));
+}
+async function confirmJob(homeId, tid) {
+  const t = S.homes[homeId].tasks[tid];
+  await patchHome(homeId, { [tid]: { confirmed: true, delayed: false, confirmedAt: nowIso(), ...stamp() } });
+  await addLog(homeId, `${t.name}: ${tradeName(t.tradeId)} confirmed for ${fmt(t.date)}`, tid);
+  toast('Confirmed for ' + fmt(t.date));
+}
+async function applyDelay(homeId, tid, { newDate, tbd, reason, note, shift }) {
+  const h = S.homes[homeId], t = h.tasks[tid];
+  const affected = tbd ? downstreamAll(h, tid) : planShift(h, tid, newDate, shift);
+  const tp = { [tid]: { delayed: true, tbd: !!tbd, delayReason: reason, delayNote: note || '', origDate: t.origDate || t.date, confirmed: false, status: t.status === 'done' ? 'done' : 'scheduled', ...stamp() } };
+  if (!tbd) tp[tid].date = newDate;
+  if (shift && !tbd) for (const a of affected) tp[a.id] = { date: a.to, delayed: true, delayReason: `${t.name} moved`, origDate: h.tasks[a.id].origDate || a.from, confirmed: false, ...stamp() };
+  await patchHome(homeId, tp);
+  const why = `${t.name} ${tbd ? 'is delayed, new date not set' : 'moved to ' + fmt(newDate)} (${reason.toLowerCase()})${note ? '. ' + note.replace(/[.\s]+$/, '') : ''}.`;
+  await addLog(homeId, `DELAY ${t.name}: ${tbd ? 'date TBD' : fmtShort(t.date) + ' → ' + fmtShort(newDate)}. ${reason}${note ? ' – ' + note : ''}`, tid);
+  let sent = 0;
+  if (t.tradeId) { await addNotice({ kind: 'reschedule', tradeId: t.tradeId, homeId, taskId: tid, title: tbd ? `ON HOLD: ${t.name}` : `MOVED: ${t.name} to ${fmt(newDate)}`, body: tbd ? `Do not attend on ${fmt(t.date)}. ${reason}. A new date will follow.` : `Was ${fmt(t.date)}, now ${fmt(newDate)}. ${reason}.` }); sent++; }
+  for (const a of affected) {
+    const d = h.tasks[a.id]; if (!d.tradeId) continue;
+    const moved = shift && !tbd;
+    await addNotice({ kind: moved ? 'reschedule' : 'hold', tradeId: d.tradeId, homeId, taskId: a.id,
+      title: moved ? `MOVED: ${d.name} to ${fmt(a.to)}` : `HOLD: do not attend ${d.name} on ${fmt(d.date)}`,
+      body: moved ? `Was ${fmt(a.from)}. Reason: ${why}` : `Reason: ${why} A new date will follow.` });
+    sent++;
+  }
+  toast(sent ? `Delay logged. ${sent} trade notice${sent > 1 ? 's' : ''} sent.` : 'Delay logged.', 3600);
+}
+async function ackNotice(id) { await patch('notices', id, { ack: true, ackAt: nowIso(), ackBy: meId || null }); toast('Acknowledged'); }
+
+/* ---------- homes ---------- */
+function defaultTradeFor(cat) { const t = Object.entries(S.trades).filter(([, t]) => t.category === cat).sort((a, b) => (a[1].name || '').localeCompare(b[1].name || ''))[0]; return t ? t[0] : null; }
+function buildTasks(start, pickTrade = defaultTradeFor) {
+  const ids = {}, out = {}; TEMPLATE.forEach(([k]) => ids[k] = rid('t'));
+  TEMPLATE.forEach(([key, name, trade, phase, dur, deps], seq) => {
+    let date = nextWork(start);
+    for (const dk of deps) { const p = out[ids[dk]]; const a = after(fin(p)); if (a > date) date = a; }
+    out[ids[key]] = { key, name, trade, phase, dur, deps: deps.map(d => ids[d]), seq, date, status: 'scheduled', confirmed: false, tradeId: pickTrade(trade) || null, notes: '' };
+  });
+  return out;
+}
+
+/* ---------- photos ---------- */
+function photoSrc(p) { if (p.assetId) return '/_blob/' + p.assetId; return localBlobs[p.id] || ''; }
+async function uploadPhotos(files, homeId, taskId, caption) {
+  if (!files || !files.length) return;
+  let ok = 0;
+  for (const f of files) {
+    if (!/^image\//.test(f.type)) { toast(f.name + ' is not an image'); continue; }
+    if (f.size > 20 * 1024 * 1024) { toast(f.name + ' is over 20 MB. Take a smaller photo.'); continue; }
+    const id = rid('p');
+    try {
+      let assetId = null;
+      if (assets) { const r = await assets.upload(f); assetId = r.id; }
+      else if (preview) localBlobs[id] = URL.createObjectURL(f);
+      else { toast('Photo upload is not available for you on this board yet.'); return; }
+      await put('photos', id, { homeId, taskId: taskId || null, assetId, caption: caption || f.name.replace(/\.[a-z]+$/i, ''), at: nowIso(), by: meId || null });
+      ok++;
+    } catch (e) { console.warn(e); if (!e || !e.code || !['invalid_argument','quota_exceeded'].includes(e.code)) toast(e && e.code === 'too_large' ? 'That photo is too large.' : 'A photo did not upload. Try again.'); }
+  }
+  if (ok) { const h = S.homes[homeId]; const t = taskId && h ? h.tasks[taskId] : null; await addLog(homeId, `${ok} photo${ok > 1 ? 's' : ''} added${t ? ' to ' + t.name : ''}`, taskId); toast(ok + ' photo' + (ok > 1 ? 's' : '') + ' uploaded'); }
+}
+function photoGrid(list, empty) {
+  if (!list.length) return `<div class="empty">${esc(empty)}</div>`;
+  return `<div class="photos">${list.sort((a, b) => (b.at || '').localeCompare(a.at || '')).map(p => {
+    const src = photoSrc(p); const h = S.homes[p.homeId]; const t = h && p.taskId ? h.tasks[p.taskId] : null;
+    return `<figure class="photo"><a class="ph" href="${esc(src)}" target="_blank" rel="noopener">${src ? `<img src="${esc(src)}" alt="${esc(p.caption)}" loading="lazy">` : '<span>Photo not available in this view</span>'}</a>
+      <figcaption title="${esc(p.caption)}">${esc(p.caption)}</figcaption><figcaption>${t ? esc(t.name) + ' · ' : ''}${esc(ago(p.at))} · <span data-name="${esc(p.by || '')}">${esc(nameOf(p.by))}</span></figcaption></figure>`;
+  }).join('')}</div>`;
+}
+const uploadBtn = (homeId, taskId, label = 'Add photos', cls = 'btn') => (assets || preview) && canWrite
+  ? `<label class="${cls} up">${esc(label)}<input type="file" accept="image/*" multiple data-up-home="${esc(homeId)}" data-up-task="${esc(taskId || '')}"></label>`
+  : `<span class="muted" style="font-size:13px">${canWrite ? 'Photo upload is off for your access level' : ''}</span>`;
+
+/* ---------- names ---------- */
+function nameOf(id) { if (!id) return 'Someone'; if (id === meId) return 'You'; return names[id] || 'Someone'; }
+async function resolveNames() {
+  if (!user || !user.profiles) return;
+  const ids = [...new Set([...document.querySelectorAll('[data-name]')].map(e => e.dataset.name).filter(Boolean))];
+  if (!ids.length) return;
+  try { const ps = await user.profiles(ids); document.querySelectorAll('[data-name]').forEach(e => { const id = e.dataset.name; if (id === meId) return; const n = ps[id] && ps[id].name; if (n) { names[id] = n; e.textContent = n; } }); } catch (e) {}
+}
+
+/* ---------- views ---------- */
+const views = {};
+function route() { const h = (location.hash || '#today').slice(1); if (h.startsWith('home-')) return { v: 'home', id: h.slice(5) }; return { v: views[h] ? h : 'today' }; }
+let renderQueued = false;
+function render() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; doRender(); }); }
+function doRender() {
+  TODAY = ds(new Date());
+  const r = route();
+  document.querySelectorAll('#nav a').forEach(a => { const k = a.getAttribute('href').slice(1); const cur = k === r.v || (r.v === 'home' && k === 'homes'); a.toggleAttribute('aria-current', false); if (cur) a.setAttribute('aria-current', 'page'); });
+  const navTrade = document.querySelector('#nav a[href="#trade"]'); const myT = store.get('bs-trade'); const unack = myT ? Object.values(S.notices).filter(n => n.tradeId === myT && !n.ack).length : 0;
+  navTrade.innerHTML = 'My jobs' + (unack ? `<span class="badge">${unack}</span>` : '');
+  const ready = ['homes', 'trades'].every(k => loaded[k]);
+  let html = '';
+  if (preview) html += `<div class="banner"><b>Preview mode.</b> This copy is not connected to the shared board, so changes stay in this tab. Open it from claude.ai to share it with your team.</div>`;
+  else if (!canWrite) html += `<div class="banner"><b>View only.</b> You can see the board but not change it. Ask the owner to share it with you as a Contributor.</div>`;
+  if (!ready) html += `<div class="card"><h2>Loading the board…</h2><p class="muted">${slow ? 'The shared board is taking longer than usual to answer. It will fill in when it connects.' : 'Fetching homes, schedules and trade notices.'}</p></div>`;
+  else if (!Object.keys(S.homes).length && !['setup', 'playbook'].includes(r.v)) html += viewEmpty();
+  else html += r.v === 'home' ? views.home(r.id) : views[r.v]();
+  const app = $('#app'); const y = window.scrollY; app.innerHTML = html; if (route().v === lastView) window.scrollTo(0, y); lastView = route().v;
+  resolveNames();
+}
+let lastView = null, slow = false;
+
+function viewEmpty() {
+  return `<div class="hero-empty">
+    <div><div class="eyebrow">Nothing on the board yet</div><h1>Every home, every trade, one schedule that tells people when not to show up</h1></div>
+    <p class="muted">Add your homes and trades, and Build Sync lays out the full build from a 38-step template. When a job slips, it works out which trades are affected, moves or holds their jobs, and puts a notice in front of each one until they acknowledge it.</p>
+    <div class="steps">
+      <div><b>1. Add trades</b><br><span class="muted">One row per company: trade, contact, phone.</span></div>
+      <div><b>2. Add homes</b><br><span class="muted">Lot, address, start date. The schedule builds itself.</span></div>
+      <div><b>3. Share the board</b><br><span class="muted">Trades open <i>My jobs</i>, see GO or HOLD, confirm, and post photos.</span></div>
+    </div>
+    <div class="bar">${canWrite ? `<button class="btn pri big" data-act="demo">Load a sample build (example data)</button>` : ''}<a class="btn big" href="#setup">Set up my own homes and trades</a></div>
+    <p class="muted" style="font-size:13px">The sample adds 4 example homes and 26 example trade companies, all labelled as examples, so you can try the hardwood-delay scenario. Remove it any time in Setup.</p>
+  </div>`;
+}
+
+function taskRow(h, t, opts = {}) {
+  const r = readiness(h, t);
+  const acts = opts.acts !== false && canWrite ? `<div class="acts">${actionButtons(h, t, r, opts.compact)}</div>` : '<div></div>';
+  return `<div class="row"><a class="lot" href="#home-${esc(h.id)}">${esc(lotLabel(h))}</a>
+    <div class="main"><div class="t">${esc(t.name)} ${opts.showDate ? `<span class="muted mono">${esc(fmtShort(t.date))}${t.dur > 1 ? '–' + esc(fmtShort(fin(t))) : ''}</span>` : ''}</div>
+    <div class="s">${esc(tradeName(t.tradeId))} · ${esc(h.community || h.address || '')} ${statusChip(t)}</div>
+    ${r.why.length ? `<div class="why" style="color:var(--${r.s === 'hold' ? 'hold' : r.s === 'delayed' ? 'late' : 'muted'})">${esc(r.why.join(' · '))}</div>` : ''}</div>
+    ${stampHtml(r)}${acts}</div>`;
+}
+function actionButtons(h, t, r, compact) {
+  const a = (act, label, cls = 'btn sm') => `<button class="${cls}" data-act="${act}" data-h="${esc(h.id)}" data-t="${esc(t.id)}">${label}</button>`;
+  if (t.status === 'done') return a('open', 'Open');
+  const b = [];
+  if (r.s === 'hold' && !compact) b.push(a('delay', 'Move this job', 'btn sm danger'));
+  if (!t.confirmed && t.status !== 'onsite' && r.s !== 'hold') b.push(a('confirm', 'Confirm', 'btn sm go'));
+  if (daysTo(t.date) <= 0) b.push(a('done', 'Mark done', 'btn sm go'));
+  if (r.s !== 'hold') b.push(a('delay', 'Report delay', 'btn sm'));
+  b.push(a('open', 'Open'));
+  return b.join('');
+}
+
+views.today = () => {
+  const tasks = allTasks().map(t => ({ t, h: S.homes[t.homeId], r: readiness(S.homes[t.homeId], t) }));
+  const openT = tasks.filter(x => x.t.status !== 'done');
+  const onDay = (x, d) => x.t.date <= d && fin(x.t) >= d;
+  const today = openT.filter(x => onDay(x, TODAY));
+  const tomorrow = addWork(TODAY, 1);
+  const holds = openT.filter(x => x.r.s === 'hold' && daysTo(x.t.date) <= 3 && daysTo(fin(x.t)) >= 0).sort((a, b) => a.t.date.localeCompare(b.t.date));
+  const tbdL = openT.filter(x => x.t.tbd);
+  const overdue = openT.filter(x => fin(x.t) < TODAY && x.r.s !== 'hold' && !x.t.tbd).sort((a, b) => a.t.date.localeCompare(b.t.date));
+  const unconf = openT.filter(x => !x.t.confirmed && x.t.status !== 'onsite' && x.r.s !== 'hold' && daysTo(x.t.date) >= 0 && x.t.date <= tomorrow);
+  const unack = Object.entries(S.notices).filter(([, n]) => !n.ack).map(([id, n]) => ({ id, ...n })).sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+  const issues = Object.values(S.issues).filter(i => i.status !== 'fixed');
+  const soon = homeList().filter(h => { const p = possessionDate(h); return p && daysTo(p) >= 0 && daysTo(p) <= 30; });
+  const kpi = (n, label, cls, href) => `<a class="kpi ${n ? cls : ''}" href="${href}"><b>${n}</b><span>${label}</span></a>`;
+  const logs = Object.values(S.log).sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 14);
+  return `<div class="page-h"><div><div class="eyebrow">${esc(fmt(TODAY))}</div><h1>Today across ${homeList().length} homes</h1>
+    <p>Work the "Needs you" list top to bottom. Anything red means a trade should not go to site until you act.</p></div>
+    <div class="bar"><a class="btn" href="#lookahead">2-week lookahead</a></div></div>
+  <div class="kpis">
+    ${kpi(today.length, 'jobs on site today', 'ok', '#lookahead')}
+    ${kpi(holds.length, 'on hold, next 3 days', 'bad', '#today')}
+    ${kpi(unack.length, 'notices not acknowledged', 'bad', '#today')}
+    ${kpi(overdue.length, 'past due, not marked done', 'warn', '#today')}
+    ${kpi(issues.length, 'open deficiencies', 'warn', '#homes')}
+    ${kpi(soon.length, 'possessions in 30 days', '', '#homes')}
+  </div>
+  <div class="cols">
+    <div class="grid">
+      <section class="card"><h2>Needs you <span class="chip">${holds.length + overdue.length + unconf.length + tbdL.length}</span></h2>
+        ${!(holds.length + overdue.length + unconf.length + tbdL.length) ? '<div class="empty">Nothing waiting on you. Every job in the next 3 days is clear or confirmed.</div>' : ''}
+        ${holds.length ? `<div class="eyebrow" style="margin-top:4px">On hold: a trade is booked but the job before it isn’t ready</div><div class="rows">${holds.map(x => taskRow(x.h, x.t, { showDate: true })).join('')}</div>` : ''}
+        ${tbdL.length ? `<div class="eyebrow" style="margin-top:14px">Delayed with no new date: set one so the trades after it can plan</div><div class="rows">${tbdL.map(x => taskRow(x.h, x.t, { showDate: true })).join('')}</div>` : ''}
+        ${overdue.length ? `<div class="eyebrow" style="margin-top:14px">Past due: was it finished? Mark it done or move it</div><div class="rows">${overdue.map(x => taskRow(x.h, x.t, { showDate: true })).join('')}</div>` : ''}
+        ${unconf.length ? `<div class="eyebrow" style="margin-top:14px">Today and next work day, not confirmed by the trade</div><div class="rows">${unconf.map(x => taskRow(x.h, x.t, { showDate: true })).join('')}</div>` : ''}
+      </section>
+      <section class="card"><h2>On site today <span class="chip">${today.length}</span></h2>
+        ${today.length ? `<div class="rows">${today.map(x => taskRow(x.h, x.t)).join('')}</div>` : '<div class="empty">No jobs scheduled today.</div>'}
+      </section>
+    </div>
+    <div class="grid">
+      <section class="card"><h2>Notices waiting for a reply <span class="chip">${unack.length}</span></h2>
+        ${unack.length ? `<div class="grid" style="gap:10px">${unack.slice(0, 5).map(n => noticeCard(n, true)).join('')}</div>${unack.length > 5 ? `<details style="margin-top:10px"><summary>${unack.length - 5} more waiting</summary><div class="grid" style="gap:10px;margin-top:10px">${unack.slice(5).map(n => noticeCard(n, true)).join('')}</div></details>` : ''}` : '<div class="empty">Every trade has acknowledged their notices.</div>'}
+      </section>
+      <section class="card"><h2>Latest from site</h2>${logList(logs)}</section>
+    </div>
+  </div>`;
+};
+function logList(logs) {
+  if (!logs.length) return '<div class="empty">Updates from the PM and the trades show up here.</div>';
+  return `<div class="rows timeline">${logs.map(l => { const h = S.homes[l.homeId]; return `<div class="row">${h ? `<a class="lot" href="#home-${esc(h.id)}">${esc(lotLabel(h))}</a>` : '<span></span>'}<div class="main"><div>${esc(l.text)}</div><div class="s">${esc(ago(l.at))} · <span data-name="${esc(l.by || '')}">${esc(nameOf(l.by))}</span></div></div></div>`; }).join('')}</div>`;
+}
+function noticeCard(n, pmView) {
+  const h = S.homes[n.homeId], tr = S.trades[n.tradeId];
+  const sms = smsText(n);
+  return `<div class="notice ${esc(n.kind)} ${n.ack ? 'acked' : ''}">
+    <div class="bar" style="justify-content:space-between"><span class="eyebrow">${pmView ? esc(tradeName(n.tradeId)) : esc(n.kind === 'go' ? 'Clear to proceed' : n.kind === 'hold' ? 'Do not attend' : 'Schedule change')}</span><span class="muted" style="font-size:12px">${esc(ago(n.at))}</span></div>
+    <div class="nt">${esc(n.title)}</div>
+    <div>${h ? `<a class="lot" href="#home-${esc(h.id)}">${esc(lotLabel(h))}</a> ${esc(homeAddr(h))}` : ''}</div>
+    <div class="muted">${esc(n.body)}</div>
+    ${n.ack ? `<div class="chip go" style="justify-self:start">Acknowledged ${esc(ago(n.ackAt))}</div>` : `<div class="bar">
+      ${!pmView && canWrite ? `<button class="btn pri" data-act="ack" data-n="${esc(n.id)}">Got it</button>` : ''}
+      ${pmView ? `<span class="chip hold">Not acknowledged</span>${tr && tr.phone ? `<span class="mono">${esc(tr.phone)}</span>` : ''}
+      <button class="btn sm" data-act="copy" data-text="${esc(sms)}">Copy text message</button>${canWrite ? `<button class="btn sm" data-act="ack" data-n="${esc(n.id)}">They know (phoned)</button>` : ''}` : ''}</div>`}
+  </div>`;
+}
+
+views.homes = () => {
+  const hs = homeList(); const q = (store.get('bs-hq') || '').toLowerCase();
+  const list = hs.filter(h => !q || [h.lot, h.address, h.community, h.model].join(' ').toLowerCase().includes(q));
+  return `<div class="page-h"><div><h1>Homes <span class="muted" style="font-size:20px">${hs.length}</span></h1><p>Each card shows the current phase, how far along the build is, and anything that needs attention.</p></div>
+    <div class="bar"><input type="text" id="hq" placeholder="Search lot, address, community" value="${esc(q)}" style="width:240px">${canWrite ? '<button class="btn pri" data-act="addHome">Add a home</button>' : ''}</div></div>
+  <div class="homes">${list.map(h => {
+    const pr = homeProgress(h), ts = liveTasks(h); const holds = ts.filter(t => readiness(h, t).s === 'hold' && daysTo(t.date) <= 7).length;
+    const late = ts.filter(t => t.status !== 'done' && (t.delayed || t.tbd)).length; const iss = Object.values(S.issues).filter(i => i.homeId === h.id && i.status !== 'fixed').length;
+    const pos = possessionDate(h); const next = ts.filter(t => t.status !== 'done').sort((a, b) => a.date.localeCompare(b.date))[0];
+    return `<a class="card home" href="#home-${esc(h.id)}"><div class="top"><div><div class="eyebrow">${esc(h.community || '')}</div><h3>${esc(lotLabel(h))} · ${esc(h.address || '')}</h3></div><span class="chip info">${esc(homePhase(h))}</span></div>
+      <div class="prog" title="${pr.done} of ${pr.total} jobs done"><i style="width:${pr.pct}%"></i></div>
+      <div class="meta"><span><b>${pr.pct}%</b> done</span>${pos ? `<span>Possession <b>${esc(fmtShort(pos))}</b> (${esc(rel(pos))})</span>` : ''}${h.model ? `<span>${esc(h.model)}</span>` : ''}</div>
+      ${next ? `<div class="meta">Next: <b>${esc(next.name)}</b> ${esc(fmtShort(next.date))}</div>` : ''}
+      <div class="bar">${holds ? `<span class="chip hold">${holds} on hold</span>` : ''}${late ? `<span class="chip late">${late} delayed</span>` : ''}${iss ? `<span class="chip">${iss} deficienc${iss > 1 ? 'ies' : 'y'}</span>` : ''}${h.demo ? '<span class="chip">Example</span>' : ''}</div></a>`;
+  }).join('') || '<div class="empty">No homes match that search.</div>'}</div>`;
+};
+
+views.home = id => {
+  const h = S.homes[id]; if (!h) return `<div class="card"><h2>That home isn’t on the board</h2><p><a href="#homes">Back to homes</a></p></div>`;
+  const ts = liveTasks(h).sort((a, b) => a.seq - b.seq); const pr = homeProgress(h); const pos = possessionDate(h);
+  const photos = Object.entries(S.photos).filter(([, p]) => p.homeId === id).map(([pid, p]) => ({ id: pid, ...p }));
+  const issues = Object.entries(S.issues).filter(([, i]) => i.homeId === id).map(([iid, i]) => ({ id: iid, ...i })).sort((a, b) => (a.status === 'fixed') - (b.status === 'fixed'));
+  const logs = Object.values(S.log).filter(l => l.homeId === id).sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 25);
+  let lastPhase = null;
+  const rows = ts.sort((a, b) => PHASES.indexOf(a.phase) - PHASES.indexOf(b.phase) || a.date.localeCompare(b.date) || a.seq - b.seq).map(t => {
+    const r = readiness(h, t); let ph = '';
+    if (t.phase !== lastPhase) { lastPhase = t.phase; ph = `<tr class="phase"><td colspan="5">${esc(t.phase)}</td></tr>`; }
+    const pc = photos.filter(p => p.taskId === t.id).length;
+    return ph + `<tr class="task ${t.status === 'done' ? 'isdone' : ''}" data-act="open" data-h="${esc(id)}" data-t="${esc(t.id)}" tabindex="0">
+      <td class="mono" style="white-space:nowrap">${esc(fmtShort(t.date))}${t.dur > 1 ? '–' + esc(fmtShort(fin(t))) : ''}${t.origDate && t.origDate !== t.date ? `<div class="muted" style="text-decoration:line-through">${esc(fmtShort(t.origDate))}</div>` : ''}</td>
+      <td><b>${esc(t.name)}</b>${r.why.length ? `<div class="muted" style="font-size:12.5px">${esc(r.why.join(' · '))}</div>` : ''}</td>
+      <td>${esc(tradeName(t.tradeId))}</td><td>${statusChip(t)}${pc ? ` <span class="chip">${pc} photo${pc > 1 ? 's' : ''}</span>` : ''}</td><td>${stampHtml(r)}</td></tr>`;
+  }).join('');
+  return `<div class="page-h"><div><div class="eyebrow"><a href="#homes">Homes</a> / ${esc(h.community || '')}</div><h1>${esc(lotLabel(h))} · ${esc(h.address || '')}</h1>
+    <p>${[h.model, pos ? 'Possession ' + fmt(pos) + ' (' + rel(pos) + ')' : '', pr.done + ' of ' + pr.total + ' jobs done'].filter(Boolean).map(esc).join(' · ')}${h.demo ? ' · Example home' : ''}</p></div>
+    <div class="bar">${uploadBtn(id, null)}${canWrite ? `<button class="btn" data-act="addIssue" data-h="${esc(id)}">Log a deficiency</button><button class="btn" data-act="editHome" data-h="${esc(id)}">Edit home</button>` : ''}</div></div>
+  <div class="prog" style="margin-bottom:16px;height:10px"><i style="width:${pr.pct}%"></i></div>
+  <div class="cols">
+    <section class="card" style="padding-top:8px"><div class="tbl-wrap"><table class="tasks"><thead><tr><th>Dates</th><th>Job</th><th>Trade</th><th>Status</th><th>Ready?</th></tr></thead><tbody>${rows}</tbody></table></div></section>
+    <div class="grid">
+      <section class="card"><h3>Site photos <span class="chip">${photos.length}</span></h3>${photoGrid(photos, 'No photos yet. Trades and the PM can add them from any job.')}</section>
+      <section class="card"><h3>Deficiencies <span class="chip">${issues.filter(i => i.status !== 'fixed').length} open</span></h3>
+        ${issues.length ? `<div class="rows">${issues.map(i => `<div class="row"><span class="chip ${i.status === 'fixed' ? 'go' : 'hold'}">${i.status === 'fixed' ? 'Fixed' : 'Open'}</span><div class="main"><div class="t">${esc(i.text)}</div><div class="s">${esc(tradeName(i.tradeId))} · ${esc(ago(i.at))}${i.room ? ' · ' + esc(i.room) : ''}</div></div>${canWrite ? `<div class="acts"><button class="btn sm" data-act="toggleIssue" data-i="${esc(i.id)}">${i.status === 'fixed' ? 'Reopen' : 'Mark fixed'}</button></div>` : ''}</div>`).join('')}</div>` : '<div class="empty">No deficiencies logged.</div>'}
+      </section>
+      <section class="card"><h3>History</h3>${logList(logs)}</section>
+    </div>
+  </div>`;
+};
+
+views.lookahead = () => {
+  const f = { c: store.get('bs-lc') || '', t: store.get('bs-lt') || '', p: store.get('bs-lp') === '1' };
+  const end = addCal(TODAY, 14);
+  const items = allTasks().filter(t => t.status !== 'done' && fin(t) >= TODAY && t.date <= end).map(t => ({ t, h: S.homes[t.homeId] })).map(x => ({ ...x, r: readiness(x.h, x.t) }))
+    .filter(x => (!f.c || x.h.community === f.c) && (!f.t || x.t.tradeId === f.t) && (!f.p || ['hold', 'delayed'].includes(x.r.s) || !x.t.confirmed));
+  const comms = [...new Set(homeList().map(h => h.community).filter(Boolean))].sort();
+  const days = []; for (let d = TODAY; d <= end; d = addCal(d, 1)) days.push(d);
+  const body = days.map(d => { const list = items.filter(x => x.t.date === d || (d === TODAY && x.t.date < TODAY)); if (!list.length) return ''; return `<div class="date-h ${d === TODAY ? 'today' : ''}">${esc(fmt(d))}<span class="muted" style="font-size:14px;font-family:var(--body)">${esc(rel(d))} · ${list.length} job${list.length > 1 ? 's' : ''}</span></div><div class="rows">${list.map(x => taskRow(x.h, x.t, { compact: true })).join('')}</div>`; }).join('');
+  return `<div class="page-h"><div><h1>Two-week lookahead</h1><p>Every job starting in the next 14 days. Jobs that start before today and aren’t finished show under today.</p></div></div>
+  <div class="filters">
+    <label class="f">Community<select id="lc"><option value="">All communities</option>${comms.map(c => `<option ${c === f.c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+    <label class="f">Trade company<select id="lt"><option value="">All trades</option>${tradeOptions(f.t)}</select></label>
+    <label class="check" style="padding-bottom:8px"><input type="checkbox" id="lp" ${f.p ? 'checked' : ''}> Only holds, delays and unconfirmed</label>
+  </div>
+  <section class="card">${body || '<div class="empty">Nothing matches in the next two weeks.</div>'}</section>`;
+};
+function tradeOptions(sel, cat) {
+  return Object.entries(S.trades).filter(([, t]) => !cat || t.category === cat).sort((a, b) => (a[1].category + a[1].name).localeCompare(b[1].category + b[1].name))
+    .map(([id, t]) => `<option value="${esc(id)}" ${id === sel ? 'selected' : ''}>${esc(t.name)} – ${esc(t.category)}</option>`).join('');
+}
+
+views.trade = () => {
+  const my = store.get('bs-trade') || ''; const tr = S.trades[my];
+  const pick = `<label class="f" style="max-width:420px">I work for<select id="mytrade"><option value="">Choose your company</option>${tradeOptions(my)}</select></label>`;
+  if (!tr) return `<div class="page-h"><div><h1>My jobs</h1><p>For trades: pick your company once and this page shows only your jobs, with a clear GO or HOLD before you drive out.</p></div></div><div class="card">${pick}${!Object.keys(S.trades).length ? '<p class="muted">No trade companies on the board yet. The PM adds them in Setup.</p>' : ''}</div>`;
+  const notices = Object.entries(S.notices).filter(([, n]) => n.tradeId === my).map(([id, n]) => ({ id, ...n })).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  const open = notices.filter(n => !n.ack), done = notices.filter(n => n.ack).slice(0, 10);
+  const jobs = allTasks().filter(t => t.tradeId === my && t.status !== 'done' && daysTo(t.date) <= 30).sort((a, b) => a.date.localeCompare(b.date));
+  const issues = Object.entries(S.issues).filter(([, i]) => i.tradeId === my && i.status !== 'fixed').map(([id, i]) => ({ id, ...i }));
+  return `<div class="page-h"><div><div class="eyebrow">${esc(tr.category)}</div><h1>${esc(tr.name)}</h1><p>Check this before you drive out. GO means the job before yours is done. HOLD means don’t go yet.</p></div>${pick}</div>
+  ${open.length ? `<section class="grid" style="margin-bottom:16px"><h2>New notices <span class="badge">${open.length}</span></h2>${open.map(n => noticeCard(n, false)).join('')}</section>` : ''}
+  <div class="cols"><section class="grid" style="align-content:start"><h2>Upcoming jobs <span class="chip">${jobs.length}</span></h2>
+    <div class="jobs">${jobs.map(t => { const h = S.homes[t.homeId], r = readiness(h, t); const pc = Object.values(S.photos).filter(p => p.taskId === t.id).length;
+      return `<div class="card job ${r.s}"><div class="jt"><div><div class="when">${esc(fmt(t.date))}${t.dur > 1 ? ' – ' + esc(fmtShort(fin(t))) : ''} <span class="muted" style="font-size:14px;font-family:var(--body)">${esc(rel(t.date))}</span></div>
+        <div class="t" style="font-weight:700">${esc(t.name)}</div><div class="muted">${esc(lotLabel(h))} · ${esc(homeAddr(h))}</div></div>${stampHtml(r)}</div>
+        ${r.why.length ? `<div style="color:var(--${r.s === 'hold' ? 'hold' : r.s === 'delayed' ? 'late' : 'muted'});font-weight:600">${esc(r.why.join(' · '))}</div>` : ''}
+        ${t.notes ? `<div class="muted">Notes: ${esc(t.notes)}</div>` : ''}
+        ${canWrite ? `<div class="bar">${!t.confirmed && r.s !== 'hold' ? `<button class="btn go" data-act="confirm" data-h="${esc(h.id)}" data-t="${esc(t.id)}">Confirm I’ll be there</button>` : ''}
+          ${t.status !== 'onsite' && daysTo(t.date) <= 0 && r.s !== 'hold' ? `<button class="btn" data-act="onsite" data-h="${esc(h.id)}" data-t="${esc(t.id)}">I’m on site</button>` : ''}
+          ${daysTo(t.date) <= 0 ? `<button class="btn go" data-act="done" data-h="${esc(h.id)}" data-t="${esc(t.id)}">Job done</button>` : ''}
+          <button class="btn" data-act="delay" data-h="${esc(h.id)}" data-t="${esc(t.id)}">Can’t make it / delayed</button>
+          ${uploadBtn(h.id, t.id, pc ? `Photos (${pc})` : 'Add photos')}</div>` : ''}</div>`; }).join('') || '<div class="empty">No jobs in the next 30 days.</div>'}</div></section>
+  <div class="grid" style="align-content:start">
+    <section class="card"><h3>Deficiencies assigned to you <span class="chip">${issues.length}</span></h3>${issues.length ? `<div class="rows">${issues.map(i => { const h = S.homes[i.homeId]; return `<div class="row">${h ? `<a class="lot" href="#home-${esc(h.id)}">${esc(lotLabel(h))}</a>` : '<span></span>'}<div class="main"><div class="t">${esc(i.text)}</div><div class="s">${h ? esc(homeAddr(h)) : ''}${i.room ? ' · ' + esc(i.room) : ''}</div></div>${canWrite ? `<div class="acts"><button class="btn sm go" data-act="toggleIssue" data-i="${esc(i.id)}">Mark fixed</button></div>` : ''}</div>`; }).join('')}</div>` : '<div class="empty">Nothing outstanding.</div>'}</section>
+    <section class="card"><details><summary>Earlier notices (${done.length})</summary><div class="grid" style="gap:8px;margin-top:10px">${done.map(n => noticeCard(n, false)).join('') || '<span class="muted">None yet.</span>'}</div></details></section>
+    <section class="card"><h3>Your office contact</h3><p class="muted" style="margin:0">Delays you report here go straight to the project manager and to the trades booked after you, so nobody shows up to a site that isn’t ready.</p></section>
+  </div></div>`;
+};
+
+views.setup = () => {
+  const ts = Object.entries(S.trades).sort((a, b) => (a[1].category + a[1].name).localeCompare(b[1].category + b[1].name));
+  const used = new Set(ts.map(([, t]) => t.category)); const missing = CATEGORIES.filter(c => !used.has(c));
+  const demo = Object.values(S.homes).some(h => h.demo) || Object.values(S.trades).some(t => t.demo);
+  return `<div class="page-h"><div><h1>Setup</h1><p>Trade companies, homes, sharing and sample data.</p></div></div>
+  <div class="cols">
+    <section class="card"><h2>Trade companies <span class="chip">${ts.length}</span>${canWrite ? '<button class="btn pri sm" data-act="editTrade">Add a trade</button>' : ''}</h2>
+      ${missing.length ? `<p class="muted" style="margin-top:0">No company yet for: ${missing.map(esc).join(', ')}. Jobs in those trades will show "No trade assigned".</p>` : ''}
+      ${ts.length ? `<div class="rows">${ts.map(([id, t]) => `<div class="row"><span class="chip">${esc(t.category)}</span><div class="main"><div class="t">${esc(t.name)}${t.demo ? ' <span class="chip">Example</span>' : ''}</div><div class="s">${[t.contact, t.phone, t.email].filter(Boolean).map(esc).join(' · ')}</div></div>${canWrite ? `<div class="acts"><button class="btn sm" data-act="editTrade" data-id="${esc(id)}">Edit</button></div>` : ''}</div>`).join('')}</div>` : '<div class="empty">No trade companies yet.</div>'}
+    </section>
+    <div class="grid">
+      <section class="card"><h3>Homes</h3><p class="muted" style="margin-top:0">A new home gets the full 38-job schedule from its start date, skipping Sundays, with each job assigned to the first company listed for that trade. Change any date or company afterwards.</p>${canWrite ? '<button class="btn pri" data-act="addHome">Add a home</button>' : ''}</section>
+      <section class="card"><h3>Sharing with trades</h3><ol style="margin:0;padding-left:20px;display:grid;gap:6px">
+        <li>Use <b>Share</b> on this page and add each person as a <b>Contributor</b>. Contributors can confirm jobs, report delays, acknowledge notices and add photos.</li>
+        <li>Tell each trade to open <b>My jobs</b> and pick their company. The red badge on <i>My jobs</i> counts their unread notices.</li>
+        <li>Notices appear inside the board. For anyone who hasn’t acknowledged, the Today page gives you their number and a ready-to-send text.</li></ol></section>
+      <section class="card"><h3>Sample data</h3>${demo ? `<p class="muted" style="margin-top:0">Example homes and trades are on the board.</p>${canWrite ? '<button class="btn danger" data-act="clearDemo">Remove all example data</button>' : ''}` : `<p class="muted" style="margin-top:0">Load 4 example homes and 26 example trades to try the board.</p>${canWrite ? '<button class="btn" data-act="demo">Load a sample build</button>' : ''}`}</section>
+    </div>
+  </div>`;
+};
+
+/* ---------- playbook ---------- */
+const PLAY = [
+  ['Schedule & dependencies', [
+    ['Every job knows what it depends on, so a slip pushes only the jobs that are actually affected', 1],
+    ['GO / WAIT / HOLD stamp on every job, worked out from the jobs before it', 1],
+    ['One-click "push the dependent jobs back" when something slips', 1],
+    ['"Date not known yet" delays put every downstream trade on hold automatically', 1],
+    ['Past-due jobs that nobody marked done are flagged instead of silently passing', 1],
+    ['Two-week lookahead filtered by community, by trade, or by problems only', 1],
+    ['Schedule templates per home model (bungalow, two-storey, duplex, laned home)', 0],
+    ['Built-in buffer days after high-risk jobs (inspections, countertops, hardwood)', 0],
+    ['Seasonal templates: winter heat and hoarding steps added automatically from November', 0],
+    ['Critical-path view: which single job is holding up possession for each home', 0],
+    ['Duration learning: suggest real durations from how long each trade actually took', 0],
+    ['Trade capacity check: warn when one crew is booked on 4 homes the same day', 0],
+    ['Batch scheduling by street so a trade does a row of homes in one trip', 0],
+    ['Drag-to-reschedule Gantt for the PM’s desktop', 0],
+    ['Possession-date risk score per home, updated nightly', 0],
+  ]],
+  ['Telling the trades', [
+    ['Automatic notices to every affected trade when a job moves', 1],
+    ['Notices stay red until the trade taps "Got it", so you know who still needs a call', 1],
+    ['Ready-to-send text message and phone number for anyone who hasn’t replied', 1],
+    ['"Clear to proceed" notice the moment the job before yours is marked done', 1],
+    ['Trade-only view: my jobs, my notices, my deficiencies, nothing else', 1],
+    ['Real SMS and email delivery through a messaging service (needs a backend)', 0],
+    ['Day-before automatic reminder with address, lockbox code and site contact', 0],
+    ['Two-way text replies: trade texts "DONE 14" and the job is closed', 0],
+    ['Trade replies with an ETA; PM sees "arriving 9:40" on the Today page', 0],
+    ['Language preference per trade crew for notices', 0],
+    ['Escalation: no acknowledgement in 2 hours sends to the trade’s office line', 0],
+    ['Weekly "your next 3 weeks" digest to every trade owner', 0],
+    ['Supplier notices too: lumber, windows and flooring suppliers see delivery-dependent dates', 0],
+  ]],
+  ['Site readiness & handoffs', [
+    ['Trades confirm jobs; unconfirmed jobs for today and tomorrow are listed for the PM', 1],
+    ['"I’m on site" check-in', 1],
+    ['Handoff checklist the previous trade must tick before the next one gets GO (e.g. "all floor protection removed" before duct cleaning)', 0],
+    ['Site-ready checklist: power, heat, access, garbage bin, porta-potty', 0],
+    ['Lockbox and gate codes shown only on the day of the job', 0],
+    ['Garbage bin fill level reported by trades, auto-books a swap', 0],
+    ['Temporary heat log for winter drywall and paint', 0],
+    ['"Site left clean" photo required at job completion', 0],
+    ['Back-charge log when a trade damages another trade’s work', 0],
+  ]],
+  ['Photos & proof', [
+    ['Anyone on the board can upload site photos to a home or a specific job', 1],
+    ['Photo count shown on every job', 1],
+    ['Required photo sets per job (before drywall: every wall, every mechanical run)', 0],
+    ['Pre-drywall photo archive for warranty: find the pipe behind the wall years later', 0],
+    ['Photo markup: circle the problem and assign it as a deficiency', 0],
+    ['Before / after pairs for deficiency fixes', 0],
+    ['Automatic weekly photo update sent to the buyer', 0],
+  ]],
+  ['Quality & deficiencies', [
+    ['Deficiency list per home, assigned to a trade, shown on that trade’s page', 1],
+    ['Open-deficiency count on every home card', 1],
+    ['Room-by-room PDI checklist on a phone', 0],
+    ['Trade quality scorecard: deficiencies per home, callbacks, on-time rate', 0],
+    ['Repeat-issue detector: same deficiency on 3 homes means a process fix, not a patch', 0],
+    ['Buyer can submit 30-day and 1-year warranty items with photos', 0],
+  ]],
+  ['Materials & orders', [
+    ['Material-delivery jobs in the schedule with their own delay notices', 0],
+    ['Order lead-time warnings: cabinets ordered 6 weeks ahead of the cabinet date', 0],
+    ['Selections lock date tied to the order date for each finish', 0],
+    ['Delivery photo with packing slip; short-ship reported on the spot', 0],
+    ['Back-order tracker that feeds straight into the schedule as a delay', 0],
+  ]],
+  ['Inspections & compliance', [
+    ['City inspections as jobs, so a failed inspection holds everyone after it', 1],
+    ['Inspection booking reminders based on the schedule', 0],
+    ['Inspection report upload with corrections assigned to trades', 0],
+    ['Safety orientation and WCB clearance status per trade company', 0],
+    ['Hazard assessment sign-in per site per day', 0],
+  ]],
+  ['The PM’s day', [
+    ['Today page: one list of what needs you, worked top to bottom', 1],
+    ['Activity log for every home: who changed what, when', 1],
+    ['Works on a phone in a truck as well as on a desk', 1],
+    ['Route plan for site visits ordered by where problems are', 0],
+    ['Voice notes turned into updates: "Lot 14 hardwood pushed to Tuesday"', 0],
+    ['Daily summary for the construction manager across every PM', 0],
+    ['Hand-off mode when a PM is on holiday: transfer homes in one step', 0],
+  ]],
+  ['Buyer & sales', [
+    ['Buyer portal with milestone dates and photos (no trade detail)', 0],
+    ['Possession date changes flagged to sales before the buyer hears it elsewhere', 0],
+    ['Change orders with cost and schedule impact before they are approved', 0],
+    ['Show-home and spec-home priority flags', 0],
+  ]],
+];
+views.playbook = () => {
+  const total = PLAY.reduce((n, [, l]) => n + l.length, 0), built = PLAY.reduce((n, [, l]) => n + l.filter(x => x[1]).length, 0);
+  return `<div class="page-h"><div><h1>PM playbook</h1><p>${total} ideas for getting homes to possession with less chasing. The ${built} marked <span class="chip go">Live</span> already work on this board. The rest are the build list, roughly in order of how much PM time they save.</p></div></div>
+  <div class="ideas">${PLAY.map(([h, l]) => `<section class="card"><h3>${esc(h)}</h3><ol>${l.map(([t, b]) => `<li>${esc(t)}${b ? '<span class="chip go">Live</span>' : ''}</li>`).join('')}</ol></section>`).join('')}</div>`;
+};
+
+/* ---------- modals ---------- */
+function modal(html) { $('#modal').innerHTML = `<div class="scrim" data-act="scrim"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`; const f = $('#modal input, #modal select, #modal textarea, #modal .btn'); if (f) f.focus(); }
+function closeModal() { $('#modal').innerHTML = ''; }
+const mh = (title, sub) => `<div class="mh"><div>${sub ? `<div class="eyebrow">${sub}</div>` : ''}<h2>${title}</h2></div><button class="x" data-act="close" aria-label="Close">×</button></div>`;
+
+function openTask(hid, tid) {
+  const h = S.homes[hid], t = h && h.tasks[tid]; if (!t) return;
+  const r = readiness(h, t);
+  const deps = (t.deps || []).map(d => h.tasks[d]).filter(d => d && !d.removed);
+  const nexts = Object.values(h.tasks).filter(x => !x.removed && (x.deps || []).includes(tid));
+  const photos = Object.entries(S.photos).filter(([, p]) => p.taskId === tid).map(([id, p]) => ({ id, ...p }));
+  modal(`<span hidden id="taskModal"></span>${mh(esc(t.name), esc(lotLabel(h) + ' · ' + homeAddr(h)))}
+    <div class="bar">${stampHtml(r)} ${statusChip(t)} <span class="mono">${esc(fmt(t.date))}${t.dur > 1 ? ' – ' + esc(fmt(fin(t))) : ''}</span>${t.origDate && t.origDate !== t.date ? `<span class="chip late">was ${esc(fmtShort(t.origDate))}</span>` : ''}</div>
+    ${r.why.length ? `<div class="preview" style="color:var(--${r.s === 'hold' ? 'hold' : 'ink'})">${esc(r.why.join(' · '))}</div>` : ''}
+    ${t.delayNote ? `<div class="muted">Delay note: ${esc(t.delayNote)}</div>` : ''}
+    <div class="meta"><span>Trade <b>${esc(tradeName(t.tradeId))}</b></span>${S.trades[t.tradeId] && S.trades[t.tradeId].phone ? `<span class="mono">${esc(S.trades[t.tradeId].phone)}</span>` : ''}</div>
+    <div class="meta"><span>After: <b>${deps.map(d => esc(d.name)).join(', ') || 'nothing'}</b></span><span>Before: <b>${nexts.map(d => esc(d.name)).join(', ') || 'nothing'}</b></span></div>
+    ${canWrite && t.status !== 'done' ? `<div class="bar">
+      ${!t.confirmed ? `<button class="btn go" data-act="confirm" data-h="${esc(hid)}" data-t="${esc(tid)}">Confirm</button>` : ''}
+      ${t.status !== 'onsite' ? `<button class="btn" data-act="onsite" data-h="${esc(hid)}" data-t="${esc(tid)}">On site</button>` : ''}
+      <button class="btn go" data-act="done" data-h="${esc(hid)}" data-t="${esc(tid)}">Mark done</button>
+      <button class="btn danger" data-act="delay" data-h="${esc(hid)}" data-t="${esc(tid)}">Report delay / move</button></div>` : ''}
+    ${canWrite && t.status === 'done' ? `<div class="bar"><button class="btn" data-act="reopen" data-h="${esc(hid)}" data-t="${esc(tid)}">Reopen this job</button></div>` : ''}
+    <div><div class="bar" style="justify-content:space-between;margin-bottom:8px"><h3>Photos</h3>${uploadBtn(hid, tid, 'Add photos', 'btn sm')}</div>${photoGrid(photos, 'No photos on this job yet.')}</div>
+    ${canWrite ? `<details><summary>Edit job</summary><form class="form" id="taskForm" data-h="${esc(hid)}" data-t="${esc(tid)}" style="margin-top:10px">
+      <label class="f">Start date<input type="date" id="tf-date" value="${esc(t.date)}" required></label>
+      <label class="f">Working days<input type="number" id="tf-dur" min="1" max="60" value="${esc(t.dur || 1)}"></label>
+      <label class="f full">Trade company<select id="tf-trade"><option value="">No trade assigned</option>${tradeOptions(t.tradeId)}</select></label>
+      <label class="f full">Notes for the trade<textarea id="tf-notes" placeholder="Lockbox, access, special instructions">${esc(t.notes || '')}</textarea></label>
+      <div class="bar full"><button class="btn pri" type="submit">Save job</button><span class="muted" style="font-size:13px">Changing the date here does not notify anyone. Use Report delay / move for that.</span></div></form></details>` : ''}`);
+}
+
+function openDelay(hid, tid) {
+  const h = S.homes[hid], t = h.tasks[tid];
+  const suggested = addWork(t.date, 2);
+  modal(`${mh('Report a delay', esc(lotLabel(h) + ' · ' + t.name))}
+    <form class="form" id="delayForm" data-h="${esc(hid)}" data-t="${esc(tid)}">
+      <label class="f full">What happened?<select id="df-reason">${DELAY_REASONS.map(r => `<option>${esc(r)}</option>`).join('')}</select></label>
+      <label class="f">New start date<input type="date" id="df-date" value="${esc(suggested)}" min="${esc(TODAY)}"></label>
+      <label class="check" style="align-self:end;padding-bottom:8px"><input type="checkbox" id="df-tbd"> New date not known yet</label>
+      <label class="f full">Note (optional)<input type="text" id="df-note" placeholder="e.g. Hardwood shipment short 6 boxes, supplier says Tuesday"></label>
+      <label class="check full"><input type="checkbox" id="df-shift" checked> Push the jobs that depend on this one back to fit</label>
+      <div class="preview full" id="df-preview"></div>
+      <div class="bar full"><button class="btn pri big" type="submit">Log delay and notify trades</button><button class="btn" type="button" data-act="close">Cancel</button></div>
+    </form>`);
+  updateDelayPreview();
+}
+function updateDelayPreview() {
+  const f = $('#delayForm'); if (!f) return;
+  const h = S.homes[f.dataset.h], tid = f.dataset.t, t = h.tasks[tid];
+  const tbd = $('#df-tbd').checked, shift = $('#df-shift').checked, nd = $('#df-date').value;
+  $('#df-date').disabled = tbd; $('#df-shift').disabled = tbd;
+  if (!tbd && !nd) { $('#df-preview').innerHTML = 'Pick the new start date.'; return; }
+  const aff = tbd ? downstreamAll(h, tid) : planShift(h, tid, nd, shift);
+  const who = [t.tradeId ? `<li><b>${esc(tradeName(t.tradeId))}</b>: ${esc(t.name)} ${tbd ? 'on hold' : 'moves to ' + fmt(nd)}</li>` : ''].concat(aff.map(a => { const d = h.tasks[a.id]; return `<li><b>${esc(tradeName(d.tradeId))}</b>: ${esc(d.name)} ${tbd || !shift ? `on ${esc(fmtShort(a.from))} goes on HOLD` : `${esc(fmtShort(a.from))} → ${esc(fmtShort(a.to))}`}</li>`; })).join('');
+  $('#df-preview').innerHTML = aff.length || t.tradeId ? `<b>${aff.length ? aff.length + ' job' + (aff.length > 1 ? 's' : '') + ' after this one ' + (tbd || !shift ? 'will go on hold' : 'will move') : 'No other jobs are affected'}.</b> These trades get a notice:<ul>${who}</ul>` : 'No other jobs are affected by this date.';
+}
+
+function openHomeForm(hid) {
+  const h = hid ? S.homes[hid] : null;
+  modal(`${mh(h ? 'Edit home' : 'Add a home')}
+    <form class="form" id="homeForm" data-h="${esc(hid || '')}">
+      <label class="f">Lot<input type="text" id="hf-lot" value="${esc(h ? h.lot : '')}" required placeholder="14"></label>
+      <label class="f">Model<input type="text" id="hf-model" value="${esc(h ? h.model : '')}" placeholder="e.g. 2-storey, 1,950 sq ft"></label>
+      <label class="f full">Address<input type="text" id="hf-addr" value="${esc(h ? h.address : '')}" required placeholder="Street address"></label>
+      <label class="f">Community<input type="text" id="hf-comm" value="${esc(h ? h.community : '')}" list="comms"><datalist id="comms">${[...new Set(homeList().map(x => x.community).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+      ${h ? '' : `<label class="f">Start date (survey)<input type="date" id="hf-start" value="${esc(TODAY)}" required></label>`}
+      <label class="f full">Site notes<textarea id="hf-notes" placeholder="Lockbox code, site contact, access">${esc(h ? h.notes : '')}</textarea></label>
+      <div class="bar full"><button class="btn pri" type="submit">${h ? 'Save' : 'Add home and build schedule'}</button>${h && canWrite ? `<button class="btn danger" type="button" data-act="delHome" data-h="${esc(hid)}">Remove this home</button>` : ''}</div>
+    </form>`);
+}
+function openTradeForm(id) {
+  const t = id ? S.trades[id] : null;
+  modal(`${mh(t ? 'Edit trade company' : 'Add a trade company')}
+    <form class="form" id="tradeForm" data-id="${esc(id || '')}">
+      <label class="f full">Company name<input type="text" id="trf-name" value="${esc(t ? t.name : '')}" required></label>
+      <label class="f">Trade<select id="trf-cat">${CATEGORIES.map(c => `<option ${t && t.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+      <label class="f">Contact person<input type="text" id="trf-contact" value="${esc(t ? t.contact : '')}"></label>
+      <label class="f">Phone<input type="tel" id="trf-phone" value="${esc(t ? t.phone : '')}"></label>
+      <label class="f">Email<input type="email" id="trf-email" value="${esc(t ? t.email : '')}"></label>
+      <div class="bar full"><button class="btn pri" type="submit">Save</button>${t ? `<button class="btn danger" type="button" data-act="delTrade" data-id="${esc(id)}">Remove</button>` : ''}</div>
+    </form>`);
+}
+function openIssueForm(hid) {
+  const h = S.homes[hid];
+  modal(`${mh('Log a deficiency', esc(lotLabel(h) + ' · ' + homeAddr(h)))}
+    <form class="form" id="issueForm" data-h="${esc(hid)}">
+      <label class="f full">What needs fixing?<input type="text" id="if-text" required placeholder="e.g. Scuffed baseboard, front hall"></label>
+      <label class="f">Room / area<input type="text" id="if-room" placeholder="Kitchen"></label>
+      <label class="f">Assign to<select id="if-trade"><option value="">Not assigned</option>${tradeOptions('')}</select></label>
+      <div class="bar full"><button class="btn pri" type="submit">Log it</button></div>
+    </form>`);
+}
+function confirmBox(title, body, act, data = {}) {
+  modal(`${mh(esc(title))}<p style="margin:0">${esc(body)}</p><div class="bar"><button class="btn danger" data-act="${act}" ${Object.entries(data).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} data-confirmed="1">Yes, remove</button><button class="btn" data-act="close">Cancel</button></div>`);
+}
+
+/* ---------- sample build ---------- */
+const DEMO_TRADES = {
+  'Surveyor': 'Northline Survey (example)', 'Excavation': 'Ridge Excavating (example)', 'Concrete': 'Capital Foundations (example)', 'Waterproofing': 'DryBase Waterproofing (example)',
+  'Framing': 'Timberline Framing (example)', 'Roofing': 'Chinook Roofing (example)', 'Windows': 'Clearview Windows (example)', 'Plumbing': 'Riverbend Plumbing (example)',
+  'HVAC': 'Prairie Comfort HVAC (example)', 'Electrical': 'Bright Spark Electric (example)', 'Low voltage': 'Wired Right AV (example)', 'Inspection': 'City Safety Codes inspector (example)',
+  'Insulation': 'ThermoShield Insulation (example)', 'Drywall': 'Smooth Wall Drywall (example)', 'Exterior': 'Aspen Exteriors (example)', 'Painting': 'Fresh Coat Painting (example)',
+  'Cabinets': 'Northern Millwork (example)', 'Finish carpentry': 'Fine Line Finishing (example)', 'Countertops': 'Stoneworks Countertops (example)', 'Tile': 'Prairie Tile & Stone (example)',
+  'Flooring': 'Oakridge Hardwood (example)', 'Duct cleaning': 'Flanagan’s Furnace & Duct Cleaning (example)', 'Appliances': 'Appliance Delivery Co. (example)', 'Cleaning': 'Spotless Construction Cleaning (example)',
+  'Landscaping': 'Green Acres Landscaping (example)', 'Customer care': 'Customer Care team (example)',
+};
+async function loadDemo() {
+  if (!canWrite) return;
+  toast('Loading the sample build…', 8000);
+  const trades = {};
+  for (const cat of CATEGORIES) trades[cat] = rid('tr');
+  const tdocs = CATEGORIES.map((cat, k) => [trades[cat], { name: DEMO_TRADES[cat] || cat + ' (example)', category: cat, contact: 'Dispatch', phone: '780-555-01' + pad(k + 10), email: '', demo: true }]);
+  const pick = cat => trades[cat] || null;
+  // Lot 14: hardwood today, duct cleaning next work day. Lot 7: drywall stage with a failed insulation inspection.
+  const mk = (lot, address, community, model, anchorKey, anchorOffset) => {
+    let tasks = buildTasks(TODAY, pick);
+    const anchor = Object.values(tasks).find(t => t.key === anchorKey);
+    const shiftDays = -[...Array(400)].findIndex((_, n) => addWork(TODAY, n) >= anchor.date);
+    let start = addWork(TODAY, shiftDays + anchorOffset);
+    tasks = buildTasks(start, pick);
+    for (const t of Object.values(tasks)) { if (fin(t) < TODAY) { t.status = 'done'; t.confirmed = true; } else if (daysTo(t.date) <= 2) t.confirmed = true; }
+    return { id: rid('h'), lot, address, community, model, notes: 'Lockbox 4417 (example)', demo: true, createdAt: nowIso(), tasks };
+  };
+  const homes = [
+    mk('14', '1428 Example Crescent NW', 'Glenridding Heights', '2-storey, 2,100 sq ft', 'hardwood', -1),
+    mk('7', '311 Sample Way SW', 'Keswick', 'Bungalow, 1,450 sq ft', 'insulInsp', 0),
+    mk('22', '96 Demo Street', 'The Orchards', 'Duplex, 1,600 sq ft', 'framing', -4),
+    mk('31', '2050 Placeholder Drive', 'Rosenthal', 'Laned home, 1,780 sq ft', 'finalInsp', 0),
+  ];
+  // Lot 14: leave the duct cleaning unconfirmed so the scenario is visible
+  const l14 = homes[0]; const dc = Object.values(l14.tasks).find(t => t.key === 'ductClean'); dc.confirmed = false; dc.notes = 'Leave registers off until carpet is in.';
+  const jobs = [...tdocs.map(([id, d]) => () => put('trades', id, d)), ...homes.map(h => () => put('homes', h.id, h))];
+  await runPool(jobs, 4);
+  // Lot 7: the insulation inspection failed today -> date unknown -> trades after it go on hold
+  const l7 = homes[1]; const ins = Object.entries(l7.tasks).find(([, t]) => t.key === 'insulInsp');
+  await waitFor(() => S.homes[l7.id]);
+  await applyDelay(l7.id, ins[0], { tbd: true, reason: 'Failed inspection', note: 'Vapour barrier not sealed at two attic hatches. Re-inspection to be booked.', shift: false });
+  const l31 = homes[3]; const tr = id => Object.values(l31.tasks).find(t => t.key === id).tradeId;
+  const iss = [
+    { homeId: l31.id, text: 'Scuffed baseboard at front entry', room: 'Front hall', tradeId: tr('touchup') },
+    { homeId: l31.id, text: 'Ensuite tap drips when closed', room: 'Ensuite', tradeId: tr('plumbFin') },
+    { homeId: l31.id, text: 'Pantry door rubs on the frame', room: 'Kitchen', tradeId: tr('trim') },
+  ];
+  await runPool(iss.map(x => () => put('issues', rid('i'), { ...x, status: 'open', at: nowIso(), by: meId || null, demo: true })), 3);
+  await addLog(l14.id, 'Sample build loaded. Try it: open Hardwood flooring on Lot 14 and report a delay.');
+  location.hash = '#today'; toast('Sample build loaded. Try reporting a delay on Lot 14’s hardwood.', 5000);
+}
+function waitFor(fn, ms = 8000) { return new Promise(res => { const t0 = Date.now(); const tick = () => fn() || Date.now() - t0 > ms ? res() : setTimeout(tick, 150); tick(); }); }
+async function clearDemo() {
+  const jobs = [];
+  for (const [id, h] of Object.entries(S.homes)) if (h.demo) jobs.push(() => del('homes', id));
+  for (const [id, t] of Object.entries(S.trades)) if (t.demo) jobs.push(() => del('trades', id));
+  const demoHomes = new Set(Object.entries(S.homes).filter(([, h]) => h.demo).map(([id]) => id));
+  for (const c of ['notices', 'issues', 'photos', 'log']) for (const [id, x] of Object.entries(S[c])) if (demoHomes.has(x.homeId) || x.demo) jobs.push(() => del(c, id));
+  toast('Removing example data…', 8000); await runPool(jobs, 4); toast('Example data removed');
+}
+
+/* ---------- events ---------- */
+const ACT = {
+  scrim: (d, el, e) => { if (e.target === el) closeModal(); },
+  close: closeModal,
+  open: d => openTask(d.h, d.t),
+  confirm: d => confirmJob(d.h, d.t).then(refreshModal),
+  onsite: d => setStatus(d.h, d.t, 'onsite').then(refreshModal),
+  done: d => setStatus(d.h, d.t, 'done').then(refreshModal),
+  reopen: async d => { await patchHome(d.h, { [d.t]: { status: 'scheduled', ...stamp() } }); await addLog(d.h, S.homes[d.h].tasks[d.t].name + ': reopened', d.t); refreshModal(); },
+  delay: d => openDelay(d.h, d.t),
+  ack: d => ackNotice(d.n),
+  copy: (d, el) => { const txt = d.text; const done = () => { el.textContent = 'Copied'; setTimeout(() => el.textContent = 'Copy text message', 1500); };
+    try { navigator.clipboard.writeText(txt).then(done, () => showCopy(txt)); } catch (e) { showCopy(txt); } },
+  addHome: () => openHomeForm(), editHome: d => openHomeForm(d.h), addIssue: d => openIssueForm(d.h),
+  editTrade: d => openTradeForm(d.id),
+  delHome: d => d.confirmed ? (closeModal(), del('homes', d.h).then(() => { location.hash = '#homes'; toast('Home removed'); })) : confirmBox('Remove this home?', 'Its schedule goes with it. Photos and notices stay in the activity history.', 'delHome', { h: d.h }),
+  delTrade: d => d.confirmed ? (closeModal(), del('trades', d.id).then(() => toast('Trade removed'))) : confirmBox('Remove this trade company?', 'Jobs assigned to them will show "No trade assigned" until you pick another company.', 'delTrade', { id: d.id }),
+  toggleIssue: async d => { const i = S.issues[d.i]; await patch('issues', d.i, { status: i.status === 'fixed' ? 'open' : 'fixed', fixedAt: nowIso(), ...stamp() }); await addLog(i.homeId, `Deficiency ${i.status === 'fixed' ? 'reopened' : 'fixed'}: ${i.text}`); },
+  demo: () => loadDemo(),
+  clearDemo: d => d.confirmed ? (closeModal(), clearDemo()) : confirmBox('Remove all example data?', 'This removes the example homes and trades and everything attached to them. Your own homes and trades are not touched.', 'clearDemo'),
+};
+let modalCtx = null;
+function refreshModal() { if (modalCtx && $('#taskModal')) openTask(modalCtx.h, modalCtx.t); }
+function showCopy(txt) { modal(`${mh('Copy this message')}<textarea readonly id="copybox" style="min-height:120px">${esc(txt)}</textarea><div class="bar"><button class="btn" data-act="close">Done</button></div>`); const b = $('#copybox'); b.focus(); b.select(); }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  if (b.tagName === 'TR' && e.target.closest('a,button,label')) return;
+  const fn = ACT[b.dataset.act]; if (!fn) return;
+  if (b.dataset.act === 'open') modalCtx = { h: b.dataset.h, t: b.dataset.t };
+  if (b.dataset.act !== 'scrim') e.preventDefault();
+  if (!['open', 'close', 'scrim', 'copy', 'addHome', 'editHome', 'editTrade', 'addIssue'].includes(b.dataset.act) && !canWrite) return;
+  Promise.resolve(fn(b.dataset, b, e)).catch(() => {});
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#modal .modal')) closeModal();
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr[data-act]')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.matches('input[type=file][data-up-home]')) { const files = [...el.files]; uploadPhotos(files, el.dataset.upHome, el.dataset.upTask || null).then(() => { refreshIfTask(); }); el.value = ''; }
+  if (el.id === 'mytrade') { store.set('bs-trade', el.value); render(); }
+  if (el.id === 'lc') { store.set('bs-lc', el.value); render(); }
+  if (el.id === 'lt') { store.set('bs-lt', el.value); render(); }
+  if (el.id === 'lp') { store.set('bs-lp', el.checked ? '1' : '0'); render(); }
+  if (['df-tbd', 'df-shift', 'df-date'].includes(el.id)) updateDelayPreview();
+});
+function refreshIfTask() { refreshModal(); }
+document.addEventListener('input', e => { if (e.target.id === 'hq') { store.set('bs-hq', e.target.value); clearTimeout(window._hq); window._hq = setTimeout(() => { render(); requestAnimationFrame(() => { const q = $('#hq'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }); }, 250); } if (e.target.id === 'df-date') updateDelayPreview(); });
+document.addEventListener('submit', async e => {
+  e.preventDefault(); const f = e.target; if (!canWrite) return;
+  const v = id => (f.querySelector('#' + id) || {}).value || '';
+  try {
+    if (f.id === 'delayForm') {
+      const tbd = $('#df-tbd').checked, nd = v('df-date');
+      if (!tbd && !nd) return toast('Pick a new date, or tick "New date not known yet".');
+      f.querySelector('button[type=submit]').disabled = true;
+      await applyDelay(f.dataset.h, f.dataset.t, { newDate: nd, tbd, reason: v('df-reason'), note: v('df-note').trim(), shift: $('#df-shift').checked });
+      closeModal();
+    }
+    if (f.id === 'taskForm') {
+      const date = v('tf-date'); if (!date) return toast('Pick a start date.');
+      await patchHome(f.dataset.h, { [f.dataset.t]: { date, dur: Math.max(1, parseInt(v('tf-dur'), 10) || 1), tradeId: v('tf-trade') || null, notes: v('tf-notes').trim(), ...stamp() } });
+      await addLog(f.dataset.h, S.homes[f.dataset.h].tasks[f.dataset.t].name + ': job details edited', f.dataset.t); toast('Job saved'); refreshModal();
+    }
+    if (f.id === 'homeForm') {
+      const data = { lot: v('hf-lot').trim(), address: v('hf-addr').trim(), community: v('hf-comm').trim(), model: v('hf-model').trim(), notes: v('hf-notes').trim() };
+      if (f.dataset.h) { await patch('homes', f.dataset.h, { ...data, ...stamp() }); toast('Home saved'); closeModal(); }
+      else { const id = rid('h'); await put('homes', id, { ...data, createdAt: nowIso(), ...stamp(), tasks: buildTasks(v('hf-start') || TODAY) }); await addLog(id, 'Home added with the standard 38-job schedule'); closeModal(); location.hash = '#home-' + id; toast('Home added. Schedule built.'); }
+    }
+    if (f.id === 'tradeForm') {
+      const data = { name: v('trf-name').trim(), category: v('trf-cat'), contact: v('trf-contact').trim(), phone: v('trf-phone').trim(), email: v('trf-email').trim() };
+      if (!data.name) return toast('Enter the company name.');
+      const id = f.dataset.id || rid('tr'); const old = S.trades[id];
+      await put('trades', id, { ...(old || {}), ...data, ...stamp() }); closeModal(); toast('Trade saved');
+      if (!old) { // assign the new company to unassigned jobs of that trade
+        const jobs = homeList().map(h => { const p = {}; for (const [tid, t] of Object.entries(h.tasks || {})) if (!t.removed && t.trade === data.category && !t.tradeId && t.status !== 'done') p[tid] = { tradeId: id }; return Object.keys(p).length ? () => patchHome(h.id, p) : null; }).filter(Boolean);
+        if (jobs.length) { await runPool(jobs, 3); toast(`Trade saved and assigned to ${data.category} jobs that had no company`); }
+      }
+    }
+    if (f.id === 'issueForm') {
+      await put('issues', rid('i'), { homeId: f.dataset.h, text: v('if-text').trim(), room: v('if-room').trim(), tradeId: v('if-trade') || null, status: 'open', at: nowIso(), by: meId || null });
+      await addLog(f.dataset.h, 'Deficiency logged: ' + v('if-text').trim()); closeModal(); toast('Deficiency logged');
+    }
+  } catch (err) { const b = f.querySelector('button[type=submit]'); if (b) b.disabled = false; }
+});
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.closest('.photo')) { const s = document.createElement('span'); s.textContent = 'Photo not available in this view'; t.replaceWith(s); } }, true);
+window.addEventListener('hashchange', () => { closeModal(); render(); });
+
+/* ---------- connect ---------- */
+function subscribe(name, q) {
+  const ref = q ? q(db.collection(name)) : db.collection(name);
+  ref.onSnapshot(snap => {
+    const m = {}; snap.docs.forEach(d => { const x = d.data(); if (x) m[d.id] = name === 'homes' ? { ...x, id: d.id } : x; });
+    S[name] = m; if (!snap.metadata.fromCache) loaded[name] = true; else if (!loaded[name] && snap.size) loaded[name] = true;
+    render(); if (name === 'homes' && $('#taskModal') && !$('#modal details[open]')) refreshModal();
+  }, err => { console.warn(name, err); loaded[name] = true; setConn('Connection lost. Reload to reconnect.', false); render(); });
+}
+function setConn(text, ok) { const c = $('#conn'); c.innerHTML = '<b></b>' + esc(text); c.classList.toggle('live', !!ok); }
+async function start() {
+  const hasClaude = typeof window.claude !== 'undefined' && window.claude && window.claude.use;
+  if (hasClaude) {
+    [db, user, assets] = await Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('assets')]);
+  }
+  if (!db) {
+    preview = true; db = memDB(); canWrite = true; setConn('Preview, not shared', false);
+    ['homes', 'trades', 'notices', 'photos', 'issues', 'log'].forEach(n => subscribe(n));
+    setTimeout(() => { if (!Object.keys(S.homes).length) loadDemo(); }, 50);
+    return;
+  }
+  if (user) { try { meId = await user.id(); } catch (e) {} try { const w = user.can ? await user.can('data.write') : null; if (w === false) canWrite = false; } catch (e) {} }
+  setConn('Live, shared', true); live = true;
+  const timer = setTimeout(() => { if (!loaded.homes) { slow = true; setConn('Waiting for the board…', false); render(); } }, 10000);
+  ['homes', 'trades', 'notices', 'photos', 'issues'].forEach(n => subscribe(n));
+  subscribe('log', c => c.orderBy('at', 'desc').limit(300));
+  waitFor(() => loaded.homes, 12000).then(() => { clearTimeout(timer); if (loaded.homes) setConn('Live, shared', true); });
+}
+render();
+start();
+setInterval(() => { if (ds(new Date()) !== TODAY) render(); }, 60000);
+</script>
