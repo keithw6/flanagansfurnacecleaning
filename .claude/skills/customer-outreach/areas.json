@@ -1,0 +1,33 @@
+{
+  "_readme": "Named areas the outreach skill understands. Quadrants match the NE/NW/SE/SW suffix on Calgary street addresses (reliable). Towns match the city field (reliable). Communities match the community name anywhere in the address first, then fall back to the postal FSA, which also covers neighbouring communities, so those matches are flagged 'approximate'. Anything not listed here is matched as a city/community name, or as a postal prefix if it looks like one (T3J, T3J 0A1). Add or correct entries freely.",
+  "areas": {
+    "NE Calgary": {"cities": ["Calgary"], "quadrant": "NE"},
+    "NW Calgary": {"cities": ["Calgary"], "quadrant": "NW"},
+    "SE Calgary": {"cities": ["Calgary"], "quadrant": "SE"},
+    "SW Calgary": {"cities": ["Calgary"], "quadrant": "SW"},
+    "NE": {"cities": ["Calgary"], "quadrant": "NE"},
+    "NW": {"cities": ["Calgary"], "quadrant": "NW"},
+    "SE": {"cities": ["Calgary"], "quadrant": "SE"},
+    "SW": {"cities": ["Calgary"], "quadrant": "SW"},
+    "Calgary": {"cities": ["Calgary"]},
+    "Airdrie": {"cities": ["Airdrie"]},
+    "Chestermere": {"cities": ["Chestermere"]},
+    "Strathmore": {"cities": ["Strathmore"]},
+    "Langdon": {"cities": ["Langdon"]},
+    "Saddle Ridge": {"text": ["Saddle Ridge", "Saddleridge"], "postal_prefixes": ["T3J"], "precision": "approximate"},
+    "Taradale": {"text": ["Taradale"], "postal_prefixes": ["T3J"], "precision": "approximate"},
+    "Skyview Ranch": {"text": ["Skyview Ranch", "Skyview"], "postal_prefixes": ["T3N"], "precision": "approximate"},
+    "Cityscape": {"text": ["Cityscape"], "postal_prefixes": ["T3N"], "precision": "approximate"},
+    "Redstone": {"text": ["Redstone"], "postal_prefixes": ["T3N"], "precision": "approximate"},
+    "Cornerstone": {"text": ["Cornerstone"], "postal_prefixes": ["T3N"], "precision": "approximate"},
+    "Panorama Hills": {"text": ["Panorama Hills", "Panorama"], "postal_prefixes": ["T3K"], "precision": "approximate"},
+    "Coventry Hills": {"text": ["Coventry Hills", "Coventry"], "postal_prefixes": ["T3K"], "precision": "approximate"},
+    "Mahogany": {"text": ["Mahogany"], "postal_prefixes": ["T3M"], "precision": "approximate"},
+    "Auburn Bay": {"text": ["Auburn Bay", "Auburn"], "postal_prefixes": ["T3M"], "precision": "approximate"},
+    "Seton": {"text": ["Seton"], "postal_prefixes": ["T3M"], "precision": "approximate"},
+    "Cranston": {"text": ["Cranston"], "postal_prefixes": ["T3M"], "precision": "approximate"},
+    "New Brighton": {"text": ["New Brighton", "Brightoncrest", "Brighton"], "postal_prefixes": ["T2Z"], "precision": "approximate"},
+    "Copperfield": {"text": ["Copperfield", "Copperstone"], "postal_prefixes": ["T2Z"], "precision": "approximate"},
+    "McKenzie Towne": {"text": ["McKenzie Towne", "Prestwick", "Elgin", "Inverness"], "postal_prefixes": ["T2Z"], "precision": "approximate"}
+  }
+}

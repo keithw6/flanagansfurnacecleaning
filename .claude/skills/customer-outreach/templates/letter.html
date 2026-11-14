@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flanagan's customer letters</title>
+<style>
+  @page { size: letter; margin: 0.75in; }
+  body { font: 11.5pt/1.5 Georgia, "Times New Roman", serif; color: #111; margin: 0; }
+  .letter { page-break-after: always; break-after: page; min-height: 9.4in; position: relative; }
+  .letter:last-child { page-break-after: auto; break-after: auto; }
+  .head { display: flex; justify-content: space-between; border-bottom: 2px solid #8b1a1a; padding-bottom: 8px; margin-bottom: 28px; }
+  .head b { font-size: 15pt; color: #8b1a1a; }
+  .head small { text-align: right; font: 9pt/1.4 Arial, sans-serif; color: #444; }
+  /* Positioned for the window of a standard #10 left-window envelope. */
+  .to { margin: 0.35in 0 0.45in 0.15in; min-height: 1in; font-family: Arial, sans-serif; font-size: 11pt; }
+  .date { color: #444; }
+  .foot { position: absolute; bottom: 0; left: 0; right: 0; font: 8.5pt/1.4 Arial, sans-serif; color: #666; border-top: 1px solid #ccc; padding-top: 6px; }
+  @media screen { body { background: #ddd; } .letter { background: #fff; width: 7in; margin: 20px auto; padding: 0.75in; box-shadow: 0 1px 4px #0003; } }
+</style>
+</head>
+<body>
+<!--LETTERS-->
+<script>
+  // Same letterhead and footer on every page, kept in one place.
+  const head = `<div class="head"><b>Flanagan's Furnace &amp; Duct Cleaning</b>
+    <small>2121 39 Ave NE, Calgary AB  T2E 6R7<br>403-272-0560 · flanagansfurnacecleaning.com</small></div>`;
+  const foot = `<div class="foot">Owner-operated in Calgary since 1998 · BBB Accredited.
+    You are receiving this because you are a past customer. To stop mail from us, call 403-272-0560.</div>`;
+  document.querySelectorAll('.letter').forEach(l => { l.insertAdjacentHTML('afterbegin', head); l.insertAdjacentHTML('beforeend', foot); });
+</script>
+</body>
+</html>
