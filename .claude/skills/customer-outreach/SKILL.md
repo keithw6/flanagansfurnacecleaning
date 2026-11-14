@@ -36,7 +36,7 @@ python3 .claude/skills/customer-outreach/scripts/sm_outreach.py probe
 ```
 
 - **Cannot reach / 403 from the proxy**: `api.servicemonster.net` isn't allowed on this network. Tell the user the host has to be allowed in the environment's network settings, and stop.
-- **401**: no valid key. Ask for the ServiceMonster Basic token. In a cloud session, use the credential tool for host `api.servicemonster.net` (basic auth) so the key never appears in chat. Locally, it goes in the `SERVICEMONSTER_BASIC_TOKEN` environment variable. Never write it to a file in the repo.
+- **401**: no valid key. The user creates one in ServiceMonster: log in at six.servicemonster.net as an admin, go to Settings → API Users → **+API User**, pick role **Read Only** (this skill never writes), and save the username and password it shows, because the password can't be retrieved later. In a cloud session, ask for that username and password with the credential tool, host `api.servicemonster.net`, type basic; the proxy then adds the header and `SERVICEMONSTER_BASIC_TOKEN` stays unset. Locally, the Basic token is base64 of `username:password` and goes in the `SERVICEMONSTER_BASIC_TOKEN` environment variable. Never let the credentials appear in chat or in a file in the repo.
 - **Success** prints field names (no customer values). Check that the order date, account ID, email and address fields map to names in the `F` table at the top of the script. If a real name is missing, add it to that table. Also pick the order date field for server-side filtering and pass it as `--date-field <name>`, or set `SERVICEMONSTER_ORDER_DATE_FIELD`. Prefer a completed date over a scheduled one.
 
 ## Step 3: Build the list
