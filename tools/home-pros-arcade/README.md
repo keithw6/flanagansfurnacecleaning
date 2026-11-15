@@ -122,14 +122,24 @@ Rebuild the single file after any edit: `node tools/home-pros-arcade/build-singl
 ## The back office (Staff Only door)
 
 Behind Hank's counter is a door marked STAFF ONLY. Click it, enter the owner password,
-and you are in the boardroom with your board of directors: Grace (General Manager),
-Penny (Accounting), Max (Marketing), Eddie (Email Manager) and Rosa (Customer Service).
-They walk around the room. Each has four views (facing you, left, right, walking
-away), and they face the way they move. Click one, or pick a name, to see what they
-handle. They are not connected to real data yet. That comes once ServiceMonster and
-email are hooked up.
+and you see the head office from above: a hallway with six offices off it and the
+boardroom at the end.
 
-- Names, titles, lines and duties are in `js/config.js` under `owner` and `directors`.
+- **Offices:** General Manager (Grace), Accounting (Penny), Marketing (Max), Email
+  Manager (Eddie), Customer Service (Rosa), and your own Chief Human Officer office.
+- **Everyday:** each director works at their desk and every so often walks over to
+  visit another office or the water cooler, then goes back. You (Keith) walk in from
+  the shop door to your desk.
+- **Board meeting:** "Call a board meeting" sends everyone, you included, to an
+  assigned boardroom seat. You sit at the head, Grace, Penny and Max on the far side,
+  Eddie and Rosa on the near side, with one spare seat. "Adjourn" sends them back.
+- Click anyone (hover shows their name) to see what they handle. The TO SHOP door on
+  the left goes back to Hank. The directors are not connected to real data yet.
+- Each character has four views (facing you, left, right, walking away) and turns to
+  face the way they walk.
+
+- Names, titles, lines, duties, offices (`home`) and seats (`seat`) are in `js/config.js` under `owner` and `directors`.
+- Walking routes, desks and seats for the floor plan are at the top of the office section in `js/scene.js` (`PLACES`).
 - Character art is `img/dir-<id>.webp`: four 220x440 frames side by side.
 - Login: the booking server checks `OWNER_PASSWORD` and hands back a signed pass
   (`SESSION_SECRET`) that lasts 12 hours. Set both with `wrangler secret put`. In demo

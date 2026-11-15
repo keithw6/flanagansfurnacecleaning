@@ -16,7 +16,8 @@
     idle: 'img/hank-idle.webp',
     talk: 'img/hank-talk.webp',
     happy: 'img/hank-happy.webp',
-    boardroom: 'img/boardroom.webp',
+    office: 'img/office.webp',
+    'dir-keith': 'img/dir-keith.webp',
     'dir-grace': 'img/dir-grace.webp',
     'dir-penny': 'img/dir-penny.webp',
     'dir-max': 'img/dir-max.webp',
@@ -148,55 +149,139 @@
     }
   }
 
-  /* ----------------------------- the boardroom ----------------------------- */
-  // Director sheets are 4 frames of 220x440: 0 facing you, 1 left, 2 right, 3 away.
-  const FW = 220, FH = 440;
-  const FLOOR = { x0: 110, x1: 1240, y0: 600, y1: 735 };
-  const office = { lit: 0, litTarget: 0, people: [], selected: null };
+  /* ------------------------- head office (overhead) ------------------------- */
+  /* The office map (img/office.webp) is laid out on a 2000x1131 grid; every
+     point below is in that grid and scaled to the canvas when drawn. Each
+     place has a "chain": the walk from that spot out to the hallway. A route
+     between two places is one chain out, along the hallway, the other chain in. */
+  const MW = 2000, MH = 1131, SX = W / MW, SY = H / MH;
+  const FW = 220, FH = 440, PERSON_H = 100;          // character frames, height on the map grid
+  const PLACES = {
+    // desks: chair spot first, then out through the door to the hallway
+    gm:    { face: 0, chain: [[372, 290], [505, 290], [505, 390], [375, 430], [375, 500], [375, 585]] },
+    acct:  { face: 0, chain: [[792, 290], [920, 290], [920, 390], [800, 430], [800, 500], [800, 585]] },
+    mkt:   { face: 0, chain: [[1213, 290], [1095, 290], [1095, 390], [1232, 430], [1232, 500], [1232, 585]] },
+    email: { face: 0, chain: [[350, 965], [350, 880], [372, 860], [372, 690], [372, 585]] },
+    cs:    { face: 0, chain: [[767, 965], [767, 880], [777, 860], [777, 690], [777, 585]] },
+    cho:   { face: 0, chain: [[1222, 975], [1222, 880], [1212, 860], [1212, 690], [1212, 585]] },
+    // visiting spots, in front of or beside each desk
+    'v-gm':    { face: 3, chain: [[400, 385], [375, 430], [375, 500], [375, 585]] },
+    'v-acct':  { face: 3, chain: [[820, 385], [800, 430], [800, 500], [800, 585]] },
+    'v-mkt':   { face: 3, chain: [[1190, 385], [1232, 430], [1232, 500], [1232, 585]] },
+    'v-email': { face: 1, chain: [[475, 990], [470, 880], [372, 860], [372, 690], [372, 585]] },
+    'v-cs':    { face: 1, chain: [[895, 990], [890, 880], [777, 860], [777, 690], [777, 585]] },
+    'v-cho':   { face: 2, chain: [[1050, 1000], [1050, 880], [1212, 860], [1212, 690], [1212, 585]] },
+    cooler:    { face: 2, chain: [[1800, 930], [1800, 820], [1500, 820], [1500, 585], [1440, 585]] },
+    shop:      { face: 2, chain: [[110, 600], [170, 585]] },
+    // boardroom seats: top row faces you, bottom row faces the table, head faces left
+    'seat-t1': { face: 0, chain: [[1597, 555], [1597, 440], [1500, 440], [1500, 585], [1440, 585]] },
+    'seat-t2': { face: 0, chain: [[1695, 555], [1695, 440], [1500, 440], [1500, 585], [1440, 585]] },
+    'seat-t3': { face: 0, chain: [[1790, 555], [1790, 440], [1500, 440], [1500, 585], [1440, 585]] },
+    'seat-b1': { face: 3, chain: [[1597, 760], [1597, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-b2': { face: 3, chain: [[1695, 760], [1695, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-b3': { face: 3, chain: [[1790, 760], [1790, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-head': { face: 1, chain: [[1885, 640], [1890, 780], [1500, 780], [1500, 585], [1440, 585]] },
+  };
+  // furniture people can be "behind": redrawn on top of anyone standing in it
+  const DESKS = [[280, 238, 465, 345], [700, 238, 890, 345], [1122, 238, 1310, 345], [258, 925, 445, 1030],
+    [675, 925, 862, 1030], [1080, 918, 1362, 1042], [1525, 518, 1862, 672]];
+  const SHOP_DOOR = [40, 505, 150, 665];
+
+  const office = { people: [], selected: null, hover: null, meeting: false, onSeated: null };
   const rand = (a, b) => a + Math.random() * (b - a);
-  const scaleAt = y => 0.82 + (y - FLOOR.y0) / (FLOOR.y1 - FLOOR.y0) * 0.28;
-  function newTarget(p) { p.tx = rand(FLOOR.x0, FLOOR.x1); p.ty = rand(FLOOR.y0, FLOOR.y1); }
+
+  function route(from, to) {
+    const a = PLACES[from].chain, b = PLACES[to].chain;
+    return a.slice(1).concat(b.slice().reverse().slice(1)).map(([x, y]) => ({ x, y }));
+  }
+  function goTo(p, place) {
+    if (p.loc === place && !p.path.length) return;
+    p.goal = place;
+    if (!p.path.length) { p.path = route(p.loc, place); p.loc = null; }
+  }
+  const visitSpots = ['v-gm', 'v-acct', 'v-mkt', 'v-email', 'v-cs', 'v-cho', 'cooler'];
 
   function stepOffice(dt) {
-    office.lit += (office.litTarget - office.lit) * Math.min(1, dt * 3);
+    let seated = 0;
     for (const p of office.people) {
       p.walking = false;
-      if (office.selected === p.id) { p.dir = 0; continue; }
-      if (p.wait > 0) { p.wait -= dt; p.dir = 0; continue; }
-      const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
-      if (d < 6) { p.wait = rand(1.5, 4.5); newTarget(p); continue; }
-      const v = 120 * scaleAt(p.y) * dt;
-      p.x += dx / d * Math.min(v, d); p.y += dy / d * Math.min(v, d);
-      p.walking = true;
-      p.dir = Math.abs(dx) > Math.abs(dy) * 1.2 ? (dx < 0 ? 1 : 2) : (dy > 0 ? 0 : 3);
+      if (office.selected === p.id && !p.path.length) { p.dir = 0; continue; }
+      if (p.path.length) {
+        const n = p.path[0], dx = n.x - p.x, dy = n.y - p.y, d = Math.hypot(dx, dy);
+        const v = 150 * dt;
+        if (d <= v) { p.x = n.x; p.y = n.y; p.path.shift(); }
+        else { p.x += dx / d * v; p.y += dy / d * v; }
+        p.walking = true;
+        p.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy > 0 ? 0 : 3);
+        if (!p.path.length) {
+          if (p.goal) { p.loc = p.goal; p.dir = PLACES[p.loc].face; p.wait = p.loc === p.home ? rand(8, 18) : rand(3, 7); }
+          // a stop on the way somewhere new: carry on
+          if (p.next) { const nx = p.next; p.next = null; goTo(p, nx); }
+        }
+        continue;
+      }
+      if (p.loc && p.loc.startsWith('seat')) { seated++; continue; }
+      if (office.meeting || p.id === 'keith') continue;
+      p.wait -= dt;
+      if (p.wait > 0) continue;
+      if (p.loc !== p.home) goTo(p, p.home);
+      else if (Math.random() < 0.85) {
+        const own = 'v-' + p.home;
+        const choices = visitSpots.filter(s => s !== own && !office.people.some(o => o.goal === s || o.loc === s));
+        if (choices.length) goTo(p, choices[Math.floor(Math.random() * choices.length)]);
+        else p.wait = rand(3, 6);
+      } else p.wait = rand(5, 10);
     }
+    if (office.meeting && office.onSeated && seated === office.people.length) { const cb = office.onSeated; office.onSeated = null; cb(); }
   }
 
   function personBox(p) {
-    const h = 250 * scaleAt(p.y), w = h * FW / FH;
-    return { x: p.x - w / 2, y: p.y - h, w, h };
+    const h = PERSON_H * SY, w = h * FW / FH;
+    return { x: p.x * SX - w / 2, y: p.y * SY - h, w, h };
+  }
+  const behind = (p, d) => p.y > d[1] && p.y < d[3] + 4 && p.x > d[0] - 10 && p.x < d[2] + 10;
+
+  function drawPerson(p) {
+    const sheet = img['dir-' + p.id];
+    if (!sheet) return;
+    const b = personBox(p);
+    const bob = p.walking ? -Math.abs(Math.sin(t * 10 + p.phase)) * 3 : 0;
+    ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(p.x * SX, p.y * SY - 1, b.w * 0.4, b.w * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.drawImage(sheet, p.dir * FW, 0, FW, FH, b.x, b.y + bob, b.w, b.h);
+  }
+
+  function label(p) {
+    const b = personBox(p);
+    const text = p.name;
+    ctx.font = "800 22px 'Barlow Condensed', sans-serif";
+    const w = ctx.measureText(text).width + 14, x = p.x * SX - w / 2, y = b.y - 34;
+    ctx.fillStyle = 'rgba(12,14,13,.88)'; ctx.fillRect(x, y, w, 26);
+    ctx.fillStyle = '#3faa35'; ctx.fillRect(x, y + 24, w, 2);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, p.x * SX, y + 13);
   }
 
   function drawOffice() {
-    if (img.boardroom) ctx.drawImage(img.boardroom, 0, 0, W, H);
+    const map = img.office;
+    if (map) ctx.drawImage(map, 0, 0, W, H);
+    else { ctx.fillStyle = '#141715'; ctx.fillRect(0, 0, W, H); }
     const people = office.people.slice().sort((a, b) => a.y - b.y);
-    for (const p of people) {
-      const sheet = img['dir-' + p.id];
-      if (!sheet) continue;
-      const b = personBox(p);
-      const bob = p.walking ? -Math.abs(Math.sin(t * 9 + p.phase)) * 6 : 0;
-      ctx.globalAlpha = 0.35; ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.ellipse(p.x, p.y - 2, b.w * 0.38, b.w * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.drawImage(sheet, p.dir * FW, 0, FW, FH, b.x, b.y + bob, b.w, b.h);
-      if (office.selected === p.id) {
-        const cx = p.x, top = b.y - 18 + Math.sin(t * 5) * 4;
-        ctx.fillStyle = '#3faa35';
-        ctx.beginPath(); ctx.moveTo(cx - 14, top - 16); ctx.lineTo(cx + 14, top - 16); ctx.lineTo(cx, top); ctx.fill();
-      }
+    const back = people.filter(p => DESKS.some(d => behind(p, d)));
+    back.forEach(drawPerson);
+    if (map) for (const d of DESKS) if (back.some(p => behind(p, d))) {
+      const kx = map.naturalWidth / MW, ky = map.naturalHeight / MH;
+      ctx.drawImage(map, d[0] * kx, d[1] * ky, (d[2] - d[0]) * kx, (d[3] - d[1]) * ky, d[0] * SX, d[1] * SY, (d[2] - d[0]) * SX, (d[3] - d[1]) * SY);
     }
-    if (office.lit < 0.99) {
-      ctx.globalAlpha = (1 - office.lit) * 0.8; ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    people.filter(p => !back.includes(p)).forEach(drawPerson);
+    for (const p of people) {
+      if (office.selected === p.id) {
+        const b = personBox(p), cx = p.x * SX, top = b.y - 40 + Math.sin(t * 5) * 3;
+        ctx.fillStyle = '#3faa35';
+        ctx.beginPath(); ctx.moveTo(cx - 10, top - 12); ctx.lineTo(cx + 10, top - 12); ctx.lineTo(cx, top); ctx.fill();
+      }
+      if (office.selected === p.id || office.hover === p.id) label(p);
     }
   }
 
@@ -226,26 +311,40 @@
     },
     talk(on) { host.talking = on; if (!on) host.nextFlip = 0; },
     office: {
-      lights(v) { office.litTarget = v; if (reduce) office.lit = v; },
-      // directors walk in from both sides
-      enter(ids) {
-        office.selected = null;
-        office.people = ids.map((id, i) => {
-          const fromLeft = i % 2 === 0;
-          const p = { id, x: fromLeft ? -80 - i * 60 : W + 80 + i * 60, y: rand(FLOOR.y0 + 20, FLOOR.y1), dir: 0, wait: 0, phase: i, walking: false };
-          p.tx = FLOOR.x0 + (i + 0.5) * (FLOOR.x1 - FLOOR.x0) / ids.length; p.ty = rand(FLOOR.y0 + 20, FLOOR.y1);
-          if (reduce) { p.x = p.tx; p.y = p.ty; }
+      lights() {},
+      // people: [{ id, name, home }] - everyone starts at their desk; Keith walks in from the shop
+      enter(people) {
+        office.selected = null; office.meeting = false; office.onSeated = null;
+        office.people = people.map((d, i) => {
+          const start = d.id === 'keith' ? 'shop' : d.home;
+          const [x, y] = PLACES[start].chain[0];
+          const p = { id: d.id, name: d.name, home: d.home, seat: d.seat, x, y, loc: start, goal: null, next: null, path: [], dir: PLACES[start].face, wait: rand(2, 12), phase: i, walking: false };
+          if (d.id === 'keith') { if (reduce) { p.loc = d.home; [p.x, p.y] = PLACES[d.home].chain[0]; p.dir = 0; } else goTo(p, d.home); }
           return p;
         });
       },
-      clear() { office.people = []; office.selected = null; },
+      clear() { office.people = []; office.selected = null; office.meeting = false; },
       select(id) { office.selected = id; },
-      // canvas pixel -> director id
+      hover(id) { office.hover = id; },
+      // everyone to their boardroom seat (on) or back to their desks (off)
+      meeting(on, onSeated) {
+        office.meeting = on; office.onSeated = on ? onSeated : null;
+        for (const p of office.people) {
+          const target = on ? p.seat : p.home;
+          if (reduce) { p.path = []; p.loc = target; [p.x, p.y] = PLACES[target].chain[0]; p.dir = PLACES[target].face; continue; }
+          if (p.path.length) { p.next = target; continue; }
+          goTo(p, target);
+        }
+      },
+      // canvas pixel -> person id, or 'shop' for the exit door
       pick(px, py) {
         const hit = office.people.slice().sort((a, b) => b.y - a.y).find(p => {
-          const b = personBox(p); return px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
+          const b = personBox(p); return px >= b.x - 12 && px <= b.x + b.w + 12 && py >= b.y - 8 && py <= b.y + b.h + 6;
         });
-        return hit ? hit.id : null;
+        if (hit) return hit.id;
+        const [x0, y0, x1, y1] = SHOP_DOOR;
+        if (px >= x0 * SX && px <= x1 * SX && py >= y0 * SY && py <= y1 * SY) return 'shop';
+        return null;
       },
       size: { W, H },
     },

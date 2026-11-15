@@ -101,6 +101,7 @@
     if (S.mode === 'office' && boardOpen) {
       const r = $('scene').getBoundingClientRect();
       const id = S.office.pick((e.clientX - r.left) / r.width * S.office.size.W, (e.clientY - r.top) / r.height * S.office.size.H);
+      if (id === 'shop') { backToShop(); return; }
       if (id) { A.select(); talkTo(id); return; }
     }
     if (typing) typing();
@@ -611,6 +612,16 @@
   const fillOwner = s => s.replace('{owner}', cfg.owner.name);
 
   $('staffDoor').addEventListener('click', e => { e.stopPropagation(); staffDoor(); });
+  $('scene').addEventListener('mousemove', e => {
+    if (S.mode !== 'office' || !boardOpen) return;
+    const r = $('scene').getBoundingClientRect();
+    const id = S.office.pick((e.clientX - r.left) / r.width * S.office.size.W, (e.clientY - r.top) / r.height * S.office.size.H);
+    S.office.hover(id && id !== 'shop' ? id : null);
+    $('scene').style.cursor = id ? 'pointer' : '';
+  });
+  let inMeeting = false;
+  const everyone = () => [{ id: 'keith', name: cfg.owner.name, home: cfg.owner.home, seat: cfg.owner.seat }]
+    .concat(cfg.directors.map(d => ({ id: d.id, name: d.name, home: d.home, seat: d.seat })));
 
   async function staffDoor() {
     const id = clear();
@@ -676,26 +687,64 @@
 
   function boardChoices(except) {
     const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
-    if (except) list.push({ label: 'Back to the whole board', kind: 'ghost', sound: 'back', isBack: true, onPick: () => enterBoard(true) });
+    if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
+    list.push(inMeeting
+      ? { label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn }
+      : { label: 'Call a board meeting', kind: 'primary', onPick: callMeeting });
     list.push({ label: 'Back to the shop', kind: 'ghost', sound: 'back', isBack: !except, onPick: backToShop });
     list.push({ label: 'Log out', kind: 'ghost', sound: 'back', onPick: logout });
     return list;
   }
 
-  async function enterBoard(already) {
+  async function enterBoard() {
+    clear();
+    boardOpen = true; inMeeting = false;
+    S.office.enter(everyone());
+    floor(true);
+  }
+
+  async function floor(first) {
     const id = clear();
-    nameplate('BOARDROOM');
-    S.office.lights(1);
-    if (!boardOpen || !already) S.office.enter(cfg.directors.map(d => d.id));
+    nameplate(inMeeting ? 'BOARD MEETING' : 'HEAD OFFICE');
     S.office.select(null);
-    boardOpen = true;
-    await say(fillOwner(already ? 'Who do you want to talk to, ' + cfg.owner.name + '?' : cfg.lines.welcome));
+    const line = first ? cfg.lines.welcome : inMeeting ? cfg.lines.meetingOpen : 'Who do you want to talk to, {owner}?';
+    await say(fillOwner(line));
     if (id !== run) return;
     choices(boardChoices());
-    $('hint').textContent = 'Click a director in the room, or pick one below.';
+    $('hint').textContent = 'Click anyone on the floor, or pick a name below. The door on the left goes back to the shop.';
+  }
+
+  async function callMeeting() {
+    const id = clear();
+    nameplate('BOARD MEETING');
+    S.office.select(null);
+    inMeeting = true;
+    let seated = false;
+    S.office.meeting(true, () => { seated = true; if (id === run) floor(); });
+    await say(fillOwner(cfg.lines.meetingCall));
+    if (id !== run || seated) return;
+    $('panel').innerHTML = '<div class="loading">Everyone heading to the boardroom</div>';
+  }
+
+  async function adjourn() {
+    inMeeting = false;
+    S.office.meeting(false);
+    const id = clear();
+    nameplate('HEAD OFFICE');
+    await say(cfg.lines.meetingEnd);
+    if (id !== run) return;
+    choices(boardChoices());
   }
 
   async function talkTo(dirId) {
+    if (dirId === 'keith') {
+      const id = clear();
+      S.office.select('keith');
+      nameplate(`${cfg.owner.name.toUpperCase()} · ${cfg.owner.title.toUpperCase()}`);
+      await say(cfg.lines.itsYou);
+      if (id !== run) return;
+      return choices(boardChoices());
+    }
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
@@ -709,7 +758,7 @@
 
   async function backToShop() {
     clear();
-    boardOpen = false;
+    boardOpen = false; inMeeting = false;
     S.office.clear();
     await scene('inside');
     nameplate(cfg.host.name.toUpperCase());

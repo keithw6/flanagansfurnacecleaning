@@ -23,32 +23,35 @@ const HP_CONFIG = {
   },
 
   /* ------------------------- Back office (Staff Only) ---------------------- */
-  owner: { name: 'Keith', title: 'Chief Human Officer' },
+  // home = their office on the floor plan, seat = their boardroom chair.
+  // Offices: gm, acct, mkt (top row), email, cs, cho (bottom row).
+  // Seats: seat-head, seat-t1..t3 (far side), seat-b1..b3 (near side).
+  owner: { name: 'Keith', title: 'Chief Human Officer', home: 'cho', seat: 'seat-head' },
 
   // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
   directors: [
     {
-      id: 'grace', name: 'Grace', title: 'General Manager',
+      id: 'grace', home: 'gm', seat: 'seat-t1', name: 'Grace', title: 'General Manager',
       intro: "Morning, boss. I keep the whole operation pointed in the same direction.",
       duties: ['Daily briefing: today\'s jobs, crews and routes', 'Spots problems early and flags what needs you', 'Keeps the other directors on task'],
     },
     {
-      id: 'penny', name: 'Penny', title: 'Accounting',
+      id: 'penny', home: 'acct', seat: 'seat-t2', name: 'Penny', title: 'Accounting',
       intro: "Numbers are my happy place. If money moves, I know about it.",
       duties: ['Revenue by day, week and month', 'Invoices, unpaid balances and GST', 'Average job value and travel fees collected'],
     },
     {
-      id: 'max', name: 'Max', title: 'Marketing',
+      id: 'max', home: 'mkt', seat: 'seat-t3', name: 'Max', title: 'Marketing',
       intro: "Let's get Home Pros in front of every furnace in the Edmonton area!",
       duties: ['Where bookings come from, including this storefront', 'Google reviews and review requests', 'Seasonal promos and website ideas'],
     },
     {
-      id: 'eddie', name: 'Eddie', title: 'Email Manager',
+      id: 'eddie', home: 'email', seat: 'seat-b1', name: 'Eddie', title: 'Email Manager',
       intro: "Inbox zero is a lifestyle. I sort it so you don't have to.",
       duties: ['Sorts incoming email by what needs you', 'Drafts replies for you to approve', 'Follow-ups after every job'],
     },
     {
-      id: 'rosa', name: 'Rosa', title: 'Customer Service',
+      id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
       intro: "Every customer leaves happy. That's my whole job.",
       duties: ['Questions, reschedules and cancellations', 'Checks in with customers before and after visits', 'Catches unhappy customers before they post a review'],
     },
@@ -159,7 +162,11 @@ const HP_CONFIG = {
     login: 'Staff only. Password, please.',
     loginDemo: 'Demo mode: any password opens the door. On the live site this checks your real password.',
     loginWrong: "That's not it. Try again.",
-    welcome: 'Welcome back, {owner}. Your board is assembled. Click anyone to talk to them.',
+    welcome: "Welcome back, {owner}. Everyone's at work. Click anyone on the floor to talk to them, or call a board meeting.",
+    meetingCall: 'Board meeting! Everybody to the boardroom.',
+    meetingOpen: "Everyone's seated. You have the floor, {owner}.",
+    meetingEnd: 'Meeting adjourned. Back to work, everyone.',
+    itsYou: "That's you, boss. Corner office, best chair in the building.",
     notConnected: "I'm not hooked up to the real data yet. Once ServiceMonster and your email are connected, this is where I'll report in.",
   },
 };
