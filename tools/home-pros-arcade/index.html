@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Home Pros Arcade</title>
+<meta name="description" content="Walk into the Home Pros shop, get your flat-rate price for furnace, duct and dryer vent cleaning, and book a time in under two minutes.">
+<meta name="theme-color" content="#0c0a22">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/arcade.css">
+</head>
+<body class="street">
+<main class="game" id="game">
+
+  <div class="stage" id="stage">
+    <canvas id="scene" aria-hidden="true"></canvas>
+
+    <!-- outside -->
+    <div class="layer outside" id="outside">
+      <div class="neon" id="neon">HOME&nbsp;PROS</div>
+      <div class="neon-sub" id="neonSub"></div>
+      <div class="van-text">HOME PROS</div>
+      <button class="press-start" id="startBtn" type="button">
+        <span class="blink">&#9654; PRESS START</span>
+        <small>tap or press Enter to walk in</small>
+      </button>
+    </div>
+
+    <!-- inside -->
+    <div class="layer inside" id="inside" hidden>
+      <div class="board" id="board" aria-label="Menu board">
+        <div class="board-title">MENU</div>
+        <ul id="boardList"></ul>
+        <div class="board-foot">FLAT RATE &middot; + <span id="taxLabel">GST</span></div>
+      </div>
+      <div class="banner">NO SURPRISES</div>
+      <div class="counter-text">HOME PROS</div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="cash" id="cash" aria-live="polite" aria-label="Your price"><span class="cash-label">TOTAL</span><span id="cashNum">$0</span></div>
+    </div>
+    <div class="hud-btns">
+      <button type="button" class="icon-btn" id="muteBtn" aria-label="Sound on" title="Sound">&#9835;</button>
+    </div>
+    <div class="demo-tag" id="demoTag" hidden>DEMO MODE</div>
+    <div class="fade" id="fade"></div>
+  </div>
+
+  <section class="dialog" id="dialog" aria-live="polite">
+    <div class="nameplate" id="nameplate">HANK</div>
+    <p class="say" id="say"></p>
+    <div class="panel" id="panel"></div>
+    <div class="choices" id="choices" role="group" aria-label="Your answer"></div>
+    <div class="hint" id="hint"></div>
+  </section>
+
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/pricing.js"></script>
+<script src="js/schedule.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/api.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+name = "home-pros-booking"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://homeprosgroup.com,https://www.homeprosgroup.com"
+SM_ROUTE_IDS = ""          # ServiceMonster route GUID(s), comma-separated
+MANAGER_EMAIL = ""         # where new-booking alerts go
+FROM_EMAIL = ""            # e.g. "Home Pros Bookings <bookings@homeprosgroup.com>"
+LEAD_SOURCE = "Website - Arcade Storefront"
+
+# Secrets, never in this file:
+#   wrangler secret put SM_API_TOKEN
+#   wrangler secret put RESEND_API_KEY

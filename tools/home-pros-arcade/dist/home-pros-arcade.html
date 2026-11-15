@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Home Pros Arcade</title>
+<meta name="description" content="Walk into the Home Pros shop, get your flat-rate price for furnace, duct and dryer vent cleaning, and book a time in under two minutes.">
+<meta name="theme-color" content="#0c0a22">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07060f;
+  --ink: #f4ead2;
+  --dim: #a59fc2;
+  --panel: #12163a;
+  --panel-2: #1b2150;
+  --edge: #ffc93c;
+  --red: #e23b3b;
+  --blue: #3fa7d6;
+  --green: #7ee08a;
+  --pink: #ff4f9a;
+  --cyan: #40e0ff;
+  --pixel: 'Press Start 2P', ui-monospace, monospace;
+  --term: 'VT323', ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body {
+  font-family: var(--term);
+  font-size: 22px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at 50% 0%, #1a1440 0%, var(--bg) 70%);
+}
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+.game {
+  width: min(100%, 1100px, calc((100dvh - 260px) * 16 / 9));
+  min-width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 12px 16px 24px;
+}
+
+/* ------------------------------------------------------------------ stage */
+.stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+  border: 4px solid #000;
+  box-shadow: 0 0 0 3px var(--edge), 0 0 0 7px #000, 0 18px 50px rgba(0, 0, 0, .6);
+  overflow: hidden;
+  background: #0c0a22;
+  user-select: none;
+}
+.stage canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.stage::after { /* scanlines */
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+.layer { position: absolute; inset: 0; }
+
+.neon {
+  position: absolute; left: 25%; top: 22.2%; width: 50%; height: 14.4%;
+  display: grid; place-items: center;
+  font-family: var(--pixel); font-size: 4.2cqw; letter-spacing: .08em;
+  color: #fff0f6;
+  text-shadow: 0 0 .15em #fff, 0 0 .4em var(--pink), 0 0 .9em var(--pink), 0 0 1.6em #c3166a;
+  animation: neon 6s infinite;
+}
+.van-text {
+  position: absolute; left: 75%; top: 79%; width: 22.5%;
+  font-family: var(--pixel); font-size: 1.15cqw; color: var(--red); text-align: center;
+}
+@keyframes neon {
+  0%, 18%, 22%, 62%, 64%, 100% { opacity: 1; }
+  20%, 63% { opacity: .35; }
+}
+.press-start {
+  position: absolute; left: 50%; bottom: 2.5%; transform: translateX(-50%);
+  background: rgba(7, 6, 15, .72); border: 3px solid var(--edge); padding: .7cqw 2cqw;
+  font-family: var(--pixel); font-size: 1.9cqw; color: var(--edge); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: .5cqw;
+}
+.press-start small { font-family: var(--term); font-size: 1.9cqw; color: var(--ink); }
+.press-start:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.blink { animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+
+/* menu board */
+.board {
+  position: absolute; left: 4.4%; top: 12.4%; width: 34.8%; height: 39.6%;
+  padding: .9cqw 1.1cqw; display: flex; flex-direction: column;
+  font-family: var(--term); color: #ffe7b0;
+}
+.board-title {
+  font-family: var(--pixel); font-size: 1.7cqw; text-align: center; color: var(--edge);
+  text-shadow: 0 0 .5em rgba(255, 201, 60, .7); margin-bottom: .6cqw;
+}
+.board ul { list-style: none; margin: 0; padding: 0; flex: 1; display: flex; flex-direction: column; justify-content: space-around; }
+.board li { display: grid; grid-template-columns: 1fr auto; column-gap: .6cqw; line-height: 1; padding: .2cqw .4cqw; border-radius: 2px; transition: background .2s; }
+.board .n { font-size: 2.05cqw; color: #fff4d6; }
+.board .p { font-size: 2.3cqw; color: var(--green); text-shadow: 0 0 .4em rgba(126, 224, 138, .6); }
+.board .note { grid-column: 1 / -1; font-size: 1.55cqw; color: var(--dim); }
+.board li.on { background: rgba(255, 201, 60, .18); box-shadow: inset 0 0 0 1px var(--edge); }
+.board li.on .n::before { content: '\25B6  '; color: var(--edge); }
+.board-foot { font-size: 1.45cqw; text-align: center; color: var(--dim); }
+
+.banner {
+  position: absolute; left: 44.4%; top: 10.4%; width: 29.4%; height: 6.6%;
+  display: grid; place-items: center;
+  font-family: var(--pixel); font-size: 1.25cqw; color: #fff; letter-spacing: .06em;
+}
+.counter-text {
+  position: absolute; left: 38.1%; top: 68.5%; width: 61.9%; height: 11%;
+  display: grid; place-items: center;
+  font-family: var(--pixel); font-size: 2.6cqw; color: #ffe7b0; letter-spacing: .2em;
+  text-shadow: .15cqw .15cqw 0 #5c1015;
+}
+
+/* HUD */
+.hud { position: absolute; top: 1.2%; right: 1.2%; pointer-events: none; }
+.cash {
+  font-family: var(--pixel); font-size: 2.2cqw; color: #ffb347;
+  background: rgba(7, 6, 15, .78); border: 2px solid #000; box-shadow: 0 0 0 2px #ffb347;
+  padding: .55cqw 1cqw; display: flex; gap: 1cqw; align-items: baseline;
+  text-shadow: 0 0 .4em rgba(255, 179, 71, .7);
+}
+.cash-label { font-size: 1.1cqw; color: var(--dim); text-shadow: none; }
+.cash.bump { animation: bump .35s; }
+@keyframes bump { 40% { transform: scale(1.12); color: #fff; } }
+.hud-btns { position: absolute; right: 1.2%; bottom: 1.6%; display: flex; gap: .6cqw; }
+.icon-btn {
+  width: max(34px, 3.6cqw); height: max(34px, 3.6cqw); font-size: max(18px, 1.9cqw);
+  background: rgba(7, 6, 15, .78); border: 2px solid var(--dim); cursor: pointer; line-height: 1;
+}
+.icon-btn[aria-pressed="true"] { opacity: .5; text-decoration: line-through; }
+.icon-btn:focus-visible { outline: 3px solid var(--cyan); }
+.demo-tag {
+  position: absolute; left: 1.2%; bottom: 1.6%; font-family: var(--pixel); font-size: 1cqw;
+  background: var(--red); color: #fff; padding: .4cqw .7cqw;
+}
+body.street .cash { visibility: hidden; }
+.fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; }
+.fade.on { opacity: 1; }
+
+/* ----------------------------------------------------------------- dialog */
+.dialog {
+  position: relative; margin-top: 22px;
+  background: linear-gradient(var(--panel-2), var(--panel));
+  border: 4px solid #000;
+  box-shadow: 0 0 0 3px var(--edge), 0 0 0 7px #000;
+  padding: 22px 22px 16px;
+  min-height: 190px;
+}
+.nameplate {
+  position: absolute; top: -16px; left: 18px;
+  font-family: var(--pixel); font-size: 13px; color: #000; background: var(--edge);
+  padding: 6px 10px; border: 3px solid #000;
+}
+.say { margin: 4px 0 12px; font-size: 27px; line-height: 1.15; min-height: 1.2em; color: #fff; }
+.say .caret { display: inline-block; width: .5em; animation: blink .6s steps(2, start) infinite; color: var(--edge); }
+.hint { margin-top: 10px; font-size: 17px; color: var(--dim); }
+.hint kbd { font-family: var(--pixel); font-size: 10px; border: 1px solid var(--dim); padding: 2px 4px; }
+
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.choice {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: #0b0e26; border: 3px solid #3b4280; padding: 10px 14px; cursor: pointer;
+  font-size: 23px; line-height: 1.05; min-height: 52px;
+  transition: transform .08s, border-color .08s, background .08s;
+}
+.choice .k { font-family: var(--pixel); font-size: 11px; color: #000; background: var(--edge); padding: 4px 6px; flex: none; }
+.choice .lbl { flex: 1; }
+.choice .amt { color: var(--green); font-size: 22px; white-space: nowrap; }
+.choice:hover, .choice:focus-visible { border-color: var(--edge); background: #161b48; transform: translateY(-2px); outline: none; }
+.choice:active { transform: translateY(1px); }
+.choice.primary { border-color: var(--green); background: #0f2a1a; }
+.choice.primary .k { background: var(--green); }
+.choice.ghost { border-style: dashed; color: var(--dim); }
+.choice[disabled] { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* receipt */
+.receipt {
+  background: #f4ead2; color: #1a1020; font-family: var(--term); font-size: 22px;
+  padding: 14px 18px 12px; max-width: 520px; margin: 0 0 14px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), 96% 100%, 92% calc(100% - 8px), 88% 100%, 84% calc(100% - 8px), 80% 100%, 76% calc(100% - 8px), 72% 100%, 68% calc(100% - 8px), 64% 100%, 60% calc(100% - 8px), 56% 100%, 52% calc(100% - 8px), 48% 100%, 44% calc(100% - 8px), 40% 100%, 36% calc(100% - 8px), 32% 100%, 28% calc(100% - 8px), 24% 100%, 20% calc(100% - 8px), 16% 100%, 12% calc(100% - 8px), 8% 100%, 4% calc(100% - 8px), 0 100%);
+  animation: print .5s steps(8);
+}
+@keyframes print { from { clip-path: inset(0 0 100% 0); } }
+.receipt h3 { font-family: var(--pixel); font-size: 12px; text-align: center; margin: 0 0 8px; letter-spacing: .1em; }
+.receipt .row { display: flex; justify-content: space-between; gap: 12px; }
+.receipt .sub { color: #5b5470; font-size: 18px; padding-left: 12px; }
+.receipt hr { border: 0; border-top: 2px dashed #8a8299; margin: 8px 0; }
+.receipt .total { font-size: 28px; font-weight: bold; }
+.receipt .stamp { text-align: center; font-family: var(--pixel); font-size: 11px; color: var(--red); margin-top: 8px; }
+
+/* form */
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
+.form .full { grid-column: 1 / -1; }
+.form label { display: flex; flex-direction: column; gap: 4px; font-size: 18px; color: var(--dim); }
+.form input, .form textarea {
+  font: inherit; font-size: 23px; color: #fff; background: #070920; border: 3px solid #3b4280; padding: 6px 10px; border-radius: 0; width: 100%;
+}
+.form textarea { min-height: 64px; resize: vertical; }
+.form input:focus, .form textarea:focus { outline: none; border-color: var(--edge); }
+.form .bad input { border-color: var(--red); }
+.form .err { color: #ff8a8a; font-size: 17px; min-height: 0; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+/* calendar */
+.days { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 8px; scroll-snap-type: x mandatory; }
+.day {
+  flex: none; width: 86px; scroll-snap-align: start;
+  background: #0b0e26; border: 3px solid #3b4280; padding: 8px 4px; cursor: pointer; text-align: center; line-height: 1;
+}
+.day .dw { font-family: var(--pixel); font-size: 9px; color: var(--dim); }
+.day .dn { font-size: 34px; margin: 6px 0 2px; color: #fff; }
+.day .dm { font-size: 17px; color: var(--dim); }
+.day .dc { font-size: 16px; color: var(--green); margin-top: 4px; }
+.day.full { opacity: .45; cursor: not-allowed; }
+.day.full .dc { color: #ff8a8a; }
+.day[aria-pressed="true"] { border-color: var(--edge); background: #1d2156; }
+.day:focus-visible { outline: 3px solid var(--cyan); }
+.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.loading { font-size: 24px; color: var(--edge); padding: 12px 0; }
+.loading::after { content: '...'; animation: dots 1s steps(4) infinite; display: inline-block; width: 1.5em; overflow: hidden; vertical-align: bottom; }
+@keyframes dots { from { width: 0; } to { width: 1.5em; } }
+
+.achievement {
+  position: absolute; left: 50%; top: 74%; transform: translate(-50%, -50%);
+  font-family: var(--pixel); font-size: 3.4cqw; color: var(--edge); text-align: center;
+  text-shadow: .25cqw .25cqw 0 #000, 0 0 1em rgba(255, 201, 60, .7);
+  animation: pop 1.1s ease-out both; pointer-events: none; white-space: nowrap;
+  background: rgba(7, 6, 15, .82); border: .4cqw solid var(--edge); padding: 1.6cqw 2.6cqw;
+}
+.achievement small { display: block; font-family: var(--term); font-size: 2.2cqw; color: #fff; margin-top: 1cqw; text-shadow: none; }
+@keyframes pop { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 0; } 30% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; } 45%, 100% { transform: translate(-50%, -50%) scale(1); } }
+
+.footer-links { text-align: center; margin-top: 14px; font-size: 18px; color: var(--dim); }
+.footer-links a { color: var(--edge); }
+
+@media (max-width: 640px) {
+  .game { padding: 8px 10px 20px; min-width: 0; width: 100%; }
+  body { font-size: 20px; }
+  .dialog { padding: 20px 14px 14px; }
+  .say { font-size: 24px; }
+  .choices { grid-template-columns: 1fr; }
+  .choice { font-size: 21px; }
+  .form { grid-template-columns: 1fr; }
+  .stage { box-shadow: 0 0 0 2px var(--edge), 0 0 0 4px #000; border-width: 2px; }
+  .dialog { box-shadow: 0 0 0 2px var(--edge), 0 0 0 4px #000; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+</style>
+</head>
+<body class="street">
+<main class="game" id="game">
+
+  <div class="stage" id="stage">
+    <canvas id="scene" aria-hidden="true"></canvas>
+
+    <!-- outside -->
+    <div class="layer outside" id="outside">
+      <div class="neon" id="neon">HOME&nbsp;PROS</div>
+      <div class="neon-sub" id="neonSub"></div>
+      <div class="van-text">HOME PROS</div>
+      <button class="press-start" id="startBtn" type="button">
+        <span class="blink">&#9654; PRESS START</span>
+        <small>tap or press Enter to walk in</small>
+      </button>
+    </div>
+
+    <!-- inside -->
+    <div class="layer inside" id="inside" hidden>
+      <div class="board" id="board" aria-label="Menu board">
+        <div class="board-title">MENU</div>
+        <ul id="boardList"></ul>
+        <div class="board-foot">FLAT RATE &middot; + <span id="taxLabel">GST</span></div>
+      </div>
+      <div class="banner">NO SURPRISES</div>
+      <div class="counter-text">HOME PROS</div>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="cash" id="cash" aria-live="polite" aria-label="Your price"><span class="cash-label">TOTAL</span><span id="cashNum">$0</span></div>
+    </div>
+    <div class="hud-btns">
+      <button type="button" class="icon-btn" id="muteBtn" aria-label="Sound on" title="Sound">&#9835;</button>
+    </div>
+    <div class="demo-tag" id="demoTag" hidden>DEMO MODE</div>
+    <div class="fade" id="fade"></div>
+  </div>
+
+  <section class="dialog" id="dialog" aria-live="polite">
+    <div class="nameplate" id="nameplate">HANK</div>
+    <p class="say" id="say"></p>
+    <div class="panel" id="panel"></div>
+    <div class="choices" id="choices" role="group" aria-label="Your answer"></div>
+    <div class="hint" id="hint"></div>
+  </section>
+
+</main>
+
+<script>
+/* ==========================================================================
+   HOME PROS ARCADE: everything you are meant to edit lives in this file.
+
+   Prices, questions, the host's lines, business hours and the booking API
+   address. The game (browser) and the booking server (worker/) both read this
+   same file, so the price the customer sees is the price the server books.
+   Change a number here, rebuild, redeploy both. Nothing else to touch.
+
+   ALL PRICES BELOW ARE SAMPLES. Replace them with your real flat rates.
+   ========================================================================== */
+const HP_CONFIG = {
+
+  business: {
+    name: 'Home Pros',
+    tagline: 'Furnace, Duct & Dryer Vent Cleaning',
+    phone: '',                 // e.g. '403-555-0123'. Leave '' to hide the call button.
+    website: 'https://homeprosgroup.com',
+    province: 'AB',
+    country: 'Canada',
+    timeZone: 'America/Edmonton',
+    defaultCity: 'Calgary',    // pre-filled on the booking form
+  },
+
+  host: {
+    name: 'Hank',              // the avatar behind the counter
+  },
+
+  tax: { rate: 0.05, label: 'GST' },
+  currency: 'CAD',
+
+  /* Booking server. '' = DEMO MODE: the calendar shows sample times and
+     "booking" does nothing, so you can play the whole thing safely.
+     Set it to your deployed worker, e.g. 'https://book.homeprosgroup.com'. */
+  apiBase: '',
+
+  /* ---------------- Scheduling (used by the booking server) --------------- */
+  schedule: {
+    daysAhead: 21,             // how far out the calendar goes
+    minLeadHours: 18,          // no bookings sooner than this
+    workDays: [1, 2, 3, 4, 5, 6], // 0 = Sunday ... 6 = Saturday
+    // Arrival windows offered to customers. start is the job start time.
+    slots: [
+      { start: '08:00', label: '8:00 - 9:00 AM' },
+      { start: '10:30', label: '10:30 - 11:30 AM' },
+      { start: '13:00', label: '1:00 - 2:00 PM' },
+      { start: '15:30', label: '3:30 - 4:30 PM' },
+    ],
+    dayEnd: '19:00',           // a job may not run past this
+  },
+
+  /* ------------------------------- Menu board ------------------------------ */
+  // What is painted on the wall. Purely display; the calculator is below.
+  menuBoard: [
+    { highlight: 'furnace', name: 'Furnace & Duct Cleaning', from: 299, note: 'whole home, flat rate' },
+    { highlight: 'dryer', name: 'Dryer Vent Cleaning', from: 149, note: 'or $79 with a duct clean' },
+    { highlight: 'sanitize', name: 'System Sanitization', from: 99, note: 'add-on' },
+    { highlight: 'furnaces', name: 'Second Furnace', from: 150, note: 'add-on' },
+  ],
+
+  /* ------------------------------- Calculator ------------------------------ */
+  /* Each service has a base price and a list of questions. Every answer can
+     add (or subtract) money and job time. `durationHours` is how long the
+     job blocks on the ServiceMonster schedule.                              */
+  services: {
+    furnace: {
+      label: 'Furnace & Duct Cleaning',
+      smService: 'Furnace & Duct Cleaning',    // text sent to ServiceMonster
+      base: 0,
+      durationHours: 2.5,
+      questions: [
+        {
+          id: 'home',
+          tag: 'Home',
+          say: 'What kind of place are we cleaning?',
+          options: [
+            { id: 'condo',   label: 'Condo or townhouse', price: 299, hours: 0 },
+            { id: 'bung',    label: 'Bungalow',           price: 349, hours: 0 },
+            { id: 'two',     label: 'Two-storey',         price: 399, hours: 0.5 },
+            { id: 'twobsmt', label: 'Two-storey + developed basement', price: 449, hours: 1 },
+          ],
+        },
+        {
+          id: 'furnaces',
+          tag: 'Furnaces',
+          say: 'How many furnaces in the house?',
+          options: [
+            { id: '1', label: 'Just one',  price: 0 },
+            { id: '2', label: 'Two',       price: 150, hours: 1 },
+          ],
+        },
+        {
+          id: 'sanitize',
+          tag: 'Sanitization',
+          say: 'Want me to add a system sanitization? Kills the funk in the ducts.',
+          options: [
+            { id: 'no',  label: 'No thanks', price: 0 },
+            { id: 'yes', label: 'Yes, add it', price: 99, hours: 0.5 },
+          ],
+        },
+      ],
+    },
+
+    dryer: {
+      label: 'Dryer Vent Cleaning',
+      smService: 'Dryer Vent Cleaning',
+      base: 0,
+      durationHours: 1,
+      questions: [
+        {
+          id: 'exit',
+          tag: 'Vent exit',
+          say: 'Where does the dryer vent come out of the house?',
+          options: [
+            { id: 'ground', label: 'Outside wall, main floor', price: 149 },
+            { id: 'upper',  label: 'Outside wall, second floor', price: 179, hours: 0.5 },
+            { id: 'roof',   label: 'Through the roof', price: 199, hours: 0.5 },
+          ],
+        },
+      ],
+    },
+  },
+
+  /* Booked together: the dryer vent drops to this price on top of a duct clean. */
+  bundle: {
+    dryerWithFurnace: 79,
+    extraHours: 0.5,
+  },
+
+  /* ------------------------------ Host lines ------------------------------- */
+  lines: {
+    greet: [
+      "Hey, welcome in! I'm {host}. Home Pros, flat rates, no surprises.",
+      'What can I clean up for you today?',
+    ],
+    browse: 'Take your time. Everything on the board is flat rate. The price I quote is the price you pay.',
+    quote: "Alright, here's your number. Flat rate, no per-vent nonsense:",
+    details: "Great. I just need to know who you are and where the truck is headed.",
+    calendar: 'Pick a day, then a time that works. These are real openings on our schedule.',
+    confirm: 'Last look. Everything right?',
+    booking: 'Hang on, calling it in to dispatch...',
+    booked: "You're booked! A confirmation is on its way to {email}. See you then.",
+    decline: "No problem at all. The prices aren't going anywhere. Come back anytime.",
+    error: "Ah, the line to dispatch dropped. Nothing was booked. Try again, or give us a call.",
+    slotTaken: 'Shoot, someone just grabbed that time. Pick another one?',
+  },
+};
+
+if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
+
+</script>
+<script>
+/* Flat-rate calculator. Pure function of HP_CONFIG + the customer's answers.
+   Shared by the game and the booking server so the two can never disagree.
+
+   selection = {
+     services: ['furnace', 'dryer'],
+     answers:  { furnace: { home: 'bung', furnaces: '1', sanitize: 'no' },
+                 dryer:   { exit: 'ground' } }
+   }                                                                        */
+(function (root) {
+  const ORDER = ['furnace', 'dryer'];
+
+  function quote(selection, cfg) {
+    cfg = cfg || root.HP_CONFIG;
+    const errors = [];
+    const lines = [];
+    let hours = 0;
+    const wanted = ORDER.filter(s => selection && Array.isArray(selection.services) && selection.services.includes(s));
+    if (!wanted.length) errors.push('No service selected');
+    const both = wanted.includes('furnace') && wanted.includes('dryer');
+
+    for (const key of wanted) {
+      const svc = cfg.services[key];
+      const answers = (selection.answers && selection.answers[key]) || {};
+      let svcTotal = svc.base || 0;
+      let svcHours = both && key === 'dryer' ? cfg.bundle.extraHours : (svc.durationHours || 0);
+      const parts = [];
+
+      svc.questions.forEach((q, qi) => {
+        const opt = q.options.find(o => o.id === answers[q.id]);
+        if (!opt) { errors.push(`Missing answer: ${svc.label} / ${q.id}`); return; }
+        let price = opt.price || 0;
+        // Dryer vent booked with a duct clean: the first question's price becomes
+        // the bundle price, keeping the difference between the options.
+        if (both && key === 'dryer' && qi === 0) {
+          const cheapest = Math.min(...q.options.map(o => o.price || 0));
+          price = cfg.bundle.dryerWithFurnace + (price - cheapest);
+        }
+        svcTotal += price;
+        svcHours += opt.hours || 0;
+        parts.push({ question: q.id, tag: q.tag || q.id, answer: opt.id, label: opt.label, price });
+      });
+
+      lines.push({ service: key, label: both && key === 'dryer' ? svc.label + ' (bundle)' : svc.label, amount: svcTotal, parts });
+      hours += svcHours;
+    }
+
+    const subtotal = lines.reduce((s, l) => s + l.amount, 0);
+    const tax = Math.round(subtotal * cfg.tax.rate * 100) / 100;
+    const total = Math.round((subtotal + tax) * 100) / 100;
+    const summary = lines.map(l => `${l.label}: ${l.parts.map(p => `${p.tag}: ${p.label}`).join(', ')} ($${l.amount})`).join(' | ');
+    return { valid: errors.length === 0, errors, lines, subtotal, tax, total, hours, summary };
+  }
+
+  function money(n) {
+    return '$' + (Math.round(n * 100) / 100).toFixed(n % 1 ? 2 : 0);
+  }
+
+  root.HP_PRICING = { quote, money };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+</script>
+<script>
+/* Open-slot finder. Shared by the booking server (real ServiceMonster
+   schedule) and the game's demo mode (made-up busy times), so both behave
+   the same way.
+
+   All times are "naive local" strings in the business time zone, e.g.
+   '2026-11-20T08:00:00', the same shape ServiceMonster uses. Arithmetic is
+   done by treating them as UTC, which is exact as long as nothing mixes zones. */
+(function (root) {
+  const pad = n => String(n).padStart(2, '0');
+
+  // Current wall-clock time in the business time zone, as a naive string.
+  function localNow(timeZone, date) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    }).formatToParts(date || new Date());
+    const p = Object.fromEntries(parts.map(x => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+  }
+
+  // Accepts '2026-11-20T08:00:00', '2026-11-20T08:00', '11/20/2026 8:00 AM'.
+  function parse(s) {
+    if (!s) return NaN;
+    let m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(s);
+    if (m) return Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) / 60000;
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?/i.exec(s);
+    if (m) {
+      let h = +m[4] % 12;
+      if (m[6] && m[6].toUpperCase() === 'PM') h += 12;
+      if (!m[6]) h = +m[4];
+      return Date.UTC(+m[3], m[1] - 1, +m[2], h, +m[5]) / 60000;
+    }
+    return NaN;
+  }
+
+  function fmt(min) {
+    const d = new Date(min * 60000);
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00`;
+  }
+
+  const hm = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+
+  /* busy: [{ routeID, start, end }]  routes: ['route-guid', ...]
+     Returns [{ date, weekday, slots: [{ start, end, label, routeID }] }]   */
+  function availability({ cfg, now, busy, routes, hours }) {
+    const sc = cfg.schedule;
+    const nowMin = parse(now);
+    const earliest = nowMin + sc.minLeadHours * 60;
+    const durMin = Math.ceil(hours * 60);
+    const dayStart = Math.floor(nowMin / 1440) * 1440;
+    const byRoute = {};
+    for (const r of routes) byRoute[r] = [];
+    for (const b of busy || []) {
+      const s = parse(b.start), e = parse(b.end);
+      if (isNaN(s) || isNaN(e)) continue;
+      if (b.routeID in byRoute) byRoute[b.routeID].push([s, e]);
+      else if (!b.routeID) for (const r of routes) byRoute[r].push([s, e]); // unassigned blocks everyone
+    }
+
+    const days = [];
+    for (let i = 0; i <= sc.daysAhead; i++) {
+      const d0 = dayStart + i * 1440;
+      const date = fmt(d0).slice(0, 10);
+      const weekday = new Date(d0 * 60000).getUTCDay();
+      if (!sc.workDays.includes(weekday)) continue;
+      const slots = [];
+      for (const slot of sc.slots) {
+        const s = d0 + hm(slot.start);
+        const e = s + durMin;
+        if (s < earliest || e > d0 + hm(sc.dayEnd)) continue;
+        const free = routes.find(r => !byRoute[r].some(([bs, be]) => bs < e && be > s));
+        if (free) slots.push({ start: fmt(s), end: fmt(e), label: slot.label, routeID: free });
+      }
+      if (i === 0 && !slots.length) continue; // don't show today as "full" when it's just late
+      days.push({ date, weekday, slots });
+    }
+    return days;
+  }
+
+  function isFree({ cfg, now, busy, routes, hours, start, routeID }) {
+    const days = availability({ cfg, now, busy, routes, hours });
+    for (const d of days) for (const s of d.slots) {
+      if (s.start === start) {
+        // the requested route if it is still free, else any free route
+        const sMin = parse(start), eMin = sMin + Math.ceil(hours * 60);
+        const routeFree = r => !(busy || []).some(b => (b.routeID === r || !b.routeID) && parse(b.start) < eMin && parse(b.end) > sMin);
+        if (routeID && routes.includes(routeID) && routeFree(routeID)) return { ...s, routeID };
+        return s;
+      }
+    }
+    return null;
+  }
+
+  root.HP_SCHEDULE = { localNow, parse, fmt, availability, isFree };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+</script>
+<script>
+/* Chiptune sound effects and a quiet shop tune, synthesized with WebAudio.
+   Nothing plays until the customer presses Start (browsers require a tap). */
+(function (root) {
+  let ac, master, musicGain, musicTimer, step = 0, nextTime = 0;
+  let muted = false;
+  try { muted = localStorage.getItem('hp-muted') === '1'; } catch (e) {}
+
+  function ensure() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return true; }
+    const AC = root.AudioContext || root.webkitAudioContext;
+    if (!AC) return false;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(ac.destination);
+    musicGain = ac.createGain(); musicGain.gain.value = 0.16; musicGain.connect(master);
+    return true;
+  }
+
+  function tone(freq, start, dur, type = 'square', vol = 0.2, dest) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(vol, start);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g); g.connect(dest || master);
+    o.start(start); o.stop(start + dur + 0.02);
+  }
+
+  function noise(start, dur, vol = 0.15) {
+    const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 3000;
+    s.buffer = buf; g.gain.value = vol; s.connect(f); f.connect(g); g.connect(master); s.start(start);
+  }
+
+  const fx = {
+    blip() { if (!ac || muted) return; tone(520 + Math.random() * 120, ac.currentTime, 0.03, 'square', 0.05); },
+    select() { if (!ensure()) return; const n = ac.currentTime; tone(660, n, 0.06, 'square', 0.12); tone(990, n + 0.06, 0.08, 'square', 0.1); },
+    back() { if (!ensure()) return; const n = ac.currentTime; tone(440, n, 0.06, 'square', 0.1); tone(330, n + 0.06, 0.08, 'square', 0.08); },
+    door() { if (!ensure()) return; const n = ac.currentTime; tone(1318, n, 0.6, 'triangle', 0.18); tone(1046, n + 0.22, 0.8, 'triangle', 0.16); },
+    register() {
+      if (!ensure()) return; const n = ac.currentTime;
+      noise(n, 0.08, 0.2); tone(2093, n + 0.06, 0.25, 'triangle', 0.14); tone(2637, n + 0.12, 0.4, 'triangle', 0.12);
+    },
+    win() {
+      if (!ensure()) return; const n = ac.currentTime;
+      [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, n + i * 0.09, 0.16, 'square', 0.12));
+      tone(130, n, 0.7, 'triangle', 0.2);
+    },
+    error() { if (!ensure()) return; const n = ac.currentTime; tone(200, n, 0.15, 'sawtooth', 0.1); tone(150, n + 0.15, 0.25, 'sawtooth', 0.1); },
+  };
+
+  // A laid-back 8-bar shop loop: bass + a sparse lead.
+  const BASS = [110, 0, 165, 0, 147, 0, 165, 0, 98, 0, 147, 0, 131, 0, 147, 0];
+  const LEAD = [0, 440, 0, 0, 494, 0, 523, 0, 0, 392, 0, 0, 440, 0, 0, 0, 0, 440, 0, 0, 587, 0, 523, 0, 494, 0, 440, 0, 392, 0, 0, 0];
+  function schedule() {
+    while (nextTime < ac.currentTime + 0.3) {
+      const b = BASS[step % 16], l = LEAD[step % 32];
+      if (b) tone(b, nextTime, 0.22, 'triangle', 0.5, musicGain);
+      if (l) tone(l, nextTime, 0.18, 'square', 0.12, musicGain);
+      if (step % 4 === 2) { /* hat */ }
+      nextTime += 0.2; step++;
+    }
+  }
+
+  root.HP_AUDIO = Object.assign(fx, {
+    start() {
+      if (!ensure()) return;
+      if (!musicTimer) { nextTime = ac.currentTime + 0.1; musicTimer = setInterval(schedule, 100); }
+    },
+    toggleMute() {
+      muted = !muted;
+      try { localStorage.setItem('hp-muted', muted ? '1' : '0'); } catch (e) {}
+      if (master) master.gain.value = muted ? 0 : 0.5;
+      return muted;
+    },
+    get muted() { return muted; },
+  });
+})(window);
+
+</script>
+<script>
+/* Talks to the booking server. With no apiBase set in config.js it runs in
+   DEMO MODE: made-up openings, and booking does not reach ServiceMonster. */
+(function (root) {
+  const cfg = root.HP_CONFIG;
+  const demo = !cfg.apiBase;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  function demoBusy(now) {
+    // a believable, repeatable pattern of already-booked jobs
+    const busy = [];
+    const startMin = HP_SCHEDULE.parse(now);
+    const day0 = Math.floor(startMin / 1440) * 1440;
+    for (let i = 0; i <= cfg.schedule.daysAhead; i++) {
+      for (let s = 0; s < cfg.schedule.slots.length; s++) {
+        const h = (i * 7 + s * 13) % 10;
+        if (h < 3) {
+          const st = day0 + i * 1440 + parseInt(cfg.schedule.slots[s].start) * 60 + 30;
+          busy.push({ routeID: 'demo', start: HP_SCHEDULE.fmt(st), end: HP_SCHEDULE.fmt(st + 60) });
+        }
+      }
+    }
+    return busy;
+  }
+
+  async function call(path, init) {
+    const res = await fetch(cfg.apiBase.replace(/\/$/, '') + path, init);
+    let body = {};
+    try { body = await res.json(); } catch (e) {}
+    if (!res.ok) { const err = new Error(body.error || 'http_' + res.status); err.code = body.error; err.status = res.status; throw err; }
+    return body;
+  }
+
+  root.HP_API = {
+    demo,
+    async availability(selection) {
+      if (demo) {
+        await wait(700);
+        const q = HP_PRICING.quote(selection);
+        const now = HP_SCHEDULE.localNow(cfg.business.timeZone);
+        return { days: HP_SCHEDULE.availability({ cfg, now, busy: demoBusy(now), routes: ['demo'], hours: q.hours }) };
+      }
+      const qs = new URLSearchParams({ services: selection.services.join(','), answers: JSON.stringify(selection.answers) });
+      return call('/api/availability?' + qs);
+    },
+    async book(payload) {
+      if (demo) { await wait(1600); return { ok: true, demo: true, reference: 'DEMO-' + Math.floor(Math.random() * 9000 + 1000) }; }
+      return call('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    },
+  };
+})(window);
+
+</script>
+<script>
+/* Pixel-art scenes, drawn on a 320x180 canvas and scaled up with crisp
+   pixels. Two scenes: the street outside the shop, and the shop counter
+   with the host. Text (the neon sign, menu board, banners) is HTML laid
+   over the canvas so it stays sharp. No image files.                       */
+(function (root) {
+  const W = 320, H = 180;
+  let ctx, mode = 'outside', t = 0, last = 0;
+  const reduce = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const C = {
+    K: '#1a1020', C: '#e23b3b', c: '#a8262b', Y: '#ffc93c', S: '#f0b98d', s: '#c98a62',
+    H: '#5a3a22', M: '#4a2a17', E: '#1a1020', P: '#24408e', p: '#182c66', m: '#6e1f28',
+    W: '#ffffff', R: '#ff6f6f',
+  };
+
+  /* The host. Left half only; it is mirrored, so he is symmetric. */
+  const HOST_HALF = [
+    '..........KKKKKK',
+    '........KKCCCCCC',
+    '.......KCCCCCCCY',
+    '......KCCCCCCCYY',
+    '......KCCCCCCCYY',
+    '......KCCCCCCCCC',
+    '....KKcccccccccc',
+    '...Kcccccccccccc',
+    '....KKKKKKKKKKKK',
+    '......KHHSSSSSSS',
+    '.....KHSSSSSSSSS',
+    '.....KSSSSSKKSSS',
+    '....KsSSSSSSESSS',
+    '....KsSSSSSSESSS',
+    '.....KSSSSSSSSSs',
+    '.....KSSSSMMMMMM',
+    '.....KSSSMMMMMMM',
+    '......KSSSSSSSSS',
+    '......KSSSSSSSSS',
+    '.......KSSSSSSSS',
+    '........KKSSSSSS',
+    '..........KsssSS',
+    '.......KKKPYssss',
+    '.....KKPPPPPYsss',
+    '...KKPPPPPPPPYss',
+    '..KPPPPPPPPPPPYs',
+    '.KPPPPPPPPPPPPPY',
+    '.KPPPPPPPPPPPPPP',
+    'KPpPPPPPPPPPPPPP',
+    'KPpPPPPPPPPPPPPP',
+    'KPpPPPPPPPPPPPPP',
+    'KPpPPPPPPPPPPPPP',
+    'KPpPPPPPPPPPPPPP',
+  ];
+  const HOST = HOST_HALF.map(r => r + r.split('').reverse().join(''));
+
+  const host = { talking: false, mood: 'idle', blinkUntil: 0, nextBlink: 2, wave: 0 };
+  const walker = { active: false, x: -12, y: 0, phase: 'walk', onDone: null, alpha: 1 };
+  let doorOpen = 0;
+
+  // deterministic "random" so the city skyline is the same every load
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const stars = Array.from({ length: 40 }, () => [rnd() * W, rnd() * 50, rnd()]);
+  const skyline = [];
+  for (let x = 0; x < W;) { const w = 14 + rnd() * 22 | 0, h = 30 + rnd() * 50 | 0; skyline.push([x, w, h, Array.from({ length: 40 }, () => rnd() > 0.72)]); x += w + 1; }
+  const rain = Array.from({ length: 90 }, () => [rnd() * W, rnd() * H, 2 + rnd() * 2]);
+  const motes = Array.from({ length: 18 }, () => [rnd() * W, 14 + rnd() * 90, rnd() * 6.28]);
+  const sparkles = [];
+
+  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x | 0, y | 0, w | 0, h | 0); };
+
+  function sprite(rows, x, y, scale, swap) {
+    for (let r = 0; r < rows.length; r++) for (let c = 0; c < rows[r].length; c++) {
+      let ch = rows[r][c];
+      if (swap) ch = swap(r, c, ch);
+      if (ch === '.' || !C[ch]) continue;
+      rect(x + c * scale, y + r * scale, scale, scale, C[ch]);
+    }
+  }
+
+  /* -------------------------------- outside ------------------------------- */
+  function drawOutside() {
+    const sky = ['#0c0a22', '#120f30', '#1a143e', '#24184a', '#311c52', '#3f2056'];
+    for (let i = 0; i < sky.length; i++) rect(0, i * 17, W, 17, sky[i]);
+    rect(0, 102, W, 60, sky[5]);
+    for (const [x, y, p] of stars) if (Math.sin(t * 2 + p * 20) > -0.3) rect(x, y, 1, 1, p > 0.8 ? '#ffe9a8' : '#8f86c9');
+    // moon
+    rect(212, 12, 10, 10, '#f3e6c0'); rect(210, 14, 14, 6, '#f3e6c0'); rect(216, 13, 4, 3, '#d9c99d');
+    // skyline
+    for (const [x, w, h, lit] of skyline) {
+      rect(x, 120 - h, w, h, '#1b1735');
+      let k = 0;
+      for (let wy = 124 - h; wy < 112; wy += 6) for (let wx = x + 2; wx < x + w - 2; wx += 4) if (lit[k++ % 40]) rect(wx, wy, 2, 3, '#ffd86b');
+    }
+
+    // building
+    rect(66, 30, 188, 112, '#5e2a26');
+    for (let y = 40; y < 140; y += 4) {
+      rect(66, y, 188, 1, '#4a1f1c');
+      for (let x = 66 + ((y / 4) % 2) * 4; x < 254; x += 8) rect(x, y, 1, 4, '#4a1f1c');
+    }
+    rect(62, 28, 196, 6, '#2b1517'); rect(62, 34, 196, 2, '#7a3a33');
+    rect(80, 40, 160, 26, '#120d1c'); rect(80, 40, 160, 1, '#2d2340'); // sign panel
+    // awning
+    for (let x = 70; x < 250; x += 10) {
+      rect(x, 68, 5, 10, '#e23b3b'); rect(x + 5, 68, 5, 10, '#f4ead2');
+      rect(x + 1, 78, 3, 2, '#e23b3b'); rect(x + 6, 78, 3, 2, '#f4ead2');
+    }
+    rect(68, 66, 184, 2, '#2b1517');
+
+    // windows, with the shop lit up inside
+    for (const wx of [78, 182]) {
+      rect(wx - 2, 84, 64, 54, '#2b1517');
+      rect(wx, 86, 60, 50, '#ffcf7a'); rect(wx, 112, 60, 24, '#f2b95e');
+      rect(wx, 86, 60, 2, '#fff1c4');
+    }
+    // left window: a furnace on display
+    rect(92, 96, 20, 36, '#9aa4b5'); rect(92, 96, 20, 2, '#c7cfdb'); rect(95, 102, 14, 8, '#6d7686');
+    rect(96, 114, 12, 1, '#6d7686'); rect(96, 118, 12, 1, '#6d7686'); rect(96, 122, 12, 1, '#6d7686');
+    rect(112, 100, 18, 6, '#c7cfdb'); rect(126, 88, 6, 18, '#c7cfdb'); // duct
+    // "OPEN" sign
+    const open = Math.sin(t * 3) > -0.8;
+    rect(118, 120, 16, 8, '#2a0d17');
+    if (open) { rect(119, 121, 14, 6, '#ff3d6e'); rect(121, 123, 10, 2, '#ffd1dc'); }
+    // right window: dryer vent and coiled duct
+    rect(194, 104, 22, 26, '#e9edf3'); rect(198, 108, 14, 14, '#9aa4b5'); rect(201, 111, 8, 8, '#e9edf3');
+    for (let i = 0; i < 6; i++) rect(220 + i * 4, 112 - (i % 2) * 2, 3, 14, i % 2 ? '#c7cfdb' : '#a9b2c1');
+
+    // door
+    rect(146, 82, 28, 58, '#2b1517');
+    const dw = 24 * (1 - doorOpen);
+    rect(148, 84, 24, 56, '#fff6dc');
+    rect(148, 84, dw, 56, '#3a6f78'); rect(150, 86, Math.max(0, dw - 4), 30, '#9fd6db');
+    if (dw > 6) rect(148 + dw - 5, 114, 2, 5, '#ffc93c');
+
+    // street lamp
+    ctx.globalAlpha = 0.13 + 0.03 * Math.sin(t * 7);
+    ctx.fillStyle = '#ffe28a';
+    ctx.beginPath(); ctx.moveTo(30, 66); ctx.lineTo(6, 156); ctx.lineTo(60, 156); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    rect(32, 64, 3, 92, '#24222e'); rect(26, 62, 14, 4, '#24222e'); rect(28, 66, 10, 2, '#fff2b8');
+
+    // sidewalk, curb, road
+    rect(0, 140, W, 16, '#4c4b5c');
+    for (let x = 0; x < W; x += 24) rect(x, 140, 1, 16, '#3c3b4a');
+    rect(0, 140, W, 1, '#6a6980');
+    rect(0, 156, W, 3, '#8a8a9d');
+    rect(0, 159, W, 21, '#23222d');
+    for (let x = ((t * 0) | 0); x < W; x += 28) rect(x, 169, 14, 2, '#d6b24a');
+    // neon reflections in the wet road
+    ctx.globalAlpha = 0.18 + 0.06 * Math.sin(t * 4);
+    for (let y = 160; y < 180; y += 2) rect(96 + Math.sin(y + t * 5) * 3, y, 128, 1, y % 4 ? '#ff4f9a' : '#40e0ff');
+    ctx.globalAlpha = 1;
+
+    // the work van
+    rect(240, 140, 72, 24, '#eef0f6'); rect(240, 140, 72, 2, '#ffffff');
+    rect(286, 132, 26, 10, '#eef0f6'); rect(290, 134, 18, 7, '#28324a');
+    rect(240, 150, 72, 4, '#e23b3b'); rect(240, 154, 72, 2, '#24408e');
+    rect(250, 162, 12, 8, '#111'); rect(253, 164, 6, 4, '#666');
+    rect(290, 162, 12, 8, '#111'); rect(293, 164, 6, 4, '#666');
+    rect(310, 146, 3, 4, '#ffe28a');
+
+    // the customer walking in
+    if (walker.active) drawWalker();
+
+    // rain
+    if (!reduce) for (const d of rain) {
+      d[1] += d[2] * 2.2; d[0] -= 0.6;
+      if (d[1] > H) { d[1] = -4; d[0] = Math.random() * (W + 40); }
+      ctx.globalAlpha = 0.45; rect(d[0], d[1], 1, 4, '#9fb8ff'); ctx.globalAlpha = 1;
+    }
+  }
+
+  const PLAYER = [
+    '..KKKK..',
+    '.KHHHHK.',
+    '.KSSSHK.',
+    '.KSSSSK.',
+    '..KSSK..',
+    '.KYYYYK.',
+    'KYYYYYYK',
+    'KYYYYYYK',
+    'KSYYYYSK',
+    '.KYYYYK.',
+    '.KPPPPK.',
+    '.KPPPPK.',
+  ];
+  function drawWalker() {
+    const w = walker;
+    ctx.globalAlpha = w.alpha;
+    const leg = Math.floor(t * 8) % 2;
+    const x = w.x, y = 124 + w.y;
+    C.Y = '#3fa7d6';
+    sprite(PLAYER, x, y, 1);
+    C.Y = '#ffc93c';
+    if (w.phase === 'walk') {
+      rect(x + 2, y + 12, 2, 4, leg ? '#24408e' : '#182c66'); rect(x + 4, y + 12, 2, 4, leg ? '#182c66' : '#24408e');
+      rect(x + 1 + leg * 3, y + 16, 3, 1, '#1a1020');
+    } else {
+      rect(x + 2, y + 12, 2, 4, '#24408e'); rect(x + 4, y + 12, 2, 4, '#24408e');
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function stepWalker(dt) {
+    const w = walker;
+    if (!w.active) return;
+    if (w.phase === 'walk') {
+      w.x += dt * 70;
+      if (w.x >= 156) { w.x = 156; w.phase = 'door'; root.HP_AUDIO && root.HP_AUDIO.door(); }
+    } else if (w.phase === 'door') {
+      doorOpen = Math.min(1, doorOpen + dt * 3);
+      if (doorOpen >= 1) w.phase = 'in';
+    } else if (w.phase === 'in') {
+      w.y -= dt * 18; w.alpha = Math.max(0, w.alpha - dt * 1.8);
+      if (w.alpha <= 0) { w.active = false; const cb = w.onDone; w.onDone = null; cb && cb(); }
+    }
+  }
+
+  /* --------------------------------- inside ------------------------------- */
+  function drawInside() {
+    // ceiling and lights
+    rect(0, 0, W, 12, '#221a2b');
+    const flick = Math.sin(t * 31) > 0.97 ? 0.5 : 1;
+    for (const lx of [36, 146, 256]) {
+      rect(lx, 4, 36, 3, flick > 0.6 || lx !== 256 ? '#f4fff6' : '#9fb3a6');
+      ctx.globalAlpha = 0.07;
+      ctx.fillStyle = '#e9fff0';
+      ctx.beginPath(); ctx.moveTo(lx, 7); ctx.lineTo(lx - 20, 118); ctx.lineTo(lx + 56, 118); ctx.lineTo(lx + 36, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // wall
+    rect(0, 12, W, 106, '#2f5d62');
+    for (let x = 0; x < W; x += 20) rect(x, 12, 1, 80, '#29525a');
+    rect(0, 12, W, 2, '#1d3b40');
+    rect(0, 92, W, 26, '#4a3326'); rect(0, 92, W, 2, '#6b4a35'); rect(0, 116, W, 2, '#2e1f17');
+    // floor
+    for (let y = 118; y < H; y += 10) for (let x = 0; x < W; x += 10) rect(x, y, 10, 10, ((x + y) / 10) % 2 ? '#d9d2c3' : '#a89f8f');
+
+    // menu board with chasing marquee bulbs
+    rect(10, 18, 120, 80, '#3b2a20'); rect(13, 21, 114, 74, '#0d0d14');
+    let b = 0;
+    const chase = Math.floor(t * 6);
+    const bulb = (x, y) => { const on = (b++ + chase) % 3 !== 0; rect(x, y, 2, 2, on ? '#ffe28a' : '#6b5a2e'); };
+    for (let x = 12; x <= 126; x += 6) { bulb(x, 18); }
+    for (let y = 24; y <= 92; y += 6) bulb(126, y);
+    for (let x = 126; x >= 12; x -= 6) bulb(x, 96);
+    for (let y = 92; y >= 24; y -= 6) bulb(10, y);
+
+    // banner behind the host
+    rect(140, 18, 96, 14, '#e23b3b'); rect(140, 30, 96, 2, '#a8262b');
+    rect(140, 18, 2, 14, '#ffc93c'); rect(234, 18, 2, 14, '#ffc93c');
+
+    // pegboard with tools of the trade
+    rect(246, 38, 66, 52, '#c8a46a');
+    for (let y = 41; y < 88; y += 4) for (let x = 249; x < 310; x += 4) rect(x, y, 1, 1, '#8a6a3a');
+    rect(252, 44, 16, 20, '#f4f4f4'); for (let x = 254; x < 268; x += 2) rect(x, 46, 1, 16, '#c9c9c9'); // filter
+    rect(274, 42, 1, 26, '#555'); for (let y = 52; y < 68; y += 2) rect(271, y, 7, 1, '#2a2a2a'); // brush
+    rect(286, 46, 18, 14, '#7f8796'); rect(290, 50, 10, 6, '#c8a46a'); // coiled hose
+    for (let i = 0; i < 5; i++) rect(254 + i * 6, 70 + (i % 2), 5, 14, i % 2 ? '#d7dde6' : '#aeb7c4'); // flex duct
+    rect(288, 68, 18, 16, '#3a3a46'); rect(290, 70, 14, 6, '#ffc93c'); // toolbox
+
+    // plaque
+    rect(140, 40, 22, 26, '#6b4a35'); rect(142, 42, 18, 22, '#f2e6c4'); rect(146, 46, 10, 10, '#ffc93c'); rect(148, 48, 6, 6, '#e8a92b');
+
+    // the host (2x pixels)
+    drawHost();
+
+    // counter
+    rect(118, 104, 202, 6, '#c9ccd8'); rect(118, 104, 202, 1, '#ffffff'); rect(118, 109, 202, 1, '#8b8e9c');
+    rect(122, 110, 198, 40, '#a8262b');
+    rect(122, 118, 198, 3, '#ffc93c');
+    rect(122, 144, 198, 6, '#24408e');
+    for (let x = 122; x < 320; x += 33) rect(x, 110, 1, 34, '#8c1f24');
+    // register
+    rect(270, 86, 32, 18, '#5a5d6b'); rect(272, 88, 28, 6, '#1d2a1a'); rect(274, 89, 24, 4, '#ffb347');
+    for (let k = 0; k < 6; k++) rect(274 + k * 4, 97, 3, 2, '#d0d3de');
+    rect(266, 100, 40, 4, '#454856');
+    // service bell
+    rect(134, 100, 10, 4, '#ffc93c'); rect(138, 98, 2, 2, '#ffe28a'); rect(132, 103, 14, 1, '#6b5a2e');
+    // potted plant
+    rect(12, 136, 16, 14, '#b3542f'); rect(10, 134, 20, 3, '#8c3e22');
+    for (const [x, y, w, h] of [[14, 118, 4, 16], [19, 112, 3, 22], [23, 120, 4, 14], [10, 124, 5, 4], [25, 116, 5, 4]]) rect(x, y, w, h, '#3c8d4a');
+
+    // dust in the light
+    if (!reduce) {
+      ctx.globalAlpha = 0.5;
+      for (const m of motes) { m[2] += 0.01; rect(m[0] + Math.sin(m[2]) * 6, m[1] + Math.cos(m[2] * 0.7) * 4, 1, 1, '#f6f0d8'); }
+      ctx.globalAlpha = 1;
+    }
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const s = sparkles[i]; s.y += s.vy; s.x += s.vx; s.vy += 0.04; s.life -= 1;
+      rect(s.x, s.y, 2, 2, s.col);
+      if (s.life <= 0) sparkles.splice(i, 1);
+    }
+  }
+
+  function drawHost() {
+    const breathe = Math.sin(t * 2.2) > 0.6 ? 1 : 0;
+    const bob = host.mood === 'happy' ? Math.round(Math.abs(Math.sin(t * 8)) * -2) : 0;
+    const x = 170, y = 38 + breathe + bob;
+    const blinking = t < host.blinkUntil;
+    const mouthOpen = host.talking && Math.floor(t * 11) % 2 === 0;
+    sprite(HOST, x, y, 2, (r, c, ch) => {
+      if (blinking && (r === 12 || r === 13) && ch === 'E') return r === 13 ? 'K' : 'S';
+      if (r === 17 && c >= 13 && c <= 18) {
+        if (host.mood === 'happy') return c === 13 || c === 18 ? 'm' : 'W';
+        if (mouthOpen) return 'm';
+        if (c >= 14 && c <= 17) return 'm';
+      }
+      if (r === 18 && c >= 14 && c <= 17) {
+        if (host.mood === 'happy') return 'm';
+        if (mouthOpen) return 'R';
+      }
+      return ch;
+    });
+    // body down to the counter, name tag, hands
+    rect(x, y + 66, 64, 104 - (y + 66), C.P);
+    rect(x, y + 66, 2, 104 - (y + 66), C.K); rect(x + 62, y + 66, 2, 104 - (y + 66), C.K);
+    rect(x + 40, y + 58, 12, 6, '#ffffff'); rect(x + 41, y + 60, 10, 2, '#e23b3b');
+    rect(x + 6, 99, 14, 6, C.K); rect(x + 7, 100, 12, 5, C.S);
+    rect(x + 44, 99, 14, 6, C.K); rect(x + 45, 100, 12, 5, C.S);
+
+    if (t > host.nextBlink) { host.blinkUntil = t + 0.14; host.nextBlink = t + 2.5 + Math.random() * 3; }
+  }
+
+  /* --------------------------------- loop --------------------------------- */
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    last = now; t += dt;
+    stepWalker(dt);
+    if (mode === 'outside') drawOutside(); else drawInside();
+    requestAnimationFrame(frame);
+  }
+
+  root.HP_SCENE = {
+    init(canvas) {
+      canvas.width = W; canvas.height = H;
+      ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      requestAnimationFrame(frame);
+    },
+    setMode(m) { mode = m; doorOpen = 0; walker.active = false; },
+    walkIn(onDone) {
+      if (reduce) { root.HP_AUDIO && root.HP_AUDIO.door(); setTimeout(onDone, 300); return; }
+      Object.assign(walker, { active: true, x: -12, y: 0, phase: 'walk', alpha: 1, onDone });
+    },
+    talk(on) { host.talking = on; },
+    mood(m) { host.mood = m; },
+    celebrate() {
+      host.mood = 'happy';
+      const cols = ['#ffc93c', '#e23b3b', '#3fa7d6', '#ffffff', '#7ee08a'];
+      for (let i = 0; i < 70; i++) sparkles.push({ x: 202, y: 50, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 3 - 1, life: 60 + Math.random() * 40, col: cols[i % cols.length] });
+    },
+  };
+})(window);
+
+</script>
+<script>
+/* The game: a small state machine. Each step has the host say something,
+   then offers choices (or a form, or the calendar).                        */
+(function () {
+  const cfg = HP_CONFIG, P = HP_PRICING, A = HP_AUDIO, S = HP_SCENE, api = HP_API;
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = P.money;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const state = {
+    services: [], answers: { furnace: {}, dryer: {} },
+    customer: { city: cfg.business.defaultCity || '' },
+    days: null, day: null, slot: null, qIndex: 0,
+  };
+  let run = 0, typing = null, current = [];
+
+  /* ---------------------------------------------------------------- setup */
+  S.init($('scene'));
+  $('nameplate').textContent = cfg.host.name.toUpperCase();
+  $('neonSub').textContent = '';
+  $('taxLabel').textContent = cfg.tax.label;
+  if (api.demo) $('demoTag').hidden = false;
+  renderBoard();
+  syncMute();
+
+  function renderBoard() {
+    $('boardList').innerHTML = cfg.menuBoard.map(m =>
+      `<li data-k="${esc(m.highlight || '')}"><span class="n">${esc(m.name)}</span><span class="p">${money(m.from)}</span><span class="note">${esc(m.note || '')}</span></li>`).join('');
+  }
+  function highlight(keys) {
+    document.querySelectorAll('#boardList li').forEach(li => li.classList.toggle('on', keys.includes(li.dataset.k)));
+  }
+
+  /* -------------------------------------------------------------- dialog */
+  const fill = s => s.replace('{host}', cfg.host.name).replace('{email}', state.customer.email || 'your inbox');
+
+  function say(text) {
+    const id = run;
+    const target = $('say');
+    text = fill(text);
+    return new Promise(resolve => {
+      if (reduce) { target.textContent = text; resolve(); return; }
+      let i = 0;
+      S.talk(true);
+      target.innerHTML = '';
+      const finish = () => { clearInterval(timer); typing = null; target.textContent = text; S.talk(false); resolve(); };
+      const timer = setInterval(() => {
+        if (id !== run) { clearInterval(timer); S.talk(false); return; }
+        i++;
+        target.innerHTML = esc(text.slice(0, i)) + '<span class="caret">&#9612;</span>';
+        if (i % 2 === 0 && text[i] !== ' ') A.blip();
+        if (i >= text.length) finish();
+      }, 24);
+      typing = finish;
+    });
+  }
+  async function sayAll(lines) { for (const l of [].concat(lines)) { await say(l); if (lines.length > 1) await pause(350); } }
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+
+  function clear() {
+    run++;
+    if (typing) { typing = null; }
+    $('panel').innerHTML = ''; $('choices').innerHTML = ''; $('hint').innerHTML = '';
+    current = [];
+    return run;
+  }
+
+  function choices(list, hint = true) {
+    const box = $('choices');
+    box.innerHTML = '';
+    current = list;
+    list.forEach((c, i) => {
+      const b = el('button', 'choice' + (c.kind ? ' ' + c.kind : ''));
+      b.type = 'button';
+      if (c.disabled) b.disabled = true;
+      b.innerHTML = `<span class="k">${i + 1}</span><span class="lbl">${esc(c.label)}</span>${c.amt ? `<span class="amt">${esc(c.amt)}</span>` : ''}`;
+      b.addEventListener('click', () => pick(i));
+      box.appendChild(b);
+    });
+    if (hint) $('hint').innerHTML = 'Tap an answer, or press <kbd>1</kbd>-<kbd>' + list.length + '</kbd>';
+    const first = box.querySelector('.choice:not([disabled])');
+    if (first && matchMedia('(pointer: fine)').matches) first.focus({ preventScroll: true });
+  }
+  function pick(i) {
+    const c = current[i];
+    if (!c || c.disabled) return;
+    (c.sound === 'back' ? A.back : c.sound === 'none' ? () => {} : A.select)();
+    c.onPick();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input, textarea')) return;
+    if (!$('outside').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); enter(); return; }
+    if (typing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); typing(); return; }
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= current.length) { e.preventDefault(); pick(n - 1); }
+    if (e.key === 'Escape') { const back = current.find(c => c.isBack); if (back) back.onPick(); }
+  });
+  $('dialog').addEventListener('click', e => { if (typing && !e.target.closest('button, input, textarea')) typing(); });
+  $('stage').addEventListener('click', () => { if (typing) typing(); });
+
+  /* ---------------------------------------------------------------- HUD */
+  let cashShown = 0, cashAnim;
+  function setCash(v) {
+    const from = cashShown, to = v, t0 = performance.now(), dur = 500;
+    cancelAnimationFrame(cashAnim);
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur);
+      cashShown = from + (to - from) * k;
+      $('cashNum').textContent = money(Math.round(cashShown * 100) / 100);
+      if (k < 1) cashAnim = requestAnimationFrame(step);
+    };
+    cashAnim = requestAnimationFrame(step);
+    if (to !== from) { const c = $('cash'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+  }
+  const selection = () => ({ services: state.services, answers: state.answers });
+  const running = () => P.quote(selection());
+
+  function syncMute() {
+    const b = $('muteBtn');
+    b.setAttribute('aria-pressed', A.muted ? 'true' : 'false');
+    b.setAttribute('aria-label', A.muted ? 'Sound off' : 'Sound on');
+  }
+  $('muteBtn').addEventListener('click', () => { A.toggleMute(); syncMute(); });
+
+  /* ---------------------------------------------------------- the street */
+  let entered = false;
+  $('startBtn').addEventListener('click', enter);
+  $('stage').addEventListener('dblclick', e => e.preventDefault());
+  $('say').textContent = 'The Home Pros shop is open. Press Start to walk in.';
+  function enter() {
+    if (entered) return;
+    entered = true;
+    A.start(); A.select();
+    $('startBtn').hidden = true;
+    S.walkIn(async () => {
+      $('fade').classList.add('on');
+      await pause(450);
+      S.setMode('inside');
+      $('outside').hidden = true; $('inside').hidden = false;
+      document.body.classList.remove('street');
+      $('fade').classList.remove('on');
+      await pause(300);
+      greet();
+    });
+  }
+
+  /* ----------------------------------------------------------- the shop */
+  async function greet(again) {
+    const id = clear();
+    S.mood('idle'); highlight([]);
+    state.services = []; state.answers = { furnace: {}, dryer: {} }; state.slot = null; state.days = null;
+    setCash(0);
+    await sayAll(again ? ['Okay, from the top. What are we cleaning?'] : cfg.lines.greet);
+    if (id !== run) return;
+    serviceChoices();
+  }
+
+  function serviceChoices(withBrowse = true) {
+    const f = cfg.services.furnace, d = cfg.services.dryer;
+    const fromF = Math.min(...f.questions[0].options.map(o => o.price || 0)) + (f.base || 0);
+    const fromD = Math.min(...d.questions[0].options.map(o => o.price || 0)) + (d.base || 0);
+    const list = [
+      { label: f.label, amt: 'from ' + money(fromF), onPick: () => startQuestions(['furnace']) },
+      { label: d.label, amt: 'from ' + money(fromD), onPick: () => startQuestions(['dryer']) },
+      { label: 'Both, and save on the dryer vent', amt: 'dryer ' + money(cfg.bundle.dryerWithFurnace), kind: 'primary', onPick: () => startQuestions(['furnace', 'dryer']) },
+    ];
+    if (withBrowse) list.push({ label: 'Just looking at prices', kind: 'ghost', onPick: browse });
+    choices(list);
+  }
+
+  async function browse() {
+    const id = clear();
+    highlight(cfg.menuBoard.map(m => m.highlight));
+    await say(cfg.lines.browse);
+    if (id !== run) return;
+    serviceChoices(false);
+    current.push({ label: 'Maybe later', kind: 'ghost', onPick: decline });
+    choices(current);
+  }
+
+  function questionQueue() {
+    const q = [];
+    for (const s of ['furnace', 'dryer']) if (state.services.includes(s)) cfg.services[s].questions.forEach((x, i) => q.push({ service: s, q: x, i }));
+    return q;
+  }
+
+  function startQuestions(services) {
+    state.services = services;
+    highlight(services);
+    ask(0);
+  }
+
+  async function ask(n) {
+    const queue = questionQueue();
+    if (n >= queue.length) return showQuote();
+    state.qIndex = n;
+    const { service, q, i } = queue[n];
+    const id = clear();
+    highlight([...state.services, q.id]);
+    const both = state.services.length > 1;
+    const intro = n === 0 || (i === 0 && both) ? (service === 'dryer' && both ? 'Now the dryer vent. ' : '') : '';
+    await say(intro + q.say);
+    if (id !== run) return;
+    const cheapest = Math.min(...q.options.map(o => o.price || 0));
+    const list = q.options.map(o => {
+      let price = o.price || 0;
+      if (both && service === 'dryer' && i === 0) price = cfg.bundle.dryerWithFurnace + (price - cheapest);
+      const amt = i === 0 ? money(price + (cfg.services[service].base || 0)) : price ? '+' + money(price) : '';
+      return {
+        label: o.label, amt,
+        kind: state.answers[service][q.id] === o.id ? 'primary' : '',
+        sound: 'none',
+        onPick: () => {
+          state.answers[service][q.id] = o.id;
+          A.register();
+          setCash(running().subtotal);
+          ask(n + 1);
+        },
+      };
+    });
+    list.push({ label: n === 0 ? 'Back' : 'Back a step', kind: 'ghost', sound: 'back', isBack: true, onPick: () => n === 0 ? greet(true) : ask(n - 1) });
+    choices(list);
+  }
+
+  function receipt(q, extra = '', title = 'HOME PROS QUOTE') {
+    const rows = q.lines.map(l => `
+      <div class="row"><span>${esc(l.label)}</span><span>${money(l.amount)}</span></div>
+      ${l.parts.map(p => `<div class="row sub"><span>${esc(p.tag)}: ${esc(p.label)}</span><span>${p.price ? money(p.price) : ''}</span></div>`).join('')}`).join('');
+    return `<div class="receipt"><h3>${esc(title)}</h3>${rows}<hr>
+      <div class="row"><span>Subtotal</span><span>${money(q.subtotal)}</span></div>
+      <div class="row"><span>${esc(cfg.tax.label)} ${Math.round(cfg.tax.rate * 100)}%</span><span>${money(q.tax)}</span></div>
+      <div class="row total"><span>TOTAL</span><span>${money(q.total)}</span></div>${extra}</div>`;
+  }
+
+  async function showQuote() {
+    const id = clear();
+    const q = running();
+    setCash(q.total);
+    A.register();
+    $('panel').innerHTML = receipt(q, '<div class="stamp">FLAT RATE &middot; NO SURPRISES</div>');
+    await say(cfg.lines.quote);
+    if (id !== run) return;
+    choices([
+      { label: 'Book it!', kind: 'primary', onPick: details },
+      { label: 'Change my answers', onPick: () => ask(0), sound: 'back' },
+      { label: 'Add the other service', disabled: state.services.length > 1, onPick: () => { const add = state.services.includes('furnace') ? 'dryer' : 'furnace'; state.services = ['furnace', 'dryer'].filter(s => s === add || state.services.includes(s)); highlight(state.services); ask(questionQueue().findIndex(x => x.service === add)); } },
+      { label: 'Not today', kind: 'ghost', sound: 'back', onPick: decline },
+    ]);
+  }
+
+  /* ------------------------------------------------------------- details */
+  const FIELDS = [
+    { k: 'firstName', l: 'First name', ac: 'given-name' },
+    { k: 'lastName', l: 'Last name', ac: 'family-name' },
+    { k: 'phone', l: 'Phone', ac: 'tel', type: 'tel' },
+    { k: 'email', l: 'Email (for your confirmation)', ac: 'email', type: 'email' },
+    { k: 'address', l: 'Street address', ac: 'street-address', full: true },
+    { k: 'city', l: 'City', ac: 'address-level2' },
+    { k: 'postal', l: 'Postal code', ac: 'postal-code' },
+    { k: 'notes', l: 'Anything we should know? (gate code, pets, parking) optional', full: true, area: true, optional: true },
+  ];
+  function validate(c) {
+    const e = {};
+    for (const f of FIELDS) if (!f.optional && !String(c[f.k] || '').trim()) e[f.k] = 'Needed';
+    if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email.trim())) e.email = 'That email looks off';
+    if (c.phone && c.phone.replace(/\D/g, '').length < 10) e.phone = 'Include the area code';
+    if (c.postal && !/^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(c.postal.trim())) e.postal = 'Like T2X 1A1';
+    return e;
+  }
+
+  async function details() {
+    const id = clear();
+    const form = el('form', 'form');
+    form.noValidate = true;
+    form.innerHTML = FIELDS.map(f => `
+      <label class="${f.full ? 'full' : ''}" data-f="${f.k}">${esc(f.l)}
+        ${f.area ? `<textarea name="${f.k}" maxlength="1000"></textarea>` :
+          `<input name="${f.k}" type="${f.type || 'text'}" autocomplete="${f.ac || 'off'}" maxlength="100">`}
+        <span class="err"></span></label>`).join('') +
+      `<div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>`;
+    for (const f of FIELDS) form.elements[f.k].value = state.customer[f.k] || '';
+    $('panel').appendChild(form);
+    const submit = () => {
+      const c = {};
+      for (const f of FIELDS) c[f.k] = form.elements[f.k].value.trim();
+      c.website = form.elements.website.value;
+      state.customer = c;
+      const errs = validate(c);
+      form.querySelectorAll('label[data-f]').forEach(l => {
+        const msg = errs[l.dataset.f] || '';
+        l.classList.toggle('bad', !!msg); l.querySelector('.err').textContent = msg;
+      });
+      if (Object.keys(errs).length) { A.error(); form.querySelector('.bad input, .bad textarea').focus(); return; }
+      calendar();
+    };
+    form.addEventListener('submit', e => { e.preventDefault(); submit(); });
+    form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submit(); } });
+    await say(cfg.lines.details);
+    if (id !== run) return;
+    choices([
+      { label: 'Next: pick a time', kind: 'primary', onPick: submit },
+      { label: 'Back to my quote', kind: 'ghost', sound: 'back', isBack: true, onPick: showQuote },
+    ], false);
+    if (matchMedia('(pointer: fine)').matches) form.elements.firstName.focus();
+  }
+
+  /* ------------------------------------------------------------ calendar */
+  const dateOf = s => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+  const fmtDay = (s, o) => dateOf(s).toLocaleDateString('en-CA', { timeZone: 'UTC', ...o });
+
+  async function calendar(refresh) {
+    const id = clear();
+    if (refresh || !state.days) {
+      state.days = null;
+      $('panel').innerHTML = '<div class="loading">Checking the schedule</div>';
+      try {
+        const res = await api.availability(selection());
+        if (id !== run) return;
+        state.days = res.days || [];
+      } catch (err) {
+        if (id !== run) return;
+        return failed(() => calendar(true));
+      }
+    }
+    const days = state.days;
+    if (!state.day || !days.find(d => d.date === state.day)) state.day = (days.find(d => d.slots.length) || {}).date;
+    $('panel').innerHTML = '';
+    if (!days.some(d => d.slots.length)) {
+      await say("We're booked solid for the next few weeks. Give us a call and we'll squeeze you in.");
+      return choices(contactChoices(() => details()));
+    }
+    const strip = el('div', 'days');
+    strip.setAttribute('role', 'group'); strip.setAttribute('aria-label', 'Choose a day');
+    const slotsBox = el('div', 'slots');
+    const drawSlots = () => {
+      slotsBox.innerHTML = '';
+      const d = days.find(x => x.date === state.day);
+      if (!d) return;
+      d.slots.forEach(s => {
+        const b = el('button', 'choice' + (state.slot && state.slot.start === s.start ? ' primary' : ''));
+        b.type = 'button';
+        b.innerHTML = `<span class="lbl">${esc(s.label)}</span>`;
+        b.addEventListener('click', () => { A.select(); state.slot = s; confirm(); });
+        slotsBox.appendChild(b);
+      });
+    };
+    days.forEach(d => {
+      const b = el('button', 'day' + (d.slots.length ? '' : ' full'));
+      b.type = 'button';
+      b.setAttribute('aria-pressed', d.date === state.day ? 'true' : 'false');
+      if (!d.slots.length) b.disabled = true;
+      b.innerHTML = `<div class="dw">${fmtDay(d.date, { weekday: 'short' }).toUpperCase()}</div><div class="dn">${dateOf(d.date).getUTCDate()}</div><div class="dm">${fmtDay(d.date, { month: 'short' })}</div><div class="dc">${d.slots.length ? d.slots.length + ' open' : 'full'}</div>`;
+      b.addEventListener('click', () => {
+        A.blip(); A.select(); state.day = d.date;
+        strip.querySelectorAll('.day').forEach(x => x.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+        drawSlots();
+      });
+      strip.appendChild(b);
+    });
+    $('panel').append(strip, slotsBox);
+    drawSlots();
+    await say(cfg.lines.calendar);
+    if (id !== run) return;
+    choices([{ label: 'Back to my details', kind: 'ghost', sound: 'back', isBack: true, onPick: details }], false);
+    $('hint').textContent = 'Scroll the days sideways for more dates.';
+  }
+
+  function describeSlot(s) {
+    return `${fmtDay(s.start, { weekday: 'long', month: 'long', day: 'numeric' })}, arriving ${s.label}`;
+  }
+
+  /* ------------------------------------------------------------- confirm */
+  async function confirm() {
+    const id = clear();
+    const q = running();
+    const c = state.customer;
+    const extra = `<hr>
+      <div class="row"><b>${esc(describeSlot(state.slot))}</b></div>
+      <div class="row sub"><span>${esc(c.firstName)} ${esc(c.lastName)} &middot; ${esc(c.phone)}</span></div>
+      <div class="row sub"><span>${esc(c.address)}, ${esc(c.city)} ${esc(c.postal.toUpperCase())}</span></div>
+      <div class="row sub"><span>${esc(c.email)}</span></div>`;
+    $('panel').innerHTML = receipt(q, extra, 'WORK ORDER');
+    await say(cfg.lines.confirm);
+    if (id !== run) return;
+    choices([
+      { label: 'Lock it in!', kind: 'primary', onPick: book },
+      { label: 'Change the time', sound: 'back', onPick: () => calendar() },
+      { label: 'Edit my details', kind: 'ghost', sound: 'back', isBack: true, onPick: details },
+    ]);
+  }
+
+  async function book() {
+    const id = clear();
+    say(cfg.lines.booking);
+    $('panel').innerHTML = '<div class="loading">Booking</div>';
+    const { website, ...customer } = state.customer;
+    try {
+      const res = await api.book({ ...selection(), customer, start: state.slot.start, website });
+      if (id !== run) return;
+      booked(res);
+    } catch (err) {
+      if (id !== run) return;
+      if (err.code === 'slot_taken') {
+        A.error();
+        clear();
+        await say(cfg.lines.slotTaken);
+        state.slot = null;
+        return calendar(true);
+      }
+      failed(book);
+    }
+  }
+
+  async function booked(res) {
+    const id = clear();
+    A.win(); S.celebrate();
+    const pop = el('div', 'achievement', `BOOKED!<small>${esc(describeSlot(state.slot))}</small>`);
+    $('stage').appendChild(pop);
+    setTimeout(() => pop.remove(), 4200);
+    const q = running();
+    const ref = res && res.reference ? `<div class="row sub"><span>Reference: ${esc(res.reference)}</span></div>` : '';
+    $('panel').innerHTML = receipt(q, `<hr><div class="row"><b>${esc(describeSlot(state.slot))}</b></div>${ref}
+      <div class="stamp">&#9733; CONFIRMED &#9733;</div>`, 'BOOKING CONFIRMED');
+    await say(cfg.lines.booked + (api.demo ? ' (Demo mode: nothing was actually booked.)' : ''));
+    if (id !== run) return;
+    choices([
+      { label: 'Thanks, ' + cfg.host.name + '!', kind: 'primary', onPick: () => { S.mood('idle'); say('Anytime. Stay warm out there.'); choices([{ label: 'Head back outside', kind: 'ghost', onPick: () => location.reload() }]); } },
+    ], false);
+  }
+
+  function contactChoices(retry) {
+    const list = [];
+    if (retry) list.push({ label: 'Try again', kind: 'primary', onPick: retry });
+    if (cfg.business.phone) list.push({ label: 'Call ' + cfg.business.phone, onPick: () => { location.href = 'tel:' + cfg.business.phone.replace(/[^\d+]/g, ''); } });
+    list.push({ label: 'Start over', kind: 'ghost', sound: 'back', onPick: () => greet(true) });
+    return list;
+  }
+
+  async function failed(retry) {
+    const id = clear();
+    A.error();
+    await say(cfg.lines.error);
+    if (id !== run) return;
+    choices(contactChoices(retry));
+  }
+
+  async function decline() {
+    const id = clear();
+    S.mood('idle');
+    await say(cfg.lines.decline);
+    if (id !== run) return;
+    const list = [{ label: 'Actually, let\'s do it', kind: 'primary', onPick: () => greet(true) }];
+    if (cfg.business.phone) list.push({ label: 'Call ' + cfg.business.phone, onPick: () => { location.href = 'tel:' + cfg.business.phone.replace(/[^\d+]/g, ''); } });
+    list.push({ label: 'Leave the shop', kind: 'ghost', onPick: () => location.reload() });
+    choices(list);
+  }
+})();
+
+</script>
+</body>
+</html>
