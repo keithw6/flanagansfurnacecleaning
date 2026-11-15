@@ -4,7 +4,8 @@ compatibility_date = "2026-10-01"
 
 [vars]
 ALLOWED_ORIGINS = "https://homeprosgroup.com,https://www.homeprosgroup.com"
-SM_ROUTE_IDS = ""          # ServiceMonster route GUID(s), comma-separated
+SM_ROUTE_IDS = "ff14fbca-dc45-11e3-b8c3-d9b28ac835cd"            # Edmonton Residential: online bookings go here
+SM_BLOCKING_ROUTE_IDS = "9fb1dbd4-3227-11ed-8205-8d92ba0c912a"   # New Home: same truck, so its jobs block those times too
 MANAGER_EMAIL = ""         # where new-booking alerts go
 FROM_EMAIL = ""            # e.g. "Home Pros Bookings <bookings@homeprosgroup.com>"
 LEAD_SOURCE = "Website - Arcade Storefront"

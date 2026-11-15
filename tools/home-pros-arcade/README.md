@@ -105,7 +105,18 @@ page. It lives in a small Cloudflare Worker (free tier is plenty):
 
 `worker/test-booking.mjs` makes one real booking the same way the server does, with
 the customer named "TEST Arcade Booking - DELETE ME". Run it without `--book` first
-to see the route and time it picked.
+to see the route and time it picked. Add `--after YYYY-MM-DD` to keep the test off
+the next few days. In a Claude cloud session with the ServiceMonster login saved as a
+network secret, run it as
+`NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt SM_API_TOKEN=proxy-injected node test-booking.mjs`.
+
+### One truck, two routes
+
+Online bookings go onto **Edmonton Residential** (`SM_ROUTE_IDS` in
+`worker/wrangler.toml`). The same truck also does **New Home** jobs, so that route is
+listed in `SM_BLOCKING_ROUTE_IDS`. A time is only offered when neither route has a job
+then. Finished jobs still count as busy, and cancelled jobs don't. When you add a second
+truck, give it its own booking route.
 
 ## 4. Put it on homeprosgroup.com
 

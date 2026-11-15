@@ -5,7 +5,7 @@
    Run from tools/home-pros-arcade/worker:
      SM_API_TOKEN=<base64 of username:password> node test-booking.mjs           (dry run: shows what it would book)
      SM_API_TOKEN=... node test-booking.mjs --book --email you@example.com      (books it)
-   Optional: --route <routeID>. In a Claude cloud session with the
+   Optional: --route <routeID>, --block <routeIDs>, --after YYYY-MM-DD. In a Claude cloud session with the
    ServiceMonster login saved as a network secret, SM_API_TOKEN can be omitted. */
 import '../js/config.js';
 import '../js/travel.js';
@@ -28,18 +28,22 @@ async function sm(path, init = {}) {
 const routesRes = await sm('/routes');
 const routes = (Array.isArray(routesRes) ? routesRes : routesRes.items || []);
 console.log('Routes:'); for (const r of routes) console.log('  ', r.routeID, '|', r.routeName || r.name || '', r.active === false ? '(inactive)' : '');
-const routeID = opt('--route') || (routes.find(r => r.active !== false) || {}).routeID;
-if (!routeID) throw new Error('No route found; pass --route <routeID>');
+// One truck: book onto Edmonton Residential; a job on New Home blocks the same time.
+const routeID = opt('--route') || 'ff14fbca-dc45-11e3-b8c3-d9b28ac835cd';
+const blocking = (opt('--block') || '9fb1dbd4-3227-11ed-8205-8d92ba0c912a').split(',');
 
 const answers = { furnaces: 1, ac: true, zone: false, dryer: 'no' };
 const q = globalThis.HP_PRICING.quote(answers, globalThis.HP_TRAVEL.estimate('Stony Plain'));
 const now = SCHED.localNow(CFG.business.timeZone);
 const sched = await sm(`/scheduling?startDate=${now.slice(0, 10)}&endDate=${SCHED.fmt(SCHED.parse(now) + (CFG.schedule.daysAhead + 1) * 1440).slice(0, 10)}&getJobColor=false`);
 const busy = (Array.isArray(sched) ? sched : sched.items || []).filter(i => !/cancel/i.test(i.status || ''))
-  .map(i => ({ routeID: i.routeID, start: i.StartDateTime || i.startDateTime, end: i.EndDateTime || i.endDateTime }));
+  .map(i => ({ routeID: blocking.includes(i.routeID) ? routeID : i.routeID, start: i.StartDateTime || i.startDateTime, end: i.EndDateTime || i.endDateTime }))
+  .filter(b => !b.routeID || b.routeID === routeID);
 console.log(`Schedule: ${busy.length} items in the next ${CFG.schedule.daysAhead} days`);
 const days = SCHED.availability({ cfg: CFG, now, busy, routes: [routeID], hours: q.hours });
-const slot = days.flatMap(d => d.slots).find(s => s.start.slice(0, 10) > now.slice(0, 10)) || days.flatMap(d => d.slots)[0];
+// --after YYYY-MM-DD: first open slot on or after that date (keeps tests off tomorrow's crew sheet)
+const after = opt('--after') || now.slice(0, 10);
+const slot = days.flatMap(d => d.slots).find(s => s.start.slice(0, 10) > now.slice(0, 10) && s.start.slice(0, 10) >= after);
 if (!slot) throw new Error('No open slot found');
 
 const lead = {

@@ -20,7 +20,10 @@
      RESEND_API_KEY   optional, for the manager notification email
    Plain vars (wrangler.toml [vars]):
      ALLOWED_ORIGINS  comma-separated, e.g. https://homeprosgroup.com
-     SM_ROUTE_IDS     comma-separated ServiceMonster route GUIDs to book onto
+     SM_ROUTE_IDS     ServiceMonster route GUID(s) to book onto, comma-separated
+     SM_BLOCKING_ROUTE_IDS  optional: routes whose jobs also make a time unavailable.
+                      One truck = one booking route; list every route that truck
+                      works, and a job on any of them blocks that time.
      MANAGER_EMAIL    where new-booking alerts go
      FROM_EMAIL       sender for that alert, on a domain verified in Resend
      LEAD_SOURCE      lead source name shown in ServiceMonster                */
@@ -67,9 +70,9 @@ export default {
 
 /* ------------------------------------------------------------------ */
 
-function routes(env) {
-  return String(env.SM_ROUTE_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-}
+const ids = v => String(v || '').split(',').map(s => s.trim()).filter(Boolean);
+function routes(env) { return ids(env.SM_ROUTE_IDS); }
+
 
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
@@ -107,9 +110,17 @@ async function busyTimes(env, now) {
   const end = SCHED.fmt(endMin).slice(0, 10);
   const data = await sm(env, `/scheduling?startDate=${start}&endDate=${end}&getJobColor=false`);
   const items = Array.isArray(data) ? data : (data.items || []);
+  const book = routes(env);
+  const blocking = new Set(ids(env.SM_BLOCKING_ROUTE_IDS));
   return items
     .filter(i => !/cancel/i.test(i.status || i.jobStatus || ''))
-    .map(i => ({ routeID: i.routeID || i.RouteID, start: i.StartDateTime || i.startDateTime, end: i.EndDateTime || i.endDateTime }));
+    .map(i => {
+      let routeID = i.routeID || i.RouteID;
+      // a job on a blocking route ties up the same truck: block every booking route
+      if (blocking.has(routeID) && !book.includes(routeID)) routeID = undefined;
+      return { routeID, start: i.StartDateTime || i.startDateTime, end: i.EndDateTime || i.endDateTime };
+    })
+    .filter(b => !b.routeID || book.includes(b.routeID));
 }
 
 function readAnswers(v) {
