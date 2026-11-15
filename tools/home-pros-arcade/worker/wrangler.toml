@@ -12,3 +12,5 @@ LEAD_SOURCE = "Website - Arcade Storefront"
 # Secrets, never in this file:
 #   wrangler secret put SM_API_TOKEN
 #   wrangler secret put RESEND_API_KEY
+#   wrangler secret put OWNER_PASSWORD   (Staff Only door)
+#   wrangler secret put SESSION_SECRET   (any long random string)

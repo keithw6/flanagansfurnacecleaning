@@ -47,6 +47,15 @@
       if (demo) { await wait(500); return HP_TRAVEL.estimate(q); }
       return call('/api/travel?' + new URLSearchParams({ q }));
     },
+    // Owner login for the Staff Only door. Demo mode lets any password in.
+    async login(password) {
+      if (demo) { await wait(500); return { ok: true, token: 'demo' }; }
+      return call('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+    },
+    async me(token) {
+      if (demo) return token === 'demo' ? { ok: true } : Promise.reject(new Error('unauthorized'));
+      return call('/api/me', { headers: { Authorization: 'Bearer ' + token } });
+    },
     async book(payload) {
       if (demo) { await wait(1600); return { ok: true, demo: true, reference: 'DEMO-' + Math.floor(Math.random() * 9000 + 1000) }; }
       return call('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

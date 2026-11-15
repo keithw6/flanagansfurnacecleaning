@@ -129,7 +129,17 @@ button { font: inherit; color: inherit; }
   position: absolute; left: 1.2%; bottom: 1.6%; font-family: var(--pixel); font-size: 1cqw;
   background: var(--red); color: #fff; padding: .4cqw .7cqw;
 }
-body.street .cash { visibility: hidden; }
+body.street .cash, body.office .cash { visibility: hidden; }
+.staff-door {
+  position: absolute; left: 87%; top: 20.4%; width: 11.4%; height: 29%;
+  background: transparent; border: 0; cursor: pointer; border-radius: 2px;
+}
+.staff-door:hover, .staff-door:focus-visible { outline: none; box-shadow: 0 0 0 .3cqw var(--edge), 0 0 2cqw rgba(63, 170, 53, .6); }
+.card { background: #101311; border: 3px solid #39413d; padding: 12px 16px; margin: 0 0 14px; max-width: 620px; }
+.card h3 { font-family: var(--pixel); font-size: 12px; color: var(--edge); margin: 0 0 8px; letter-spacing: .06em; }
+.card ul { margin: 0; padding-left: 1.1em; font-size: 22px; line-height: 1.2; }
+.card li { margin: 2px 0; }
+.card .soon { margin: 10px 0 0; font-size: 18px; color: var(--dim); }
 .fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s; }
 .fade.on { opacity: 1; }
 

@@ -22,6 +22,38 @@ const HP_CONFIG = {
     name: 'Hank',              // the avatar behind the counter
   },
 
+  /* ------------------------- Back office (Staff Only) ---------------------- */
+  owner: { name: 'Keith', title: 'Chief Human Officer' },
+
+  // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
+  directors: [
+    {
+      id: 'grace', name: 'Grace', title: 'General Manager',
+      intro: "Morning, boss. I keep the whole operation pointed in the same direction.",
+      duties: ['Daily briefing: today\'s jobs, crews and routes', 'Spots problems early and flags what needs you', 'Keeps the other directors on task'],
+    },
+    {
+      id: 'penny', name: 'Penny', title: 'Accounting',
+      intro: "Numbers are my happy place. If money moves, I know about it.",
+      duties: ['Revenue by day, week and month', 'Invoices, unpaid balances and GST', 'Average job value and travel fees collected'],
+    },
+    {
+      id: 'max', name: 'Max', title: 'Marketing',
+      intro: "Let's get Home Pros in front of every furnace in the Edmonton area!",
+      duties: ['Where bookings come from, including this storefront', 'Google reviews and review requests', 'Seasonal promos and website ideas'],
+    },
+    {
+      id: 'eddie', name: 'Eddie', title: 'Email Manager',
+      intro: "Inbox zero is a lifestyle. I sort it so you don't have to.",
+      duties: ['Sorts incoming email by what needs you', 'Drafts replies for you to approve', 'Follow-ups after every job'],
+    },
+    {
+      id: 'rosa', name: 'Rosa', title: 'Customer Service',
+      intro: "Every customer leaves happy. That's my whole job.",
+      duties: ['Questions, reschedules and cancellations', 'Checks in with customers before and after visits', 'Catches unhappy customers before they post a review'],
+    },
+  ],
+
   tax: { rate: 0.05, label: 'GST' },
   currency: 'CAD',
 
@@ -123,6 +155,12 @@ const HP_CONFIG = {
     decline: "No problem at all. The prices aren't going anywhere. Come back anytime.",
     error: "Ah, the line to dispatch dropped. Nothing was booked. Try again, or give us a call.",
     slotTaken: 'Shoot, someone just grabbed that time. Pick another one?',
+    staffDoor: 'Oh, hey boss! Go on back.',
+    login: 'Staff only. Password, please.',
+    loginDemo: 'Demo mode: any password opens the door. On the live site this checks your real password.',
+    loginWrong: "That's not it. Try again.",
+    welcome: 'Welcome back, {owner}. Your board is assembled. Click anyone to talk to them.',
+    notConnected: "I'm not hooked up to the real data yet. Once ServiceMonster and your email are connected, this is where I'll report in.",
   },
 };
 

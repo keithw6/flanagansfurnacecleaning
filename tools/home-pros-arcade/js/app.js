@@ -97,7 +97,14 @@
     if (e.key === 'Escape') { const back = current.find(c => c.isBack); if (back) back.onPick(); }
   });
   $('dialog').addEventListener('click', e => { if (typing && !e.target.closest('button, input, textarea')) typing(); });
-  $('stage').addEventListener('click', () => { if (typing) typing(); });
+  $('stage').addEventListener('click', e => {
+    if (S.mode === 'office' && boardOpen) {
+      const r = $('scene').getBoundingClientRect();
+      const id = S.office.pick((e.clientX - r.left) / r.width * S.office.size.W, (e.clientY - r.top) / r.height * S.office.size.H);
+      if (id) { A.select(); talkTo(id); return; }
+    }
+    if (typing) typing();
+  });
 
   /* ---------------------------------------------------------------- HUD */
   let cashShown = 0, cashAnim;
@@ -592,5 +599,125 @@
     if (cfg.business.phone) list.push({ label: 'Call ' + cfg.business.phone, onPick: () => { location.href = 'tel:' + cfg.business.phone.replace(/[^\d+]/g, ''); } });
     list.push({ label: 'Leave the shop', kind: 'ghost', onPick: () => location.reload() });
     choices(list);
+  }
+  /* ---------------------------------------------------- staff only: back office */
+  const TOKEN_KEY = 'hp-owner-token';
+  const store = {
+    get() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
+    set(v) { try { v ? sessionStorage.setItem(TOKEN_KEY, v) : sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} },
+  };
+  let boardOpen = false;
+  const nameplate = t => { $('nameplate').textContent = t; };
+  const fillOwner = s => s.replace('{owner}', cfg.owner.name);
+
+  $('staffDoor').addEventListener('click', e => { e.stopPropagation(); staffDoor(); });
+
+  async function staffDoor() {
+    const id = clear();
+    A.door();
+    S.mood('idle'); highlight([]);
+    await say(cfg.lines.staffDoor);
+    if (id !== run) return;
+    await pause(300);
+    await scene('office');
+    S.office.lights(0.15);
+    S.office.clear();
+    const token = store.get();
+    if (token) {
+      try { await api.me(token); return enterBoard(); } catch (e) { store.set(null); }
+    }
+    loginForm();
+  }
+
+  async function scene(name) {
+    $('fade').classList.add('on');
+    await pause(450);
+    S.setMode(name);
+    $('inside').hidden = name !== 'inside';
+    document.body.classList.toggle('office', name === 'office');
+    $('fade').classList.remove('on');
+    await pause(250);
+  }
+
+  async function loginForm(wrong) {
+    const id = clear();
+    boardOpen = false;
+    nameplate('STAFF ONLY');
+    const form = el('form', 'form');
+    form.innerHTML = `<label class="full">Password<input name="pw" type="password" autocomplete="current-password" maxlength="200"><span class="err"></span></label>`;
+    $('panel').appendChild(form);
+    const input = form.elements.pw;
+    const go = async () => {
+      if (!input.value) { A.error(); input.focus(); return; }
+      const myRun = clear();
+      $('panel').innerHTML = '<div class="loading">Checking</div>';
+      try {
+        const res = await api.login(input.value);
+        if (myRun !== run) return;
+        store.set(res.token);
+        A.door();
+        enterBoard();
+      } catch (e) {
+        if (myRun !== run) return;
+        A.error();
+        loginForm(true);
+      }
+    };
+    form.addEventListener('submit', e => { e.preventDefault(); go(); });
+    await say(wrong ? cfg.lines.loginWrong : cfg.lines.login);
+    if (id !== run) return;
+    choices([
+      { label: 'Unlock', kind: 'primary', onPick: go },
+      { label: 'Back to the shop', kind: 'ghost', sound: 'back', isBack: true, onPick: backToShop },
+    ], false);
+    if (api.demo) $('hint').textContent = cfg.lines.loginDemo;
+    if (matchMedia('(pointer: fine)').matches) input.focus();
+  }
+
+  function boardChoices(except) {
+    const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
+    if (except) list.push({ label: 'Back to the whole board', kind: 'ghost', sound: 'back', isBack: true, onPick: () => enterBoard(true) });
+    list.push({ label: 'Back to the shop', kind: 'ghost', sound: 'back', isBack: !except, onPick: backToShop });
+    list.push({ label: 'Log out', kind: 'ghost', sound: 'back', onPick: logout });
+    return list;
+  }
+
+  async function enterBoard(already) {
+    const id = clear();
+    nameplate('BOARDROOM');
+    S.office.lights(1);
+    if (!boardOpen || !already) S.office.enter(cfg.directors.map(d => d.id));
+    S.office.select(null);
+    boardOpen = true;
+    await say(fillOwner(already ? 'Who do you want to talk to, ' + cfg.owner.name + '?' : cfg.lines.welcome));
+    if (id !== run) return;
+    choices(boardChoices());
+    $('hint').textContent = 'Click a director in the room, or pick one below.';
+  }
+
+  async function talkTo(dirId) {
+    const d = cfg.directors.find(x => x.id === dirId);
+    if (!d) return;
+    const id = clear();
+    S.office.select(d.id);
+    nameplate(`${d.name.toUpperCase()} · ${d.title.toUpperCase()}`);
+    $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="soon">${esc(cfg.lines.notConnected)}</p></div>`;
+    await say(d.intro);
+    if (id !== run) return;
+    choices(boardChoices(d.id));
+  }
+
+  async function backToShop() {
+    clear();
+    boardOpen = false;
+    S.office.clear();
+    await scene('inside');
+    nameplate(cfg.host.name.toUpperCase());
+    greet(true);
+  }
+
+  function logout() {
+    store.set(null);
+    backToShop();
   }
 })();

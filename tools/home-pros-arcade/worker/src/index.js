@@ -6,6 +6,8 @@
      GET  /api/availability?answers=...   open times for a job this size
      GET  /api/travel?q=town or address   travel fee
      POST /api/book                       book a job
+     POST /api/login                      owner login -> signed session token
+     GET  /api/me                         check a session token
      GET  /api/health                                           config check
 
    It recomputes the price and re-checks the time slot itself; nothing the
@@ -13,6 +15,8 @@
 
    Secrets (set with `wrangler secret put NAME`):
      SM_API_TOKEN     ServiceMonster API token (the part after "Basic ")
+     OWNER_PASSWORD   the back-office (Staff Only door) password
+     SESSION_SECRET   any long random string; signs login sessions
      RESEND_API_KEY   optional, for the manager notification email
    Plain vars (wrangler.toml [vars]):
      ALLOWED_ORIGINS  comma-separated, e.g. https://homeprosgroup.com
@@ -41,6 +45,14 @@ export default {
       if (url.pathname === '/api/health') return json({ ok: true, configured: !!env.SM_API_TOKEN, routes: routes(env).length }, 200, cors);
       if (url.pathname === '/api/availability' && req.method === 'GET') return json(await availability(url, env), 200, cors);
       if (url.pathname === '/api/travel' && req.method === 'GET') return json(await travelFor(clean(url.searchParams.get('q'), 150)), 200, cors);
+      if (url.pathname === '/api/login' && req.method === 'POST') {
+        const { status, body } = await login(req, env);
+        return json(body, status, cors);
+      }
+      if (url.pathname === '/api/me' && req.method === 'GET') {
+        const who = await session(req, env);
+        return json(who ? { ok: true, user: who } : { error: 'unauthorized' }, who ? 200 : 401, cors);
+      }
       if (url.pathname === '/api/book' && req.method === 'POST') {
         const { status, body } = await book(req, env);
         return json(body, status, cors);
@@ -66,7 +78,7 @@ function corsHeaders(req, env) {
   return {
     'Access-Control-Allow-Origin': ok ? origin : (allowed[0] || ''),
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
   };
 }
@@ -243,4 +255,39 @@ async function notifyManager(env, { customer, q, when, note, reference }) {
     }),
   });
   return res.ok;
+}
+
+/* ------------------------------ owner login ------------------------------ */
+const enc = new TextEncoder();
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function sha256(s) { return new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(s))); }
+async function hmac(secret, data) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64url(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
+}
+function sameBytes(a, b) {            // constant time
+  let d = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) d |= (a[i] || 0) ^ (b[i] || 0);
+  return d === 0;
+}
+const SESSION_HOURS = 12;
+
+async function login(req, env) {
+  if (!env.OWNER_PASSWORD || !env.SESSION_SECRET) return { status: 503, body: { error: 'login_not_configured' } };
+  let body; try { body = await req.json(); } catch { return { status: 400, body: { error: 'bad_json' } }; }
+  const ok = sameBytes(await sha256(String(body.password || '')), await sha256(env.OWNER_PASSWORD));
+  if (!ok) { await new Promise(r => setTimeout(r, 800)); return { status: 401, body: { error: 'wrong_password' } }; }
+  const payload = b64url(enc.encode(JSON.stringify({ sub: 'keith', role: 'Chief Human Officer', exp: Date.now() + SESSION_HOURS * 3600e3 })));
+  return { status: 200, body: { ok: true, token: payload + '.' + await hmac(env.SESSION_SECRET, payload), hours: SESSION_HOURS } };
+}
+
+async function session(req, env) {
+  const tok = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const [payload, sig] = tok.split('.');
+  if (!payload || !sig || !env.SESSION_SECRET) return null;
+  if (!sameBytes(enc.encode(sig), enc.encode(await hmac(env.SESSION_SECRET, payload)))) return null;
+  try {
+    const data = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return data.exp > Date.now() ? { name: data.sub, role: data.role } : null;
+  } catch { return null; }
 }

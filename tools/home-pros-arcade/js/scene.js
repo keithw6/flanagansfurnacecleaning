@@ -16,6 +16,12 @@
     idle: 'img/hank-idle.webp',
     talk: 'img/hank-talk.webp',
     happy: 'img/hank-happy.webp',
+    boardroom: 'img/boardroom.webp',
+    'dir-grace': 'img/dir-grace.webp',
+    'dir-penny': 'img/dir-penny.webp',
+    'dir-max': 'img/dir-max.webp',
+    'dir-eddie': 'img/dir-eddie.webp',
+    'dir-rosa': 'img/dir-rosa.webp',
   };
   const img = {};
   function load() {
@@ -142,12 +148,65 @@
     }
   }
 
+  /* ----------------------------- the boardroom ----------------------------- */
+  // Director sheets are 4 frames of 220x440: 0 facing you, 1 left, 2 right, 3 away.
+  const FW = 220, FH = 440;
+  const FLOOR = { x0: 110, x1: 1240, y0: 600, y1: 735 };
+  const office = { lit: 0, litTarget: 0, people: [], selected: null };
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const scaleAt = y => 0.82 + (y - FLOOR.y0) / (FLOOR.y1 - FLOOR.y0) * 0.28;
+  function newTarget(p) { p.tx = rand(FLOOR.x0, FLOOR.x1); p.ty = rand(FLOOR.y0, FLOOR.y1); }
+
+  function stepOffice(dt) {
+    office.lit += (office.litTarget - office.lit) * Math.min(1, dt * 3);
+    for (const p of office.people) {
+      p.walking = false;
+      if (office.selected === p.id) { p.dir = 0; continue; }
+      if (p.wait > 0) { p.wait -= dt; p.dir = 0; continue; }
+      const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+      if (d < 6) { p.wait = rand(1.5, 4.5); newTarget(p); continue; }
+      const v = 120 * scaleAt(p.y) * dt;
+      p.x += dx / d * Math.min(v, d); p.y += dy / d * Math.min(v, d);
+      p.walking = true;
+      p.dir = Math.abs(dx) > Math.abs(dy) * 1.2 ? (dx < 0 ? 1 : 2) : (dy > 0 ? 0 : 3);
+    }
+  }
+
+  function personBox(p) {
+    const h = 250 * scaleAt(p.y), w = h * FW / FH;
+    return { x: p.x - w / 2, y: p.y - h, w, h };
+  }
+
+  function drawOffice() {
+    if (img.boardroom) ctx.drawImage(img.boardroom, 0, 0, W, H);
+    const people = office.people.slice().sort((a, b) => a.y - b.y);
+    for (const p of people) {
+      const sheet = img['dir-' + p.id];
+      if (!sheet) continue;
+      const b = personBox(p);
+      const bob = p.walking ? -Math.abs(Math.sin(t * 9 + p.phase)) * 6 : 0;
+      ctx.globalAlpha = 0.35; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y - 2, b.w * 0.38, b.w * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.drawImage(sheet, p.dir * FW, 0, FW, FH, b.x, b.y + bob, b.w, b.h);
+      if (office.selected === p.id) {
+        const cx = p.x, top = b.y - 18 + Math.sin(t * 5) * 4;
+        ctx.fillStyle = '#3faa35';
+        ctx.beginPath(); ctx.moveTo(cx - 14, top - 16); ctx.lineTo(cx + 14, top - 16); ctx.lineTo(cx, top); ctx.fill();
+      }
+    }
+    if (office.lit < 0.99) {
+      ctx.globalAlpha = (1 - office.lit) * 0.8; ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    }
+  }
+
   /* --------------------------------- loop --------------------------------- */
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now; t += dt;
     stepEntry(dt);
-    if (mode === 'outside') drawOutside(); else drawInside();
+    if (mode === 'office') { stepOffice(dt); drawOffice(); }
+    else if (mode === 'outside') drawOutside(); else drawInside();
     requestAnimationFrame(frame);
   }
 
@@ -159,12 +218,37 @@
       return load();
     },
     setMode(m) { mode = m; doorOpen = 0; Object.assign(entry, { active: false, zoom: 1 }); },
+    get mode() { return mode; },
     walkIn(onDone) {
       root.HP_AUDIO && root.HP_AUDIO.door();
       if (reduce) { setTimeout(onDone, 300); return; }
       Object.assign(entry, { active: true, phase: 'open', zoom: 1, onDone });
     },
     talk(on) { host.talking = on; if (!on) host.nextFlip = 0; },
+    office: {
+      lights(v) { office.litTarget = v; if (reduce) office.lit = v; },
+      // directors walk in from both sides
+      enter(ids) {
+        office.selected = null;
+        office.people = ids.map((id, i) => {
+          const fromLeft = i % 2 === 0;
+          const p = { id, x: fromLeft ? -80 - i * 60 : W + 80 + i * 60, y: rand(FLOOR.y0 + 20, FLOOR.y1), dir: 0, wait: 0, phase: i, walking: false };
+          p.tx = FLOOR.x0 + (i + 0.5) * (FLOOR.x1 - FLOOR.x0) / ids.length; p.ty = rand(FLOOR.y0 + 20, FLOOR.y1);
+          if (reduce) { p.x = p.tx; p.y = p.ty; }
+          return p;
+        });
+      },
+      clear() { office.people = []; office.selected = null; },
+      select(id) { office.selected = id; },
+      // canvas pixel -> director id
+      pick(px, py) {
+        const hit = office.people.slice().sort((a, b) => b.y - a.y).find(p => {
+          const b = personBox(p); return px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
+        });
+        return hit ? hit.id : null;
+      },
+      size: { W, H },
+    },
     mood(m) { host.mood = m; host.nextFlip = 0; },
     celebrate() {
       host.mood = 'happy'; host.nextFlip = 0;

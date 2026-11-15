@@ -119,6 +119,23 @@ it from a "Book Online" button, or embed it on a page:
 
 Rebuild the single file after any edit: `node tools/home-pros-arcade/build-single.mjs`.
 
+## The back office (Staff Only door)
+
+Behind Hank's counter is a door marked STAFF ONLY. Click it, enter the owner password,
+and you are in the boardroom with your board of directors: Grace (General Manager),
+Penny (Accounting), Max (Marketing), Eddie (Email Manager) and Rosa (Customer Service).
+They walk around the room. Each has four views (facing you, left, right, walking
+away), and they face the way they move. Click one, or pick a name, to see what they
+handle. They are not connected to real data yet. That comes once ServiceMonster and
+email are hooked up.
+
+- Names, titles, lines and duties are in `js/config.js` under `owner` and `directors`.
+- Character art is `img/dir-<id>.webp`: four 220x440 frames side by side.
+- Login: the booking server checks `OWNER_PASSWORD` and hands back a signed pass
+  (`SESSION_SECRET`) that lasts 12 hours. Set both with `wrangler secret put`. In demo
+  mode any password opens the door, and the page says so. The password is never in
+  the page itself.
+
 ## Changing the art
 
 All five pictures are in `img/`. You can swap any of them for another image the same
