@@ -3,8 +3,9 @@
    The game runs in the customer's browser, so it can never hold the
    ServiceMonster API key. This small server does, and does three things:
 
-     GET  /api/availability?services=furnace,dryer&answers=...   open times
-     POST /api/book                                             book a job
+     GET  /api/availability?answers=...   open times for a job this size
+     GET  /api/travel?q=town or address   travel fee
+     POST /api/book                       book a job
      GET  /api/health                                           config check
 
    It recomputes the price and re-checks the time slot itself; nothing the
@@ -21,12 +22,14 @@
      LEAD_SOURCE      lead source name shown in ServiceMonster                */
 
 import '../../js/config.js';
+import '../../js/travel.js';
 import '../../js/pricing.js';
 import '../../js/schedule.js';
 
 const CFG = globalThis.HP_CONFIG;
 const { quote, money } = globalThis.HP_PRICING;
 const SCHED = globalThis.HP_SCHEDULE;
+const TRAVEL = globalThis.HP_TRAVEL;
 const SM = 'https://api.servicemonster.net/v1';
 
 export default {
@@ -37,6 +40,7 @@ export default {
     try {
       if (url.pathname === '/api/health') return json({ ok: true, configured: !!env.SM_API_TOKEN, routes: routes(env).length }, 200, cors);
       if (url.pathname === '/api/availability' && req.method === 'GET') return json(await availability(url, env), 200, cors);
+      if (url.pathname === '/api/travel' && req.method === 'GET') return json(await travelFor(clean(url.searchParams.get('q'), 150)), 200, cors);
       if (url.pathname === '/api/book' && req.method === 'POST') {
         const { status, body } = await book(req, env);
         return json(body, status, cors);
@@ -96,16 +100,39 @@ async function busyTimes(env, now) {
     .map(i => ({ routeID: i.routeID || i.RouteID, start: i.StartDateTime || i.startDateTime, end: i.EndDateTime || i.endDateTime }));
 }
 
-function readSelection(obj) {
-  const services = Array.isArray(obj.services) ? obj.services : String(obj.services || '').split(',');
-  let answers = obj.answers || {};
-  if (typeof answers === 'string') { try { answers = JSON.parse(answers); } catch { answers = {}; } }
-  return { services: services.filter(Boolean), answers };
+function readAnswers(v) {
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = {}; } }
+  return v && typeof v === 'object' ? v : {};
+}
+
+/* Travel fee for a town or address. Known towns come straight from
+   travel.js. Anything else is looked up on OpenStreetMap (Nominatim), then
+   measured the same way. If it can't be found the fee is "to be confirmed". */
+const geoCache = new Map();
+async function travelFor(text) {
+  const t = TRAVEL.estimate(text, CFG);
+  if (t.known || !text) return t;
+  const key = text.toLowerCase();
+  if (geoCache.has(key)) return geoCache.get(key);
+  try {
+    const q = new URLSearchParams({ q: `${text}, ${CFG.business.province}, ${CFG.business.country}`, format: 'json', limit: '1', countrycodes: 'ca' });
+    const res = await fetch('https://nominatim.openstreetmap.org/search?' + q, { headers: { 'User-Agent': 'HomeProsBooking/1.0', 'Accept-Language': 'en' } });
+    const hit = (await res.json())[0];
+    if (hit) {
+      const point = { lat: +hit.lat, lon: +hit.lon };
+      const near = Math.min(...CFG.travel.serviceArea.map(a => TRAVEL.km(point, a)));
+      if (near < 400) {   // a match on the other side of the country is a wrong match
+        const r = TRAVEL.fromPoint(point, text, CFG);
+        geoCache.set(key, r);
+        return r;
+      }
+    }
+  } catch (e) { console.error('geocode failed', e); }
+  return t;
 }
 
 async function availability(url, env) {
-  const sel = readSelection({ services: url.searchParams.get('services'), answers: url.searchParams.get('answers') });
-  const q = quote(sel, CFG);
+  const q = quote(readAnswers(url.searchParams.get('answers')), { known: false }, CFG);
   if (!q.valid) return { error: 'bad_selection', details: q.errors };
   const now = SCHED.localNow(CFG.business.timeZone);
   const busy = await busyTimes(env, now);
@@ -121,9 +148,8 @@ async function book(req, env) {
   try { body = await req.json(); } catch { return { status: 400, body: { error: 'bad_json' } }; }
   if (body.website) return { status: 200, body: { ok: true } }; // honeypot: bots fill hidden fields
 
-  const sel = readSelection(body);
-  const q = quote(sel, CFG);
-  if (!q.valid) return { status: 400, body: { error: 'bad_selection', details: q.errors } };
+  const answers = readAnswers(body.answers);
+  if (!quote(answers, { known: false }, CFG).valid) return { status: 400, body: { error: 'bad_selection' } };
 
   const c = body.customer || {};
   const customer = {
@@ -137,6 +163,10 @@ async function book(req, env) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) return { status: 400, body: { error: 'bad_email' } };
   if (customer.phone.replace(/\D/g, '').length < 10) return { status: 400, body: { error: 'bad_phone' } };
 
+  // priced from the town on the booking form, never from the browser's number
+  const travel = await travelFor(customer.city);
+  const q = quote(answers, travel, CFG);
+
   const start = clean(body.start, 19);
   const now = SCHED.localNow(CFG.business.timeZone);
   const busy = await busyTimes(env, now);
@@ -146,7 +176,8 @@ async function book(req, env) {
   const note = [
     `BOOKED ONLINE (Arcade Storefront)`,
     `Quoted flat rate: ${money(q.subtotal)} + ${CFG.tax.label} ${money(q.tax)} = ${money(q.total)}`,
-    ...q.lines.map(l => `- ${l.label} ${money(l.amount)}: ${l.parts.map(p => `${p.tag}: ${p.label}`).join('; ')}`),
+    ...q.lines.map(l => `- ${l.label}: ${money(l.amount)}${l.detail ? ' (' + l.detail + ')' : ''}`),
+    q.travelPending ? 'TRAVEL FEE TO CONFIRM: address not found, call the customer before the visit.' : '',
     customer.notes ? `Customer notes: ${customer.notes}` : '',
   ].filter(Boolean).join('\n');
 
@@ -167,7 +198,7 @@ async function book(req, env) {
       note: note.slice(0, 4000),
       source: 'Arcade Storefront',
       leadSourceName: env.LEAD_SOURCE || 'Website - Arcade Storefront',
-      services: q.lines.map(l => l.label).join(', ').slice(0, 256),
+      services: q.lines.filter(l => l.amount > 0).map(l => l.label).join(', ').slice(0, 256),
       duration: q.hours,
       routeID: slot.routeID,
       selectedTime: slot.start,
@@ -181,7 +212,7 @@ async function book(req, env) {
   try { managerEmailed = await notifyManager(env, { customer, q, when, note, reference }); }
   catch (e) { console.error('manager email failed', e); }
 
-  return { status: 200, body: { ok: true, reference: String(reference), when, total: q.total, managerEmailed } };
+  return { status: 200, body: { ok: true, reference: String(reference), when, total: q.total, travelPending: q.travelPending, managerEmailed } };
 }
 
 function describeSlot(slot) {

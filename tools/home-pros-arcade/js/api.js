@@ -35,12 +35,17 @@
     async availability(selection) {
       if (demo) {
         await wait(700);
-        const q = HP_PRICING.quote(selection);
+        const q = HP_PRICING.quote(selection.answers, { known: false });
         const now = HP_SCHEDULE.localNow(cfg.business.timeZone);
         return { days: HP_SCHEDULE.availability({ cfg, now, busy: demoBusy(now), routes: ['demo'], hours: q.hours }) };
       }
-      const qs = new URLSearchParams({ services: selection.services.join(','), answers: JSON.stringify(selection.answers) });
+      const qs = new URLSearchParams({ answers: JSON.stringify(selection.answers) });
       return call('/api/availability?' + qs);
+    },
+    // Travel fee for a town or address. Demo mode only knows the towns in travel.js.
+    async travel(q) {
+      if (demo) { await wait(500); return HP_TRAVEL.estimate(q); }
+      return call('/api/travel?' + new URLSearchParams({ q }));
     },
     async book(payload) {
       if (demo) { await wait(1600); return { ok: true, demo: true, reference: 'DEMO-' + Math.floor(Math.random() * 9000 + 1000) }; }

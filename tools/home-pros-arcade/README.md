@@ -27,20 +27,30 @@ worker/               the booking server (Cloudflare Worker) that holds the API 
 build-single.mjs      builds dist/home-pros-arcade.html, a one-file copy
 ```
 
-## 1. Set your prices
+## 1. Prices, questions and travel
 
-Open `js/config.js`. **Every price in it is a sample.** Change:
+Everything is in `js/config.js`, under `prices`, `travel` and `lines`.
 
-- `menuBoard`: what's painted on the wall.
-- `services.furnace.questions` / `services.dryer.questions`: the calculator. Each
-  answer has a `price` (and optional `hours`, which adds job time on the schedule).
-  The first question's answer is the base price; later answers are add-ons.
-- `bundle.dryerWithFurnace`: the dryer vent price when booked with a duct clean.
-- `business.phone`: shows a "Call us" button when something goes wrong.
-- `schedule`: work days, arrival windows, how far ahead, minimum notice.
+**Prices (before GST):** first furnace $345 (furnace, all ducting, every supply and
+return register), each additional furnace $150, each air conditioner $60, a zone
+system $60, and a dryer vent $60 (side wall only, added to a furnace cleaning).
 
-The game and the server both read this file, so the server always books the price
-the customer saw.
+**What Hank asks, in order:**
+1. Where's the house? (the 7 service-area towns, or "Somewhere else", where they type a town or address)
+2. Do you have just one furnace? If no: how many in total?
+3. Do you have air conditioning? If yes and more than one furnace: how many air conditioners?
+4. Do you have a zone system? ("What's a zone system?" gets: one furnace but more than one thermostat?)
+5. Want the dryer vent cleaned too? If yes: side of the house or roof? Roof means no
+   dryer vent: we don't go on roofs.
+
+**Travel:** free in Edmonton, St. Albert, Sherwood Park, Spruce Grove, Stony Plain,
+Leduc and Fort Saskatchewan. Anywhere else is measured from the edge of the nearest of
+those towns, round trip, with roads taken as 1.25x the straight-line distance. The
+first 30 km are free and every km after that is $1.50. `js/travel.js` knows about 40
+nearby towns. For any other address the booking server looks it up on OpenStreetMap.
+If it can't be found, the quote says "travel to be confirmed" and the job note tells
+you to call the customer. The server prices travel from the town on the booking form,
+so changing the town there updates the price before they pick a time.
 
 ## 2. Play it in demo mode
 

@@ -83,6 +83,7 @@ button { font: inherit; color: inherit; }
 .board .note { grid-column: 1 / -1; font-size: 1.22cqw; color: var(--dim); }
 .board li.on { background: rgba(255, 201, 60, .18); box-shadow: inset 0 0 0 1px var(--edge); }
 .board li.on .n::before { content: '\25B6  '; color: var(--edge); }
+.board-title small { font-size: .7em; color: var(--dim); text-shadow: none; }
 .board-foot { font-size: 1.15cqw; text-align: center; color: var(--dim); }
 
 .register {

@@ -9,9 +9,8 @@
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const state = {
-    services: [], answers: { furnace: {}, dryer: {} },
-    customer: { city: cfg.business.defaultCity || '' },
-    days: null, day: null, slot: null, qIndex: 0,
+    answers: {}, wantDryer: false, location: '', travel: null, history: [],
+    customer: {}, days: null, day: null, slot: null,
   };
   let run = 0, typing = null, current = [];
 
@@ -26,7 +25,7 @@
 
   function renderBoard() {
     $('boardList').innerHTML = cfg.menuBoard.map(m =>
-      `<li data-k="${esc(m.highlight || '')}"><span class="n">${esc(m.name)}</span><span class="p">${money(m.from)}</span><span class="note">${esc(m.note || '')}</span></li>`).join('');
+      `<li data-k="${esc(m.key)}"><span class="n">${esc(m.name)}</span><span class="p">${m.plus ? '+' : ''}${money(cfg.prices[m.key])}</span>${m.note ? `<span class="note">${esc(m.note)}</span>` : ''}</li>`).join('');
   }
   function highlight(keys) {
     document.querySelectorAll('#boardList li').forEach(li => li.classList.toggle('on', keys.includes(li.dataset.k)));
@@ -115,8 +114,8 @@
     cashAnim = requestAnimationFrame(step);
     if (to !== from) { const c = $('cash'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
-  const selection = () => ({ services: state.services, answers: state.answers });
-  const running = () => P.quote(selection());
+  const selection = () => ({ answers: state.answers, location: state.customer.city || state.location });
+  const running = () => P.quote(state.answers, state.travel);
 
   function syncMute() {
     const b = $('muteBtn');
@@ -148,87 +147,196 @@
   }
 
   /* ----------------------------------------------------------- the shop */
+  const STEPS = ['town', 'oneFurnace', 'furnaceCount', 'ac', 'acCount', 'zone', 'dryer', 'dryerWhere'];
+  const BOARD_KEYS = {
+    oneFurnace: ['base', 'extraFurnace'], furnaceCount: ['base', 'extraFurnace'],
+    ac: ['airConditioner'], acCount: ['airConditioner'], zone: ['zone'], dryer: ['dryerVent'], dryerWhere: ['dryerVent'],
+  };
+  const pr = cfg.prices;
+
+  function applies(id) {
+    const a = state.answers;
+    if (id === 'furnaceCount') return a.furnaces !== 1;
+    if (id === 'acCount') return a.ac === true && a.furnaces > 1;
+    if (id === 'dryerWhere') return state.wantDryer === true;
+    return true;
+  }
+  function next(from, prefix) {
+    for (let i = STEPS.indexOf(from) + 1; i < STEPS.length; i++) if (applies(STEPS[i])) return ask(STEPS[i], prefix);
+    showQuote();
+  }
+  function back() {
+    state.history.pop();
+    const prev = state.history.pop();
+    prev ? ask(prev) : greet(true);
+  }
+  const backChoice = () => ({ label: state.history.length > 1 ? 'Back a step' : 'Back', kind: 'ghost', sound: 'back', isBack: true, onPick: back });
+  function answered(step, prefix) {
+    A.register();
+    setCash(running().subtotal);
+    next(step, prefix);
+  }
+
   async function greet(again) {
     const id = clear();
     S.mood('idle'); highlight([]);
-    state.services = []; state.answers = { furnace: {}, dryer: {} }; state.slot = null; state.days = null;
+    Object.assign(state, { answers: {}, wantDryer: false, travel: null, location: '', history: [], slot: null, days: null });
     setCash(0);
-    await sayAll(again ? ['Okay, from the top. What are we cleaning?'] : cfg.lines.greet);
+    await sayAll(again ? ['Okay, from the top.'] : cfg.lines.greet);
     if (id !== run) return;
-    serviceChoices();
-  }
-
-  function serviceChoices(withBrowse = true) {
-    const f = cfg.services.furnace, d = cfg.services.dryer;
-    const fromF = Math.min(...f.questions[0].options.map(o => o.price || 0)) + (f.base || 0);
-    const fromD = Math.min(...d.questions[0].options.map(o => o.price || 0)) + (d.base || 0);
-    const list = [
-      { label: f.label, amt: 'from ' + money(fromF), onPick: () => startQuestions(['furnace']) },
-      { label: d.label, amt: 'from ' + money(fromD), onPick: () => startQuestions(['dryer']) },
-      { label: 'Both, and save on the dryer vent', amt: 'dryer ' + money(cfg.bundle.dryerWithFurnace), kind: 'primary', onPick: () => startQuestions(['furnace', 'dryer']) },
-    ];
-    if (withBrowse) list.push({ label: 'Just looking at prices', kind: 'ghost', onPick: browse });
-    choices(list);
+    choices([
+      { label: 'Get my flat-rate price', amt: 'from ' + money(pr.base), kind: 'primary', onPick: () => ask('town') },
+      { label: 'Just looking at prices', kind: 'ghost', onPick: browse },
+    ]);
   }
 
   async function browse() {
     const id = clear();
-    highlight(cfg.menuBoard.map(m => m.highlight));
+    highlight(cfg.menuBoard.map(m => m.key));
     await say(cfg.lines.browse);
     if (id !== run) return;
-    serviceChoices(false);
-    current.push({ label: 'Maybe later', kind: 'ghost', onPick: decline });
-    choices(current);
+    choices([
+      { label: 'Get my flat-rate price', kind: 'primary', onPick: () => ask('town') },
+      { label: 'Maybe later', kind: 'ghost', onPick: decline },
+    ]);
   }
 
-  function questionQueue() {
-    const q = [];
-    for (const s of ['furnace', 'dryer']) if (state.services.includes(s)) cfg.services[s].questions.forEach((x, i) => q.push({ service: s, q: x, i }));
-    return q;
+  function travelLine(t) {
+    if (!t.known) return cfg.lines.unknownTown;
+    if (!t.fee) return cfg.lines.inArea;
+    return cfg.lines.outArea.replace('{km}', t.billableKm + cfg.travel.includedKm).replace('{included}', cfg.travel.includedKm + ' km').replace('{fee}', money(t.fee));
   }
 
-  function startQuestions(services) {
-    state.services = services;
-    highlight(services);
-    ask(0);
-  }
-
-  async function ask(n) {
-    const queue = questionQueue();
-    if (n >= queue.length) return showQuote();
-    state.qIndex = n;
-    const { service, q, i } = queue[n];
+  async function ask(step, prefix) {
     const id = clear();
-    highlight([...state.services, q.id]);
-    const both = state.services.length > 1;
-    const intro = n === 0 || (i === 0 && both) ? (service === 'dryer' && both ? 'Now the dryer vent. ' : '') : '';
-    await say(intro + q.say);
+    if (state.history[state.history.length - 1] !== step) state.history.push(step);
+    highlight(BOARD_KEYS[step] || []);
+    const a = state.answers;
+    const L = cfg.lines;
+    const line = (prefix ? prefix + ' ' : '') + (L[step] || '');
+    let list;
+
+    if (step === 'town') {
+      list = cfg.travel.serviceArea.map(t => ({
+        label: t.name, kind: state.location === t.name ? 'primary' : '', sound: 'none',
+        onPick: () => { state.location = t.name; state.travel = HP_TRAVEL.estimate(t.name); answered('town', L.inArea); },
+      }));
+      list.push({ label: 'Somewhere else', kind: 'ghost', onPick: otherTown });
+    } else if (step === 'oneFurnace') {
+      list = [
+        { label: 'Yes, just one', sound: 'none', kind: a.furnaces === 1 ? 'primary' : '', onPick: () => { a.furnaces = 1; delete a.acCount; answered(step); } },
+        { label: 'No, more than one', sound: 'none', kind: a.furnaces > 1 ? 'primary' : '', onPick: () => { if (!(a.furnaces > 1)) a.furnaces = 2; answered(step); } },
+      ];
+    } else if (step === 'furnaceCount') {
+      list = [];
+      for (let n = 2; n <= cfg.maxFurnaces; n++) list.push({
+        label: n + ' furnaces', amt: '+' + money((n - 1) * pr.extraFurnace), sound: 'none', kind: a.furnaces === n ? 'primary' : '',
+        onPick: () => { a.furnaces = n; if (a.acCount > n) a.acCount = n; answered(step); },
+      });
+      list.push({ label: 'More than ' + cfg.maxFurnaces, kind: 'ghost', onPick: tooMany });
+    } else if (step === 'ac') {
+      list = [
+        { label: 'Yes', amt: a.furnaces === 1 ? '+' + money(pr.airConditioner) : '', sound: 'none', kind: a.ac === true ? 'primary' : '', onPick: () => { a.ac = true; answered(step); } },
+        { label: 'No', sound: 'none', kind: a.ac === false ? 'primary' : '', onPick: () => { a.ac = false; delete a.acCount; answered(step); } },
+      ];
+    } else if (step === 'acCount') {
+      list = [];
+      for (let n = 1; n <= a.furnaces; n++) list.push({
+        label: n === 1 ? 'Just one' : n + ' air conditioners', amt: '+' + money(n * pr.airConditioner), sound: 'none', kind: a.acCount === n ? 'primary' : '',
+        onPick: () => { a.acCount = n; answered(step); },
+      });
+    } else if (step === 'zone') {
+      list = zoneChoices();
+      list.push({ label: "What's a zone system?", kind: 'ghost', onPick: explainZone });
+    } else if (step === 'dryer') {
+      list = [
+        { label: 'Yes, add the dryer vent', amt: '+' + money(pr.dryerVent), sound: 'none', kind: state.wantDryer ? 'primary' : '', onPick: () => { state.wantDryer = true; a.dryer = 'side'; answered(step); } },
+        { label: 'No thanks', sound: 'none', kind: a.dryer === 'no' ? 'primary' : '', onPick: () => { state.wantDryer = false; a.dryer = 'no'; answered(step); } },
+      ];
+    } else if (step === 'dryerWhere') {
+      list = [
+        { label: 'Side of the house', amt: '+' + money(pr.dryerVent), sound: 'none', kind: a.dryer === 'side' ? 'primary' : '', onPick: () => { a.dryer = 'side'; answered(step); } },
+        { label: 'Roof of the house', sound: 'none', kind: a.dryer === 'roof' ? 'primary' : '', onPick: roofVent },
+      ];
+    }
+    list.push(backChoice());
+    await say(line);
     if (id !== run) return;
-    const cheapest = Math.min(...q.options.map(o => o.price || 0));
-    const list = q.options.map(o => {
-      let price = o.price || 0;
-      if (both && service === 'dryer' && i === 0) price = cfg.bundle.dryerWithFurnace + (price - cheapest);
-      const amt = i === 0 ? money(price + (cfg.services[service].base || 0)) : price ? '+' + money(price) : '';
-      return {
-        label: o.label, amt,
-        kind: state.answers[service][q.id] === o.id ? 'primary' : '',
-        sound: 'none',
-        onPick: () => {
-          state.answers[service][q.id] = o.id;
-          A.register();
-          setCash(running().subtotal);
-          ask(n + 1);
-        },
-      };
-    });
-    list.push({ label: n === 0 ? 'Back' : 'Back a step', kind: 'ghost', sound: 'back', isBack: true, onPick: () => n === 0 ? greet(true) : ask(n - 1) });
     choices(list);
+  }
+
+  function zoneChoices() {
+    const a = state.answers;
+    return [
+      { label: 'Yes', amt: '+' + money(pr.zone), sound: 'none', kind: a.zone === true ? 'primary' : '', onPick: () => { a.zone = true; answered('zone'); } },
+      { label: 'No', sound: 'none', kind: a.zone === false ? 'primary' : '', onPick: () => { a.zone = false; answered('zone'); } },
+    ];
+  }
+  async function explainZone() {
+    const id = clear();
+    highlight(['zone']);
+    await say(cfg.lines.zoneExplain);
+    if (id !== run) return;
+    const list = zoneChoices();
+    list[0].label = 'Yes, more than one thermostat';
+    list[1].label = 'No, just one thermostat';
+    list.push({ label: 'Back', kind: 'ghost', sound: 'back', isBack: true, onPick: () => ask('zone') });
+    choices(list);
+  }
+
+  async function roofVent() {
+    const id = clear();
+    state.answers.dryer = 'roof';
+    setCash(running().subtotal);
+    A.error();
+    await say(cfg.lines.roof);
+    if (id !== run) return;
+    choices([
+      { label: 'Okay, show me my price', kind: 'primary', onPick: showQuote },
+      { label: 'Back a step', kind: 'ghost', sound: 'back', isBack: true, onPick: () => ask('dryerWhere') },
+    ]);
+  }
+
+  async function tooMany() {
+    const id = clear();
+    await say(cfg.lines.tooMany);
+    if (id !== run) return;
+    choices(contactChoices());
+  }
+
+  async function otherTown() {
+    const id = clear();
+    if (state.history[state.history.length - 1] !== 'town') state.history.push('town');
+    const form = el('form', 'form');
+    form.innerHTML = `<label class="full">Town or full address<input name="q" autocomplete="street-address" maxlength="150" placeholder="e.g. Beaumont, or 12 Main St, Morinville"><span class="err"></span></label>`;
+    $('panel').appendChild(form);
+    const input = form.elements.q;
+    if (state.location && !cfg.travel.serviceArea.some(t => t.name === state.location)) input.value = state.location;
+    const check = async () => {
+      const q = input.value.trim();
+      if (q.length < 3) { A.error(); form.querySelector('.err').textContent = 'Type a town or address'; input.focus(); return; }
+      const myRun = clear();
+      $('panel').innerHTML = '<div class="loading">Checking the map</div>';
+      let t;
+      try { t = await api.travel(q); } catch (e) { t = { known: false, place: q, fee: 0, km: 0, billableKm: 0 }; }
+      if (myRun !== run) return;
+      state.location = q; state.travel = t;
+      answered('town', travelLine(t));
+    };
+    form.addEventListener('submit', e => { e.preventDefault(); check(); });
+    await say(cfg.lines.townOther);
+    if (id !== run) return;
+    choices([
+      { label: 'Check my travel', kind: 'primary', onPick: check },
+      { label: 'Back', kind: 'ghost', sound: 'back', isBack: true, onPick: () => ask('town') },
+    ], false);
+    if (matchMedia('(pointer: fine)').matches) input.focus();
   }
 
   function receipt(q, extra = '', title = 'HOME PROS QUOTE') {
     const rows = q.lines.map(l => `
-      <div class="row"><span>${esc(l.label)}</span><span>${money(l.amount)}</span></div>
-      ${l.parts.map(p => `<div class="row sub"><span>${esc(p.tag)}: ${esc(p.label)}</span><span>${p.price ? money(p.price) : ''}</span></div>`).join('')}`).join('');
+      <div class="row"><span>${esc(l.label)}</span><span>${l.amount || l.key === 'base' ? money(l.amount) : '-'}</span></div>
+      ${l.detail ? `<div class="row sub"><span>${esc(l.detail)}</span></div>` : ''}`).join('');
     return `<div class="receipt"><h3>${esc(title)}</h3>${rows}<hr>
       <div class="row"><span>Subtotal</span><span>${money(q.subtotal)}</span></div>
       <div class="row"><span>${esc(cfg.tax.label)} ${Math.round(cfg.tax.rate * 100)}%</span><span>${money(q.tax)}</span></div>
@@ -238,6 +346,7 @@
   async function showQuote() {
     const id = clear();
     const q = running();
+    highlight(q.lines.map(l => l.key));
     setCash(q.total);
     A.register();
     $('panel').innerHTML = receipt(q, '<div class="stamp">FLAT RATE &middot; NO SURPRISES</div>');
@@ -245,8 +354,7 @@
     if (id !== run) return;
     choices([
       { label: 'Book it!', kind: 'primary', onPick: details },
-      { label: 'Change my answers', onPick: () => ask(0), sound: 'back' },
-      { label: 'Add the other service', disabled: state.services.length > 1, onPick: () => { const add = state.services.includes('furnace') ? 'dryer' : 'furnace'; state.services = ['furnace', 'dryer'].filter(s => s === add || state.services.includes(s)); highlight(state.services); ask(questionQueue().findIndex(x => x.service === add)); } },
+      { label: 'Change my answers', sound: 'back', onPick: () => { state.history = []; ask('town'); } },
       { label: 'Not today', kind: 'ghost', sound: 'back', onPick: decline },
     ]);
   }
@@ -282,6 +390,7 @@
         <span class="err"></span></label>`).join('') +
       `<div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>`;
     for (const f of FIELDS) form.elements[f.k].value = state.customer[f.k] || '';
+    if (!state.customer.city && state.travel && state.travel.known) form.elements.city.value = state.travel.place;
     $('panel').appendChild(form);
     const submit = () => {
       const c = {};
@@ -294,7 +403,7 @@
         l.classList.toggle('bad', !!msg); l.querySelector('.err').textContent = msg;
       });
       if (Object.keys(errs).length) { A.error(); form.querySelector('.bad input, .bad textarea').focus(); return; }
-      calendar();
+      recheckTravel();
     };
     form.addEventListener('submit', e => { e.preventDefault(); submit(); });
     form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submit(); } });
@@ -305,6 +414,32 @@
       { label: 'Back to my quote', kind: 'ghost', sound: 'back', isBack: true, onPick: showQuote },
     ], false);
     if (matchMedia('(pointer: fine)').matches) form.elements.firstName.focus();
+  }
+
+  // The booking is priced from the address on the form, so if the town there
+  // is not the one we quoted, look the travel up again before going on.
+  async function recheckTravel() {
+    const city = state.customer.city;
+    const before = state.travel;
+    const same = before && HP_TRAVEL.findTown(city) && before.known && HP_TRAVEL.findTown(city).name === before.place;
+    if (same) return calendar();
+    const id = clear();
+    $('panel').innerHTML = '<div class="loading">Checking the map</div>';
+    let t;
+    try { t = await api.travel(city); } catch (e) { t = { known: false, place: city, fee: 0, km: 0, billableKm: 0 }; }
+    if (id !== run) return;
+    state.travel = t; state.location = city;
+    if (before && t.fee === before.fee && t.known === before.known) return calendar();
+    const q = running();
+    setCash(q.total);
+    $('panel').innerHTML = receipt(q);
+    const msg = !t.known ? cfg.lines.unknownTown : (t.fee ? cfg.lines.travelChanged : cfg.lines.travelFree);
+    await say(msg.replace('{fee}', money(t.fee)).replace('{total}', money(q.total)));
+    if (id !== run) return;
+    choices([
+      { label: 'Sounds good, pick a time', kind: 'primary', onPick: () => calendar(true) },
+      { label: 'Back to my details', kind: 'ghost', sound: 'back', isBack: true, onPick: details },
+    ]);
   }
 
   /* ------------------------------------------------------------ calendar */
@@ -399,7 +534,7 @@
     $('panel').innerHTML = '<div class="loading">Booking</div>';
     const { website, ...customer } = state.customer;
     try {
-      const res = await api.book({ ...selection(), customer, start: state.slot.start, website });
+      const res = await api.book({ answers: state.answers, customer, start: state.slot.start, website });
       if (id !== run) return;
       booked(res);
     } catch (err) {
