@@ -16,9 +16,9 @@
   let run = 0, typing = null, current = [];
 
   /* ---------------------------------------------------------------- setup */
-  S.init($('scene'));
+  $('startBtn').disabled = true;
+  S.init($('scene')).then(() => { $('startBtn').disabled = false; $('startLabel').innerHTML = '&#9654; PRESS START'; });
   $('nameplate').textContent = cfg.host.name.toUpperCase();
-  $('neonSub').textContent = '';
   $('taxLabel').textContent = cfg.tax.label;
   if (api.demo) $('demoTag').hidden = false;
   renderBoard();
@@ -91,7 +91,7 @@
 
   document.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea')) return;
-    if (!$('outside').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); enter(); return; }
+    if (!$('outside').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!$('startBtn').disabled) enter(); return; }
     if (typing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); typing(); return; }
     const n = parseInt(e.key, 10);
     if (n >= 1 && n <= current.length) { e.preventDefault(); pick(n - 1); }
@@ -109,6 +109,7 @@
       const k = Math.min(1, (now - t0) / dur);
       cashShown = from + (to - from) * k;
       $('cashNum').textContent = money(Math.round(cashShown * 100) / 100);
+      $('register').textContent = cashShown.toFixed(2);
       if (k < 1) cashAnim = requestAnimationFrame(step);
     };
     cashAnim = requestAnimationFrame(step);

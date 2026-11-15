@@ -7,8 +7,10 @@ Each answer rings the register and updates the running total. They get a flat-ra
 receipt, enter their details, pick an open time from the live calendar, and they're
 booked. ServiceMonster emails the customer, and you get an email too.
 
-Everything is drawn in code (pixel art on a canvas, chiptune sound with WebAudio).
-There are no image or sound files to manage.
+The street, the shop and Hank are pixel-art images generated with Higgsfield (`img/`).
+The code adds the moving parts on top: rain, the door opening and the camera pushing
+inside, Hank's mouth while he talks, his celebration, flickering lights and confetti.
+Sound is chiptune made in code with WebAudio, so there are no audio files.
 
 ```
 index.html            the page
@@ -16,7 +18,8 @@ css/arcade.css        the look
 js/config.js          << EDIT THIS: prices, questions, Hank's lines, hours, API address
 js/pricing.js         the flat-rate calculator (shared with the server)
 js/schedule.js        finds open time slots (shared with the server)
-js/scene.js           pixel-art street and shop
+img/                  street.webp, shop.webp, hank-idle/talk/happy.webp (Higgsfield art)
+js/scene.js           layers the art and animates it
 js/audio.js           sound effects and shop music
 js/api.js             talks to the booking server, or fakes it in demo mode
 js/app.js             the conversation flow
@@ -99,6 +102,16 @@ it from a "Book Online" button, or embed it on a page:
 ```
 
 Rebuild the single file after any edit: `node tools/home-pros-arcade/build-single.mjs`.
+
+## Changing the art
+
+All five pictures are in `img/`. You can swap any of them for another image the same
+size: 1344x752 for the street and shop, square with a transparent background for
+Hank. If the new shop picture moves the menu board, counter or register, adjust the
+positions at the top of `js/scene.js` (`DOOR`, `HANK`, `COUNTER_TOP`) and the
+`.board`, `.register` and `.counter-text` boxes in `css/arcade.css`. The talking
+frame is the idle picture with only the mouth swapped in, so Hank's head doesn't
+jump when he talks. Keep that if you regenerate him.
 
 ## Accessibility and phones
 

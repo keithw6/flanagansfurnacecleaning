@@ -19,11 +19,8 @@
 
     <!-- outside -->
     <div class="layer outside" id="outside">
-      <div class="neon" id="neon">HOME&nbsp;PROS</div>
-      <div class="neon-sub" id="neonSub"></div>
-      <div class="van-text">HOME PROS</div>
       <button class="press-start" id="startBtn" type="button">
-        <span class="blink">&#9654; PRESS START</span>
+        <span class="blink" id="startLabel">LOADING...</span>
         <small>tap or press Enter to walk in</small>
       </button>
     </div>
@@ -35,8 +32,8 @@
         <ul id="boardList"></ul>
         <div class="board-foot">FLAT RATE &middot; + <span id="taxLabel">GST</span></div>
       </div>
-      <div class="banner">NO SURPRISES</div>
-      <div class="counter-text">HOME PROS</div>
+      <div class="register" id="register" aria-hidden="true">0.00</div>
+      <div class="counter-text">HOME PROS &middot; FLAT RATE</div>
     </div>
 
     <!-- HUD -->
