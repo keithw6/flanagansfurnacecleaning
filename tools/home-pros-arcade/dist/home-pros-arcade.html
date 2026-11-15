@@ -1147,11 +1147,46 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
     const sheet = img['dir-' + p.id];
     if (!sheet) return;
     const b = personBox(p);
-    const bob = p.walking ? -Math.abs(Math.sin(t * 10 + p.phase)) * 3 : 0;
     ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(p.x * SX, p.y * SY - 1, b.w * 0.4, b.w * 0.14, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.drawImage(sheet, p.dir * FW, 0, FW, FH, b.x, b.y + bob, b.w, b.h);
+    const sx0 = p.dir * FW;
+    if (!p.walking || reduce) { ctx.drawImage(sheet, sx0, 0, FW, FH, b.x, b.y, b.w, b.h); return; }
+
+    // Walking: the sprite is one still frame, so the legs are animated here.
+    // Upper body and legs are drawn separately; the legs swing or lift on
+    // every step, and the body bobs up on each footfall.
+    const step = Math.sin(t * 11 + p.phase);              // -1..1, one stride per cycle
+    const bob = -Math.abs(step) * b.h * 0.05;
+    const HIP = 0.54, hipSrc = FH * HIP, hipY = b.y + b.h * HIP;
+    const legH = b.h * (1 - HIP), half = FW / 2;
+    // upper body (overlaps the hip a little so there is no seam)
+    ctx.drawImage(sheet, sx0, 0, FW, hipSrc + 4, b.x, b.y + bob, b.w, b.h * HIP + 4 * b.h / FH);
+
+    if (p.dir === 1 || p.dir === 2) {
+      // side view: two copies of the legs swinging opposite ways like scissors,
+      // the far leg darker
+      const swing = step * 0.55;                           // horizontal shear: foot travel per unit height
+      const leg = (k, dark) => {
+        ctx.save();
+        if (dark) ctx.filter = 'brightness(0.55)';
+        ctx.translate(p.x * SX, hipY + bob);
+        ctx.transform(1, 0, k, 1, 0, 0);
+        ctx.drawImage(sheet, sx0, hipSrc, FW, FH - hipSrc, -b.w / 2, 0, b.w, legH - bob);
+        ctx.restore();
+      };
+      leg(-swing, true);
+      leg(swing, false);
+    } else {
+      // facing you or walking away: knees come up one at a time
+      const lift = b.h * 0.12;
+      const up = side => Math.max(0, side * step) * lift;  // how far this leg is raised
+      for (const side of [-1, 1]) {
+        const srcX = sx0 + (side < 0 ? 0 : half), dx = side < 0 ? b.x : b.x + b.w / 2;
+        const raise = up(side);
+        ctx.drawImage(sheet, srcX, hipSrc, half, FH - hipSrc, dx, hipY + bob, b.w / 2, legH - raise - bob);
+      }
+    }
   }
 
   function label(p) {
