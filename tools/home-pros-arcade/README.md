@@ -88,7 +88,7 @@ page. It lives in a small Cloudflare Worker (free tier is plenty):
   and `duration`. ServiceMonster creates the customer, the order and the scheduled
   job together. The full quote breakdown goes in the job note. `notifyClient: true`
   makes ServiceMonster email the customer.
-- **Your email:** sent through Resend (free tier) to `MANAGER_EMAIL` with the
+- **Your notification:** ServiceMonster's own new-web-lead notification tells you about each booking, the same as its web form. Optionally, the server can also send its own email to `MANAGER_EMAIL` with the
   customer's details, the time and the quote. Reply-to is the customer.
 
 ### Check these once with your real account
@@ -100,6 +100,12 @@ page. It lives in a small Cloudflare Worker (free tier is plenty):
 - If double bookings matter at your volume, keep one route per truck in `SM_ROUTE_IDS`.
   The server re-checks the slot just before booking. Two customers grabbing the same
   slot in the same second is still possible, though unlikely.
+
+### Test booking
+
+`worker/test-booking.mjs` makes one real booking the same way the server does, with
+the customer named "TEST Arcade Booking - DELETE ME". Run it without `--book` first
+to see the route and time it picked.
 
 ## 4. Put it on homeprosgroup.com
 
