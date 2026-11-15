@@ -9,9 +9,9 @@
 const HP_CONFIG = {
 
   business: {
-    name: 'Home Pros',
+    name: 'Home Pros Group',
     tagline: 'Furnace, Duct & Dryer Vent Cleaning',
-    phone: '',                 // e.g. '780-555-0123'. Leave '' to hide the call button.
+    phone: '780-932-7337',     // shown on the 'call us' buttons. '' hides them.
     website: 'https://homeprosgroup.com',
     province: 'AB',
     country: 'Canada',

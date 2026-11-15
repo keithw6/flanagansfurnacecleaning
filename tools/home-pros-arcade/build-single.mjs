@@ -9,10 +9,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const read = f => readFileSync(join(here, f), 'utf8');
 const safe = js => js.replace(/<\/script/gi, '<\\/script');
 // pictures go inside the file as data: URLs so the one file is complete
-const inlineImages = js => js.replace(/'img\/([a-z-]+)\.webp'/g, (_, name) =>
-  "'data:image/webp;base64," + readFileSync(join(here, 'img', name + '.webp')).toString('base64') + "'");
+const inlineImages = src => src.replace(/(['"])img\/([a-z-]+)\.webp\1/g, (_, q, name) =>
+  q + 'data:image/webp;base64,' + readFileSync(join(here, 'img', name + '.webp')).toString('base64') + q);
 
-let html = read('index.html');
+let html = inlineImages(read('index.html'));
 html = html.replace('<link rel="stylesheet" href="css/arcade.css">', () => '<style>\n' + read('css/arcade.css') + '\n</style>');
 html = html.replace(/<script src="js\/([a-z-]+)\.js"><\/script>/g, (_, name) => '<script>\n' + safe(inlineImages(read(`js/${name}.js`))) + '\n</script>');
 
