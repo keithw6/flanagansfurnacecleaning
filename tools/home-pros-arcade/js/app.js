@@ -787,14 +787,83 @@
     S.office.select('rosa');
     nameplate('ROSA · CUSTOMER SERVICE');
     const d = cfg.directors.find(x => x.id === 'rosa');
+    const r = await loadReport();
+    if (id !== run) return;
+    const n = inboxCount(r);
+    if (n) return csQuestions();
     $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
     await say(cfg.lines.csDesk);
     if (id !== run) return;
     csChoices();
   }
 
+  /* Rosa's open questions from her morning run. Answers go back to her
+     booking-desk session (the arcade can't change ServiceMonster itself). */
+  const answers = {};
+  const inboxCount = r => r && r.inbox ? r.inbox.warranty.length + r.inbox.drive.length + r.inbox.ready.length : 0;
+  const cash = n => "$" + Number(n).toFixed(2);
+  const t12 = s => { const [h, m] = s.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+
+  function replyText(I) {
+    const out = [];
+    for (const w of I.warranty) if (answers['w:' + w.ref]) out.push(answers['w:' + w.ref] === 'yes'
+      ? `Yes, turn the warranty call ${w.ref} at ${w.address} into a work order.` : `No work order for the warranty call ${w.ref} at ${w.address}.`);
+    const okDays = I.drive.filter(d => answers['d:' + d.date] === 'yes'), noDays = I.drive.filter(d => answers['d:' + d.date] === 'no');
+    const okBook = I.ready.filter(b => answers['b:' + b.pos.join()] === 'yes'), noBook = I.ready.filter(b => answers['b:' + b.pos.join()] === 'no');
+    if (okDays.length || okBook.length) out.push('APPROVE ' + [...okBook.map(b => `booking ${b.address} (${b.pos.join(', ')})`), ...okDays.map(d => `the driving order for ${fmtDate(d.date)}`)].join(' and ') + '.');
+    if (noBook.length) out.push('Do not book ' + noBook.map(b => b.address).join(', ') + '.');
+    if (noDays.length) out.push('Leave the times as they are on ' + noDays.map(d => fmtDate(d.date)).join(', ') + '.');
+    return out.join('\n');
+  }
+
+  function drawQuestions(r) {
+    const I = r.inbox;
+    const btns = (key, yes, no) => `<div class="qbtns"><button class="qa ${answers[key] === 'yes' ? 'on' : ''}" data-k="${esc(key)}" data-v="yes">${esc(yes)}</button><button class="qa ${answers[key] === 'no' ? 'on no' : ''}" data-k="${esc(key)}" data-v="no">${esc(no)}</button></div>`;
+    let q = 0;
+    const cards = [
+      ...I.warranty.map(w => `<div class="q"><h4>${++q}. WARRANTY CALL · TIMED</h4><p>Do you want me to turn the warranty call at <b>${esc(w.address)}</b> on <b>${esc(fmtDate(w.date))} at ${esc(t12(w.start))}</b> (${esc(w.ref)}) into a work order?</p>
+        <p class="small">Priced like the original cleaning${w.original ? ` (WO ${esc(w.original.wo)})` : ''}: ${w.lines.map(l => `${esc(l.description)} ${cash(l.price * l.qty)}`).join(' + ')} = <b>${cash(w.subtotal)} + GST (${cash(w.total)})</b>. It shows red in ServiceMonster with "WARRANTY - TIMED: arrive at ${esc(t12(w.start))} sharp".</p>
+        ${btns('w:' + w.ref, 'Yes, make the work order', 'No')}</div>`),
+      ...I.ready.map(b => `<div class="q"><h4>${++q}. NEW JAYMAN BOOKING</h4><p><b>${esc(b.address)}, ${esc(b.city)}</b> · POs ${esc(b.pos.join(', '))} · ${esc(fmtDate(b.date))} at ${esc(t12(b.slot))} · ${cash(b.total)} incl GST${b.addedKm != null ? ` · adds ${b.addedKm} km` : ''}</p>${btns('b:' + b.pos.join(), 'Approve booking', 'Don\'t book')}</div>`),
+      ...I.drive.map(d => `<div class="q"><h4>${++q}. BETTER DRIVING ORDER · ${esc(fmtDate(d.date).toUpperCase())}</h4><p>Swap the times so the closest calls are back to back. Saves about <b>${d.saveKm} km</b> (${d.currentKm} km to ${d.bestKm} km).</p>
+        <table>${d.order.map(c => `<tr><td><b>${esc(t12(c.to))}</b></td><td>${esc(c.address)}</td><td class="small">${c.from !== c.to ? 'was ' + esc(t12(c.from)) : 'stays'}</td></tr>`).join('')}</table>${btns('d:' + d.date, 'Approve', 'Leave it')}</div>`),
+    ];
+    const held = I.held.length ? `<div class="q info"><h4>HELD, NOTHING TO DO</h4><ul>${I.held.map(h => `<li><b>${esc(h.address)}</b> (${esc(h.pos.join(', '))}, ${esc(fmtDate(h.date))}): ${esc(h.why)}</li>`).join('')}</ul></div>` : '';
+    const text = replyText(I), all = cards.length && Object.keys(answers).length >= cards.length;
+    const send = `<div class="q send"><p class="small">The arcade can't change ServiceMonster itself. Your answers go to Rosa's booking desk, and she makes the changes there.</p>
+      ${text ? `<pre class="reply">${esc(text)}</pre>` : ''}
+      <button class="qa send ${text ? '' : 'dim'}" id="qsend">${all ? 'Send my answers to Rosa' : 'Send the answers I\'ve picked'}</button><span id="qsent" class="small"></span></div>`;
+    $('panel').innerHTML = `<div class="report questions"><h3>ROSA'S QUESTIONS · MORNING RUN</h3>${cards.join('')}${held}${send}<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p></div>`;
+    $('panel').querySelectorAll('button.qa[data-k]').forEach(b => b.onclick = () => { answers[b.dataset.k] = b.dataset.v; A.select(); drawQuestions(r); });
+    $('qsend').onclick = async () => {
+      if (!text) return;
+      try { await navigator.clipboard.writeText(text); } catch (e) { }
+      $('qsent').textContent = I.session ? ' Copied. Paste it into Rosa\'s booking desk, which just opened.' : ' Copied. Paste it into Rosa\'s booking desk session.';
+      if (I.session) window.open(I.session, '_blank', 'noopener');
+    };
+  }
+
+  async function csQuestions() {
+    const id = clear();
+    S.office.select('rosa');
+    nameplate('ROSA · CUSTOMER SERVICE');
+    const r = await loadReport();
+    if (id !== run) return;
+    const n = inboxCount(r);
+    if (!n) { $('panel').innerHTML = ''; await say("No questions for you today, boss. Everything from this morning is handled."); if (id === run) csChoices(); return; }
+    drawQuestions(r);
+    const I = r.inbox;
+    await say(`Morning, boss. I've got ${n} question${n === 1 ? '' : 's'} for you from this morning's run.`
+      + (I.held.length ? ` I also held ${I.held.length} order${I.held.length === 1 ? '' : 's'} that ${I.held.length === 1 ? 'was' : 'were'} already booked, so nothing to do there.` : '')
+      + ' Tap your answers, then send them to me.');
+    if (id !== run) return;
+    csChoices('q');
+  }
+
   function csChoices(current) {
+    const n = inboxCount(report);
     const list = [
+      ...(n ? [{ label: `My questions (${n})`, kind: current === 'q' ? 'primary' : '', onPick: () => csQuestions() }] : []),
       { label: 'Jayman bookings', kind: current === 'jay' ? 'primary' : '', onPick: () => csReport('jay') },
       { label: 'Booking % by route', kind: current === 'route' ? 'primary' : '', onPick: () => csReport('route') },
       { label: 'Total booking %', kind: current === 'total' ? 'primary' : '', onPick: () => csReport('total') },

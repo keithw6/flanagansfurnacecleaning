@@ -276,3 +276,20 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report tr.drive td { border-top: 0; color: var(--green); font-size: 17px; white-space: normal; }
 .report .tag.wo { background: #c98a1b; }
 .report .tag.ok { background: #2c7a25; }
+
+/* Rosa's questions */
+.questions .q { border: 2px solid #39413d; background: #151a17; padding: 10px 12px; margin: 0 0 10px; font-size: 20px; }
+.questions .q h4 { font-family: var(--pixel); font-size: 11px; color: var(--edge); margin: 0 0 6px; letter-spacing: .05em; }
+.questions .q p { margin: 0 0 6px; white-space: normal; }
+.questions .q .small, .questions .small { font-size: 17px; color: var(--dim); }
+.questions .q.info { border-style: dashed; }
+.questions .q.info ul { margin: 0; padding-left: 20px; font-size: 18px; }
+.questions .q table td { white-space: normal; }
+.questions .qbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.questions button.qa { font: inherit; font-size: 18px; background: #222826; color: #e9efe9; border: 2px solid #4a544f; padding: 6px 12px; cursor: pointer; }
+.questions button.qa:hover, .questions button.qa:focus-visible { border-color: var(--edge); outline: none; }
+.questions button.qa.on { background: var(--edge); border-color: var(--edge); color: #0c0f0d; }
+.questions button.qa.on.no { background: #7a2b26; border-color: #e2463b; color: #fff; }
+.questions button.qa.send { background: var(--edge); color: #0c0f0d; border-color: var(--edge); }
+.questions button.qa.dim { opacity: .45; cursor: default; }
+.questions pre.reply { white-space: pre-wrap; background: #0c0f0d; border: 1px solid #39413d; padding: 8px; font-size: 17px; margin: 6px 0 8px; font-family: inherit; }

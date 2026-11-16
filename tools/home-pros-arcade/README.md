@@ -148,6 +148,12 @@ boardroom at the end.
   day is 8 hours (4 calls x 2 h), so a day can show over 100%. Waterfront Pointe's
   all-day jobs push Nov 24, 25 and 27 to 200%, 150% and 125%. Those days are marked
   OVERBOOKED, and the jobs stay where they are.
+- **Rosa's questions:** when her morning run leaves questions (warranty work orders,
+  new bookings to approve, better driving orders), clicking Rosa opens them first. Tap
+  your answers and press Send: the reply is copied and her booking-desk session opens,
+  where you paste it. The arcade itself never changes ServiceMonster. Held orders are
+  listed too. Refresh with `office-snapshot.mjs --inbox=<folder with her warranty.json
+  and plan-checked.json> --session=<her session link>`.
 - The preview shows a snapshot (`js/office-data.js`, refresh with
   `tools/rosa/office-snapshot.mjs`). The live site reads ServiceMonster through the
   booking server's `/api/office/report`, which needs your owner login.
