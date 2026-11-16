@@ -15,6 +15,8 @@
   const mcpP = has ? root.claude.use('mcp').catch(() => null) : Promise.resolve(null);
   const sampleP = has ? root.claude.use('sample').catch(() => null) : Promise.resolve(null);
   const assetsP = has ? root.claude.use('assets').catch(() => null) : Promise.resolve(null);
+  const dlP = has ? root.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  const b64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
   const timeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
   const listeners = [];
   let inboxSub = null, lastInbox;
@@ -69,6 +71,39 @@
       const [report, history] = await Promise.all([read('report', 'eddie'), read('history', 'eddie')]);
       if (report === undefined && history === undefined) return undefined;
       return { report: report || null, history: history || null };
+    },
+    /* Expenses for one month ('YYYY-MM'): the doc or null; undefined when there's no database here. */
+    async expenses(month) { return read('expenses-' + month, 'penny'); },
+    /* Expenses for several months at once: {month: doc|null}. */
+    async expenseMonths(months) {
+      const docs = await Promise.all(months.map(m => read('expenses-' + m, 'penny')));
+      if (docs.every(d => d === undefined)) return undefined;
+      const out = {}; months.forEach((m, i) => { out[m] = docs[i] || null; }); return out;
+    },
+    /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
+    async reportsSent() { return read('reports', 'penny'); },
+    async markReportSent(month, info) {
+      const db = await timeout(dbP, 6000);
+      if (!db) return;
+      const ref = db.collection('penny').doc('reports'), cur = await ref.get();
+      const months = Object.assign({}, (cur.exists && cur.data().months) || {});
+      months[month] = info;
+      await ref.set({ months });
+    },
+    /* Email a PDF through Keith's Gmail connector. Resolves {ok} or {ok:false, error}. */
+    async emailPdf({ to, subject, body, filename, bytes }) {
+      const mcp = await timeout(mcpP, 6000);
+      if (!mcp) return { ok: false, error: 'unavailable' };
+      try {
+        await mcp.callTool('Gmail', 'send_message', { to: [to], subject, body, attachments: [{ filename, mimeType: 'application/pdf', content: b64(bytes) }] });
+        return { ok: true };
+      } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error', message: e && e.message }; }
+    },
+    /* Offer the PDF as a download. Resolves true when saved. */
+    async download(filename, bytes) {
+      const dl = await timeout(dlP, 6000);
+      if (dl) { try { await dl.save({ filename, data: new Blob([bytes], { type: 'application/pdf' }) }); return true; } catch (e) { return false; } }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })); a.download = filename; a.click(); return true; } catch (e) { return false; }
     },
     /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
     async receiptAbilities() {

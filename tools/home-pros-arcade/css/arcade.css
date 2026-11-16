@@ -346,3 +346,20 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .howto-close { position: sticky; top: 0; z-index: 2; display: block; margin-left: auto; font-family: var(--pixel); font-size: 12px; color: #0c0e0d; background: var(--edge); border: 0; padding: 10px 14px; cursor: pointer; }
 .howto-close:hover, .howto-close:focus-visible { background: #7fd977; outline: none; }
 .howto-box #our-process { padding-top: 24px; }
+
+/* Penny's expenses by month */
+.expmonths .yearbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.expmonths .yearbar h3 { margin: 0; }
+.expmonths button.qa { font: inherit; font-size: 16px; background: #222826; color: #e9efe9; border: 2px solid #4a544f; padding: 5px 10px; cursor: pointer; }
+.expmonths button.qa.send { background: var(--edge); color: #0c0f0d; border-color: var(--edge); margin: 4px 6px 4px 0; }
+.expmonths button.qa[disabled] { opacity: .45; cursor: default; }
+.expmonths .mchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 0 0 14px; }
+.expmonths .mchip { position: relative; display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; background: #151a17; color: #e9efe9; border: 2px solid #39413d; padding: 6px 8px; cursor: pointer; }
+.expmonths .mchip b { font-family: var(--pixel); font-size: 11px; letter-spacing: .05em; }
+.expmonths .mchip small { font-size: 14px; color: var(--dim); }
+.expmonths .mchip.on { border-color: var(--edge); background: #1b2a1d; }
+.expmonths .mchip[disabled] { opacity: .35; cursor: default; }
+.expmonths .mchip i { position: absolute; top: 3px; right: 6px; font-style: normal; color: var(--edge); }
+.expmonths .q.send { border: 2px solid #39413d; padding: 10px 12px; margin: 12px 0; }
+.expmonths td, .expmonths th { white-space: normal !important; }
+@media (max-width: 600px) { .expmonths table td:nth-child(5), .expmonths table th:nth-child(5) { display: none; } .expmonths table { font-size: 16px; } }

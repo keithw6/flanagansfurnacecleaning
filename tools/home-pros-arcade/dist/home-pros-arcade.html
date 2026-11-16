@@ -360,6 +360,23 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .howto-close:hover, .howto-close:focus-visible { background: #7fd977; outline: none; }
 .howto-box #our-process { padding-top: 24px; }
 
+/* Penny's expenses by month */
+.expmonths .yearbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.expmonths .yearbar h3 { margin: 0; }
+.expmonths button.qa { font: inherit; font-size: 16px; background: #222826; color: #e9efe9; border: 2px solid #4a544f; padding: 5px 10px; cursor: pointer; }
+.expmonths button.qa.send { background: var(--edge); color: #0c0f0d; border-color: var(--edge); margin: 4px 6px 4px 0; }
+.expmonths button.qa[disabled] { opacity: .45; cursor: default; }
+.expmonths .mchips { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin: 0 0 14px; }
+.expmonths .mchip { position: relative; display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; background: #151a17; color: #e9efe9; border: 2px solid #39413d; padding: 6px 8px; cursor: pointer; }
+.expmonths .mchip b { font-family: var(--pixel); font-size: 11px; letter-spacing: .05em; }
+.expmonths .mchip small { font-size: 14px; color: var(--dim); }
+.expmonths .mchip.on { border-color: var(--edge); background: #1b2a1d; }
+.expmonths .mchip[disabled] { opacity: .35; cursor: default; }
+.expmonths .mchip i { position: absolute; top: 3px; right: 6px; font-style: normal; color: var(--edge); }
+.expmonths .q.send { border: 2px solid #39413d; padding: 10px 12px; margin: 12px 0; }
+.expmonths td, .expmonths th { white-space: normal !important; }
+@media (max-width: 600px) { .expmonths table td:nth-child(5), .expmonths table th:nth-child(5) { display: none; } .expmonths table { font-size: 16px; } }
+
 </style>
 </head>
 <body class="street">
@@ -1221,6 +1238,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   const mcpP = has ? root.claude.use('mcp').catch(() => null) : Promise.resolve(null);
   const sampleP = has ? root.claude.use('sample').catch(() => null) : Promise.resolve(null);
   const assetsP = has ? root.claude.use('assets').catch(() => null) : Promise.resolve(null);
+  const dlP = has ? root.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  const b64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
   const timeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
   const listeners = [];
   let inboxSub = null, lastInbox;
@@ -1275,6 +1294,39 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       const [report, history] = await Promise.all([read('report', 'eddie'), read('history', 'eddie')]);
       if (report === undefined && history === undefined) return undefined;
       return { report: report || null, history: history || null };
+    },
+    /* Expenses for one month ('YYYY-MM'): the doc or null; undefined when there's no database here. */
+    async expenses(month) { return read('expenses-' + month, 'penny'); },
+    /* Expenses for several months at once: {month: doc|null}. */
+    async expenseMonths(months) {
+      const docs = await Promise.all(months.map(m => read('expenses-' + m, 'penny')));
+      if (docs.every(d => d === undefined)) return undefined;
+      const out = {}; months.forEach((m, i) => { out[m] = docs[i] || null; }); return out;
+    },
+    /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
+    async reportsSent() { return read('reports', 'penny'); },
+    async markReportSent(month, info) {
+      const db = await timeout(dbP, 6000);
+      if (!db) return;
+      const ref = db.collection('penny').doc('reports'), cur = await ref.get();
+      const months = Object.assign({}, (cur.exists && cur.data().months) || {});
+      months[month] = info;
+      await ref.set({ months });
+    },
+    /* Email a PDF through Keith's Gmail connector. Resolves {ok} or {ok:false, error}. */
+    async emailPdf({ to, subject, body, filename, bytes }) {
+      const mcp = await timeout(mcpP, 6000);
+      if (!mcp) return { ok: false, error: 'unavailable' };
+      try {
+        await mcp.callTool('Gmail', 'send_message', { to: [to], subject, body, attachments: [{ filename, mimeType: 'application/pdf', content: b64(bytes) }] });
+        return { ok: true };
+      } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error', message: e && e.message }; }
+    },
+    /* Offer the PDF as a download. Resolves true when saved. */
+    async download(filename, bytes) {
+      const dl = await timeout(dlP, 6000);
+      if (dl) { try { await dl.save({ filename, data: new Blob([bytes], { type: 'application/pdf' }) }); return true; } catch (e) { return false; } }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })); a.download = filename; a.click(); return true; } catch (e) { return false; }
     },
     /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
     async receiptAbilities() {
@@ -1448,6 +1500,180 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       })();
     },
   };
+})(window);
+
+</script>
+<script>
+/* Penny's monthly expense report as a PDF, built in the browser with no
+   libraries: Helvetica text, simple tables and the receipt photos (JPEG).
+   HP_EXPENSE_PDF.build({month, items, photos, made}) -> Promise<Uint8Array>
+     month  'YYYY-MM'
+     items  [{date, vendor, category, amount, gst, paidWith, note, photoId}]
+     photos { photoId: {bytes: Uint8Array, w, h} }   JPEG bytes and size      */
+(function (root) {
+  'use strict';
+  const W = 612, H = 792, M = 42;                       // US Letter, margins
+  const GREEN = [0.247, 0.667, 0.208], INK = [0.13, 0.13, 0.13], DIM = [0.42, 0.42, 0.42], LINE = [0.85, 0.87, 0.85];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const money = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const longDate = iso => { const [y, m, d] = iso.split('-').map(Number); return `${MONTHS[m - 1].slice(0, 3)} ${d}, ${y}`; };
+
+  // Helvetica widths (1/1000 em) for ASCII 32..126; others ~556
+  const HW = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+  const HBW = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+  const clean = s => String(s == null ? '' : s).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/…/g, '...').replace(/[^\x20-\x7e\xa0-\xff]/g, '?');
+  const width = (s, size, bold) => { let w = 0; for (const ch of clean(s)) { const c = ch.charCodeAt(0); w += (c >= 32 && c <= 126 ? (bold ? HBW : HW)[c - 32] : 556); } return w * size / 1000; };
+  const fit = (s, size, max, bold) => { s = clean(s); if (width(s, size, bold) <= max) return s; while (s.length > 1 && width(s + '...', size, bold) > max) s = s.slice(0, -1); return s + '...'; };
+  const esc = s => clean(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  const rgb = c => c.map(v => v.toFixed(3)).join(' ');
+
+  function Page() { this.ops = []; this.imgs = []; }
+  Page.prototype.text = function (x, y, s, o = {}) {
+    const size = o.size || 10, f = o.bold ? 'F2' : 'F1';
+    let tx = x; if (o.align === 'right') tx = x - width(s, size, o.bold); else if (o.align === 'center') tx = x - width(s, size, o.bold) / 2;
+    this.ops.push(`BT /${f} ${size} Tf ${rgb(o.color || INK)} rg ${tx.toFixed(2)} ${(H - y).toFixed(2)} Td (${esc(s)}) Tj ET`);
+  };
+  Page.prototype.rect = function (x, y, w, h, color) { this.ops.push(`${rgb(color)} rg ${x.toFixed(2)} ${(H - y - h).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`); };
+  Page.prototype.line = function (x1, y1, x2, y2, color, lw) { this.ops.push(`${rgb(color || LINE)} RG ${lw || 0.6} w ${x1} ${H - y1} m ${x2} ${H - y2} l S`); };
+  Page.prototype.image = function (name, x, y, w, h) { this.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${(H - y - h).toFixed(2)} cm /${name} Do Q`); this.imgs.push(name); };
+
+  function header(p, title, sub) {
+    p.rect(0, 0, W, 6, GREEN);
+    p.text(M, 40, 'HOME PROS GROUP', { size: 15, bold: true, color: GREEN });
+    p.text(M, 54, 'Furnace, Duct & Dryer Vent Cleaning  |  53 Umbach Rd, Stony Plain, AB  |  780-932-7337', { size: 8, color: DIM });
+    p.text(W - M, 40, title, { size: 13, bold: true, align: 'right' });
+    p.text(W - M, 54, sub, { size: 8, color: DIM, align: 'right' });
+    p.line(M, 64, W - M, 64, GREEN, 1.2);
+  }
+
+  async function build({ month, items, photos, made }) {
+    const [y, m] = month.split('-').map(Number);
+    const title = `Expense report: ${MONTHS[m - 1]} ${y}`;
+    const sub = `Prepared by Penny (Accounts), ${made}`;
+    items = items.slice().sort((a, b) => (a.date + a.vendor).localeCompare(b.date + b.vendor));
+    const pages = [];
+    let p = new Page(); pages.push(p); header(p, title, sub);
+    const tot = items.reduce((s, x) => s + Number(x.amount || 0), 0), gst = items.reduce((s, x) => s + Number(x.gst || 0), 0);
+    const meals = items.filter(x => /meal/i.test(x.category || '')).reduce((s, x) => s + Number(x.amount || 0), 0);
+
+    // summary boxes
+    let yy = 82;
+    const box = (x, w, label, val) => { p.rect(x, yy, w, 44, [0.95, 0.97, 0.95]); p.text(x + 10, yy + 16, label, { size: 8, color: DIM }); p.text(x + 10, yy + 35, val, { size: 14, bold: true }); };
+    const bw = (W - 2 * M - 24) / 4;
+    box(M, bw, 'Receipts', String(items.length));
+    box(M + bw + 8, bw, 'Total paid (incl. GST)', money(tot));
+    box(M + 2 * (bw + 8), bw, 'GST paid (ITCs)', money(gst));
+    box(M + 3 * (bw + 8), bw, 'Before GST', money(tot - gst));
+    yy += 66;
+
+    // by category
+    p.text(M, yy, 'BY CATEGORY', { size: 9, bold: true, color: GREEN }); yy += 14;
+    const cats = {};
+    for (const x of items) { const c = x.category || 'Other'; cats[c] = cats[c] || { n: 0, a: 0, g: 0 }; cats[c].n++; cats[c].a += Number(x.amount || 0); cats[c].g += Number(x.gst || 0); }
+    const cx = [M, M + 300, M + 380, W - M];
+    p.text(cx[0], yy, 'Category', { size: 8, color: DIM }); p.text(cx[1], yy, 'Receipts', { size: 8, color: DIM, align: 'right' });
+    p.text(cx[2] + 60, yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(cx[3], yy, 'Total', { size: 8, color: DIM, align: 'right' }); yy += 5; p.line(M, yy, W - M, yy);
+    for (const [c, v] of Object.entries(cats).sort((a, b) => b[1].a - a[1].a)) {
+      yy += 14; p.text(cx[0], yy, fit(c, 9, 280)); p.text(cx[1], yy, String(v.n), { size: 9, align: 'right' }); p.text(cx[2] + 60, yy, money(v.g), { size: 9, align: 'right' }); p.text(cx[3], yy, money(v.a), { size: 9, align: 'right' });
+    }
+    yy += 6; p.line(M, yy, W - M, yy); yy += 14;
+    p.text(cx[0], yy, 'Total', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
+    p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
+    if (meals) { yy += 16; p.text(M, yy, `Meals are 50% deductible: ${money(meals)} spent, ${money(meals / 2)} deductible.`, { size: 8, color: DIM }); }
+    yy += 26;
+
+    // every receipt
+    const col = [M, M + 62, M + 210, M + 330, M + 412, W - M - 62, W - M];
+    const tableHead = () => {
+      p.text(M, yy, 'ALL RECEIPTS', { size: 9, bold: true, color: GREEN }); yy += 14;
+      ['Date', 'Where', 'Category', 'Paid with'].forEach((h, i) => p.text(col[i], yy, h, { size: 8, color: DIM }));
+      p.text(col[5], yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(col[6], yy, 'Amount', { size: 8, color: DIM, align: 'right' });
+      yy += 5; p.line(M, yy, W - M, yy);
+    };
+    tableHead();
+    const photoNo = {}; let pn = 0;
+    items.forEach(x => { if (x.photoId && photos[x.photoId]) photoNo[x.photoId + '|' + x.date + '|' + x.amount] = ++pn; });
+    const tag = x => photoNo[x.photoId + '|' + x.date + '|' + x.amount];
+    items.forEach((x, i) => {
+      const rowH = x.note ? 26 : 15;
+      if (yy + rowH > H - 50) { p = new Page(); pages.push(p); header(p, title, sub); yy = 84; tableHead(); }
+      yy += 13;
+      p.text(col[0], yy, longDate(x.date), { size: 8.5 });
+      const mark = tag(x) ? '  [photo ' + tag(x) + ']' : '';
+      p.text(col[1], yy, fit(x.vendor, 8.5, 142 - width(mark, 8.5)) + mark, { size: 8.5 });
+      p.text(col[2], yy, fit(x.category, 8.5, 116), { size: 8.5 });
+      p.text(col[3], yy, fit(x.paidWith, 8.5, 78), { size: 8.5 });
+      p.text(col[5], yy, money(x.gst), { size: 8.5, align: 'right' });
+      p.text(col[6], yy, money(x.amount), { size: 8.5, align: 'right' });
+      if (x.note) { yy += 11; p.text(col[1], yy, fit(x.note, 7.5, W - M - col[1] - 70), { size: 7.5, color: DIM }); }
+      yy += 3; p.line(M, yy, W - M, yy, [0.92, 0.93, 0.92], 0.4);
+    });
+    if (!items.length) { yy += 16; p.text(M, yy, 'No receipts filed for this month yet.', { size: 9, color: DIM }); }
+    yy += 22;
+    if (yy > H - 70) { p = new Page(); pages.push(p); header(p, title, sub); yy = 90; }
+    p.text(M, yy, 'Amounts include GST. GST paid is claimable as input tax credits. Keep the paper receipts; photos follow on the next pages.', { size: 7.5, color: DIM });
+
+    // receipt photos, two per page
+    const withPhoto = items.filter(x => tag(x)).map(x => ({ x, i: tag(x) }));
+    const images = {};
+    for (let k = 0; k < withPhoto.length; k++) {
+      if (k % 2 === 0) { p = new Page(); pages.push(p); header(p, title, sub); }
+      const { x, i } = withPhoto[k], ph = photos[x.photoId], name = 'Im' + (k + 1);
+      images[name] = ph;
+      const top = k % 2 === 0 ? 80 : 80 + (H - 120) / 2, boxH = (H - 120) / 2 - 30, boxW = W - 2 * M;
+      p.text(M, top + 10, `[photo ${i}] ${longDate(x.date)}  -  ${fit(x.vendor, 10, 300, true)}  -  ${money(x.amount)}`, { size: 10, bold: true });
+      const s = Math.min(boxW / ph.w, (boxH - 16) / ph.h), w = ph.w * s, h = ph.h * s;
+      p.image(name, M + (boxW - w) / 2, top + 18, w, h);
+    }
+    pages.forEach((pg, n) => pg.text(W / 2, H - 22, `${title}  |  page ${n + 1} of ${pages.length}`, { size: 7.5, color: DIM, align: 'center' }));
+
+    // assemble the file
+    const enc = new TextEncoder(), latin = s => Uint8Array.from(s, c => c.charCodeAt(0) & 255);
+    const parts = [], offsets = [];
+    let len = 0;
+    const push = b => { parts.push(b); len += b.length; };
+    const obj = (n, body) => { offsets[n] = len; push(latin(`${n} 0 obj\n`)); for (const b of [].concat(body)) push(typeof b === 'string' ? latin(b) : b); push(latin('\nendobj\n')); };
+    push(latin('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n'));
+    const names = Object.keys(images), imgObj = {};
+    let n = 5;
+    names.forEach(nm => { imgObj[nm] = n++; });
+    const pageObjs = pages.map(() => { const a = n; n += 2; return a; });
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, `<< /Type /Pages /Kids [${pageObjs.map(o => o + ' 0 R').join(' ')}] /Count ${pages.length} >>`);
+    obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    obj(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+    names.forEach(nm => {
+      const im = images[nm];
+      obj(imgObj[nm], [`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>\nstream\n`, im.bytes, '\nendstream']);
+    });
+    pages.forEach((pg, i) => {
+      const content = latin(pg.ops.join('\n'));
+      const xo = [...new Set(pg.imgs)].map(nm => `/${nm} ${imgObj[nm]} 0 R`).join(' ');
+      obj(pageObjs[i], `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>${xo ? ' /XObject << ' + xo + ' >>' : ''} >> /Contents ${pageObjs[i] + 1} 0 R >>`);
+      obj(pageObjs[i] + 1, [`<< /Length ${content.length} >>\nstream\n`, content, '\nendstream']);
+    });
+    const xref = len, count = n;
+    let x = `xref\n0 ${count}\n0000000000 65535 f \n`;
+    for (let k = 1; k < count; k++) x += String(offsets[k] || 0).padStart(10, '0') + ' 00000 n \n';
+    push(latin(x + `trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`));
+    const out = new Uint8Array(len); let o = 0; for (const b of parts) { out.set(b, o); o += b.length; }
+    void enc;
+    return out;
+  }
+
+  // Turn any image (from a URL or Blob) into baseline JPEG bytes + size, so the PDF can embed it.
+  async function jpeg(src) {
+    const blob = src instanceof Blob ? src : await (await fetch(src)).blob();
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+    return { bytes: new Uint8Array(await out.arrayBuffer()), w: c.width, h: c.height };
+  }
+
+  root.HP_EXPENSE_PDF = { build, jpeg, MONTHS };
 })(window);
 
 </script>
@@ -2910,7 +3136,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       { label: 'Daily brief', kind: current === 'day' ? 'primary' : '', onPick: () => acctReport('day') },
       { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
-      { label: 'Expenses', kind: current === 'exp' ? 'primary' : '', onPick: () => acctReport('exp') },
+      { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
@@ -3140,7 +3366,87 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   const CATS = ['Fuel', 'Vehicle repairs and maintenance', 'Vehicle insurance and registration', 'Supplies and materials', 'Tools and equipment',
     'Advertising and marketing', 'Phone and internet', 'Office and software', 'Meals (50% deductible)', 'Subcontractors', 'Insurance', 'Bank and card fees', 'Other'];
   const PAID = ['Company card', 'Cash', 'Personal card', 'E-transfer'];
-  let rc = null;   // the receipt being entered
+  let rc = null, rcBack = null;   // the receipt being entered; the month to go back to
+
+  /* ------------------------------------------------ Expenses by month */
+  const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };
+  const nowMonth = () => (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 7);
+  let expYear = null, expSel = null;
+  async function expenseMonth(month) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const cur = nowMonth();
+    expSel = month || expSel || cur;
+    expYear = Number(expSel.slice(0, 4));
+    $('panel').innerHTML = '<div class="loading">Opening the files</div>';
+    const L = root.HP_LIVE;
+    const months = Array.from({ length: 12 }, (_, i) => `${expYear}-${String(i + 1).padStart(2, '0')}`).filter(m => m <= cur);
+    const [docs, sent] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent()]) : [undefined, undefined];
+    if (id !== run) return;
+    const live = docs !== undefined;
+    const items = ((docs && docs[expSel]) || { items: [] }).items || [];
+    const S2 = (sent && sent.months) || {};
+    const tot = l => l.reduce((t, x) => t + Number(x.amount || 0), 0);
+    const chips = Array.from({ length: 12 }, (_, i) => {
+      const m = `${expYear}-${String(i + 1).padStart(2, '0')}`, future = m > cur, d = docs && docs[m], n = d && d.items ? d.items.length : 0;
+      return `<button class="mchip ${m === expSel ? 'on' : ''}" data-m="${m}" ${future ? 'disabled' : ''}><b>${monthName(m).slice(0, 3).toUpperCase()}</b><small>${future ? '' : n ? `${n} · ${$$(tot(d.items))}` : 'none'}</small>${S2[m] ? '<i title="report emailed">&#10003;</i>' : ''}</button>`;
+    }).join('');
+    const cats = {}; for (const x of items) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+    const rows = items.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const sentLine = S2[expSel] ? `Report last emailed ${esc(new Date(S2[expSel].sentAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} with ${S2[expSel].count} receipt${S2[expSel].count === 1 ? '' : 's'} (${$$(S2[expSel].total)}).` : 'This month\'s report hasn\'t been emailed yet.';
+    $('panel').innerHTML = `<div class="report expmonths">
+      <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
+      <div class="mchips">${chips}</div>
+      <h3>${esc(monthName(expSel).toUpperCase())}</h3>
+      <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
+      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>No receipts filed for ${esc(monthName(expSel))} yet.</p>`}
+      <div class="q send"><p class="small">${sentLine}</p>
+        <button class="qa send" id="mAdd">+ Add a receipt to ${esc(monthName(expSel))}</button>
+        <button class="qa send" id="mEmail"${items.length ? '' : ' disabled'}>Email the ${esc(monthName(expSel))} report</button>
+        <button class="qa" id="mPdf"${items.length ? '' : ' disabled'}>Download PDF</button>
+        <span id="mStatus" class="small"></span></div>
+      ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
+      <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
+    $('panel').querySelectorAll('.mchip[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
+    if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
+    $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
+    const makePdf = async () => {
+      $('mStatus').textContent = ' Penny is putting the report together...';
+      const photos = {};
+      for (const x of items) if (x.photoId && !photos[x.photoId]) { try { photos[x.photoId] = await HP_EXPENSE_PDF.jpeg('/_blob/' + x.photoId); } catch (e) { } }
+      const made = new Date().toLocaleDateString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', year: 'numeric' });
+      return HP_EXPENSE_PDF.build({ month: expSel, items, photos, made });
+    };
+    const fname = `Home-Pros-Expenses-${expSel}.pdf`;
+    $('mPdf').onclick = async () => { if (!items.length) return; const bytes = await makePdf(); const ok = await L.download(fname, bytes); $('mStatus').textContent = ok ? ' Saved.' : " Couldn't save the file here."; };
+    $('mEmail').onclick = async () => {
+      if (!items.length) return;
+      $('mEmail').disabled = true;
+      const bytes = await makePdf();
+      const total = tot(items), gst = items.reduce((t, x) => t + Number(x.gst || 0), 0);
+      const body = `Hi Keith,\n\nHere's the expense report for ${monthName(expSel)}: ${items.length} receipt${items.length === 1 ? '' : 's'}, ${$$(total)} including ${$$(gst)} GST.\n\n` +
+        Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        `\n\nThe PDF has every receipt and its photo.\n\nPenny\nAccounts assistant, Home Pros Group`;
+      $('mStatus').textContent = ' Sending to keith@homeprosgroup.com...';
+      const r = await L.emailPdf({ to: 'keith@homeprosgroup.com', subject: `Home Pros expense report: ${monthName(expSel)} (${items.length} receipts, ${$$(total)})`, body, filename: fname, bytes });
+      if (r.ok) {
+        await L.markReportSent(expSel, { sentAt: new Date().toISOString(), count: items.length, total: Math.round(total * 100) / 100, to: 'keith@homeprosgroup.com' });
+        A.select();
+        say(`Sent. The ${monthName(expSel)} report is in your inbox at keith@homeprosgroup.com. Add more receipts any time and send it again.`);
+        expenseMonth(expSel);
+      } else {
+        $('mEmail').disabled = false;
+        $('mStatus').textContent = r.error === 'server_not_connected' || r.error === 'not_in_manifest' || r.error === 'not_granted' ? ' Allow the Gmail connector for the arcade, then try again. You can also download the PDF.' : ' The email didn\'t go through. Try again, or download the PDF.';
+      }
+    };
+    const n = items.length;
+    await say(n ? `${monthName(expSel)}: ${n} receipt${n === 1 ? '' : 's'}, ${$$(tot(items))}. Pick another month, add a receipt, or email the report.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
+    if (id !== run) return;
+    acctChoices('exp');
+  }
 
   async function shrink(file) {
     try {
@@ -3153,7 +3459,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     } catch (e) { return file; }
   }
 
-  async function receiptForm() {
+  async function receiptForm(defDate, backMonth) {
     const id = clear();
     S.office.select('penny');
     nameplate('PENNY · ACCOUNTING');
@@ -3161,7 +3467,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     const can = L ? await L.receiptAbilities() : { canRead: false, canStore: false, canSave: false };
     if (id !== run) return;
     const today = (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 10);
-    rc = { date: today, vendor: '', total: '', gst: '', category: '', paidWith: '', note: '', photo: null, preview: '', read: false, question: '' };
+    rcBack = backMonth || null;
+    rc = { date: defDate || today, vendor: '', total: '', gst: '', category: '', paidWith: '', note: '', photo: null, preview: '', read: false, question: '' };
     drawReceipt(can);
     await say(can.canSave
       ? (can.canRead ? "Snap a photo of the receipt and I'll read it, or type it in. I'll ask if anything's unclear." : "Type the receipt in and I'll file it. (Reading photos isn't available here.)")
@@ -3240,14 +3547,14 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         const monthTotal = doc.items.reduce((s2, x) => s2 + Number(x.amount || 0), 0);
         await say(`Filed: ${item.vendor}, ${$$(item.amount)} under ${item.category}. That's ${$$(monthTotal)} in expenses for ${doc.month} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
         rc = null;
-        receiptAgain();
+        receiptAgain(item.date.slice(0, 7));
       } catch (e) { $('rsaved').textContent = " Couldn't save just now. Try again in a minute."; }
     };
   }
-  function receiptAgain() {
+  function receiptAgain(month) {
     choices([
-      { label: 'Add another receipt', kind: 'primary', onPick: () => receiptForm() },
-      { label: 'See expenses', onPick: () => acctReport('exp') },
+      { label: 'Add another receipt', kind: 'primary', onPick: () => receiptForm(rcBack ? month + '-01' : undefined, rcBack) },
+      { label: `See ${monthName(month)}`, onPick: () => expenseMonth(month) },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }

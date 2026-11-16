@@ -48,3 +48,14 @@ and residential invoices (not Jayman, not commercial) completed Jan 1 to Jun 30,
 Each is a ServiceMonster credit with method `Write-off`, ref `PENNY-<WO>` and a memo.
 The list is in the arcade database at `penny/writeoffs`. The API cannot delete a
 credit; undo one in ServiceMonster itself.
+
+## Monthly expense reports
+
+On her desk in the arcade, **Expenses by month** shows January to the current month
+(and earlier years with the year arrows). Each month lists its receipts by
+category. **Add a receipt to [month]** files a missed receipt; receipts are filed by
+their own date, so they always land in the right month. **Email the [month] report**
+builds a PDF in the browser (`js/expense-pdf.js`: summary, categories, every receipt,
+one page per two receipt photos) and sends it to keith@homeprosgroup.com through
+Keith's Gmail connector; it can be sent again after more receipts are added.
+`penny/reports` records when each month was last sent. **Download PDF** saves the same file.

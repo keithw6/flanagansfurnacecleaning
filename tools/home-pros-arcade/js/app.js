@@ -1028,7 +1028,7 @@
       { label: 'Daily brief', kind: current === 'day' ? 'primary' : '', onPick: () => acctReport('day') },
       { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
-      { label: 'Expenses', kind: current === 'exp' ? 'primary' : '', onPick: () => acctReport('exp') },
+      { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
@@ -1258,7 +1258,87 @@
   const CATS = ['Fuel', 'Vehicle repairs and maintenance', 'Vehicle insurance and registration', 'Supplies and materials', 'Tools and equipment',
     'Advertising and marketing', 'Phone and internet', 'Office and software', 'Meals (50% deductible)', 'Subcontractors', 'Insurance', 'Bank and card fees', 'Other'];
   const PAID = ['Company card', 'Cash', 'Personal card', 'E-transfer'];
-  let rc = null;   // the receipt being entered
+  let rc = null, rcBack = null;   // the receipt being entered; the month to go back to
+
+  /* ------------------------------------------------ Expenses by month */
+  const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };
+  const nowMonth = () => (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 7);
+  let expYear = null, expSel = null;
+  async function expenseMonth(month) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const cur = nowMonth();
+    expSel = month || expSel || cur;
+    expYear = Number(expSel.slice(0, 4));
+    $('panel').innerHTML = '<div class="loading">Opening the files</div>';
+    const L = root.HP_LIVE;
+    const months = Array.from({ length: 12 }, (_, i) => `${expYear}-${String(i + 1).padStart(2, '0')}`).filter(m => m <= cur);
+    const [docs, sent] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent()]) : [undefined, undefined];
+    if (id !== run) return;
+    const live = docs !== undefined;
+    const items = ((docs && docs[expSel]) || { items: [] }).items || [];
+    const S2 = (sent && sent.months) || {};
+    const tot = l => l.reduce((t, x) => t + Number(x.amount || 0), 0);
+    const chips = Array.from({ length: 12 }, (_, i) => {
+      const m = `${expYear}-${String(i + 1).padStart(2, '0')}`, future = m > cur, d = docs && docs[m], n = d && d.items ? d.items.length : 0;
+      return `<button class="mchip ${m === expSel ? 'on' : ''}" data-m="${m}" ${future ? 'disabled' : ''}><b>${monthName(m).slice(0, 3).toUpperCase()}</b><small>${future ? '' : n ? `${n} · ${$$(tot(d.items))}` : 'none'}</small>${S2[m] ? '<i title="report emailed">&#10003;</i>' : ''}</button>`;
+    }).join('');
+    const cats = {}; for (const x of items) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+    const rows = items.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const sentLine = S2[expSel] ? `Report last emailed ${esc(new Date(S2[expSel].sentAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} with ${S2[expSel].count} receipt${S2[expSel].count === 1 ? '' : 's'} (${$$(S2[expSel].total)}).` : 'This month\'s report hasn\'t been emailed yet.';
+    $('panel').innerHTML = `<div class="report expmonths">
+      <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
+      <div class="mchips">${chips}</div>
+      <h3>${esc(monthName(expSel).toUpperCase())}</h3>
+      <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
+      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>No receipts filed for ${esc(monthName(expSel))} yet.</p>`}
+      <div class="q send"><p class="small">${sentLine}</p>
+        <button class="qa send" id="mAdd">+ Add a receipt to ${esc(monthName(expSel))}</button>
+        <button class="qa send" id="mEmail"${items.length ? '' : ' disabled'}>Email the ${esc(monthName(expSel))} report</button>
+        <button class="qa" id="mPdf"${items.length ? '' : ' disabled'}>Download PDF</button>
+        <span id="mStatus" class="small"></span></div>
+      ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
+      <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
+    $('panel').querySelectorAll('.mchip[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
+    if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
+    $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
+    const makePdf = async () => {
+      $('mStatus').textContent = ' Penny is putting the report together...';
+      const photos = {};
+      for (const x of items) if (x.photoId && !photos[x.photoId]) { try { photos[x.photoId] = await HP_EXPENSE_PDF.jpeg('/_blob/' + x.photoId); } catch (e) { } }
+      const made = new Date().toLocaleDateString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', year: 'numeric' });
+      return HP_EXPENSE_PDF.build({ month: expSel, items, photos, made });
+    };
+    const fname = `Home-Pros-Expenses-${expSel}.pdf`;
+    $('mPdf').onclick = async () => { if (!items.length) return; const bytes = await makePdf(); const ok = await L.download(fname, bytes); $('mStatus').textContent = ok ? ' Saved.' : " Couldn't save the file here."; };
+    $('mEmail').onclick = async () => {
+      if (!items.length) return;
+      $('mEmail').disabled = true;
+      const bytes = await makePdf();
+      const total = tot(items), gst = items.reduce((t, x) => t + Number(x.gst || 0), 0);
+      const body = `Hi Keith,\n\nHere's the expense report for ${monthName(expSel)}: ${items.length} receipt${items.length === 1 ? '' : 's'}, ${$$(total)} including ${$$(gst)} GST.\n\n` +
+        Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        `\n\nThe PDF has every receipt and its photo.\n\nPenny\nAccounts assistant, Home Pros Group`;
+      $('mStatus').textContent = ' Sending to keith@homeprosgroup.com...';
+      const r = await L.emailPdf({ to: 'keith@homeprosgroup.com', subject: `Home Pros expense report: ${monthName(expSel)} (${items.length} receipts, ${$$(total)})`, body, filename: fname, bytes });
+      if (r.ok) {
+        await L.markReportSent(expSel, { sentAt: new Date().toISOString(), count: items.length, total: Math.round(total * 100) / 100, to: 'keith@homeprosgroup.com' });
+        A.select();
+        say(`Sent. The ${monthName(expSel)} report is in your inbox at keith@homeprosgroup.com. Add more receipts any time and send it again.`);
+        expenseMonth(expSel);
+      } else {
+        $('mEmail').disabled = false;
+        $('mStatus').textContent = r.error === 'server_not_connected' || r.error === 'not_in_manifest' || r.error === 'not_granted' ? ' Allow the Gmail connector for the arcade, then try again. You can also download the PDF.' : ' The email didn\'t go through. Try again, or download the PDF.';
+      }
+    };
+    const n = items.length;
+    await say(n ? `${monthName(expSel)}: ${n} receipt${n === 1 ? '' : 's'}, ${$$(tot(items))}. Pick another month, add a receipt, or email the report.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
+    if (id !== run) return;
+    acctChoices('exp');
+  }
 
   async function shrink(file) {
     try {
@@ -1271,7 +1351,7 @@
     } catch (e) { return file; }
   }
 
-  async function receiptForm() {
+  async function receiptForm(defDate, backMonth) {
     const id = clear();
     S.office.select('penny');
     nameplate('PENNY · ACCOUNTING');
@@ -1279,7 +1359,8 @@
     const can = L ? await L.receiptAbilities() : { canRead: false, canStore: false, canSave: false };
     if (id !== run) return;
     const today = (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 10);
-    rc = { date: today, vendor: '', total: '', gst: '', category: '', paidWith: '', note: '', photo: null, preview: '', read: false, question: '' };
+    rcBack = backMonth || null;
+    rc = { date: defDate || today, vendor: '', total: '', gst: '', category: '', paidWith: '', note: '', photo: null, preview: '', read: false, question: '' };
     drawReceipt(can);
     await say(can.canSave
       ? (can.canRead ? "Snap a photo of the receipt and I'll read it, or type it in. I'll ask if anything's unclear." : "Type the receipt in and I'll file it. (Reading photos isn't available here.)")
@@ -1358,14 +1439,14 @@
         const monthTotal = doc.items.reduce((s2, x) => s2 + Number(x.amount || 0), 0);
         await say(`Filed: ${item.vendor}, ${$$(item.amount)} under ${item.category}. That's ${$$(monthTotal)} in expenses for ${doc.month} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
         rc = null;
-        receiptAgain();
+        receiptAgain(item.date.slice(0, 7));
       } catch (e) { $('rsaved').textContent = " Couldn't save just now. Try again in a minute."; }
     };
   }
-  function receiptAgain() {
+  function receiptAgain(month) {
     choices([
-      { label: 'Add another receipt', kind: 'primary', onPick: () => receiptForm() },
-      { label: 'See expenses', onPick: () => acctReport('exp') },
+      { label: 'Add another receipt', kind: 'primary', onPick: () => receiptForm(rcBack ? month + '-01' : undefined, rcBack) },
+      { label: `See ${monthName(month)}`, onPick: () => expenseMonth(month) },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }
