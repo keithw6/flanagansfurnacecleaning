@@ -56,6 +56,11 @@
       if (demo) return token === 'demo' ? { ok: true } : Promise.reject(new Error('unauthorized'));
       return call('/api/me', { headers: { Authorization: 'Bearer ' + token } });
     },
+    // Customer Service reports. Demo mode shows the snapshot in js/office-data.js.
+    async officeReport(token) {
+      if (demo) { await wait(400); return root.HP_OFFICE_DATA || null; }
+      return call('/api/office/report', { headers: { Authorization: 'Bearer ' + token } });
+    },
     async book(payload) {
       if (demo) { await wait(1600); return { ok: true, demo: true, reference: 'DEMO-' + Math.floor(Math.random() * 9000 + 1000) }; }
       return call('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

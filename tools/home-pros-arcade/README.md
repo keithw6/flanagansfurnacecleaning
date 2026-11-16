@@ -138,9 +138,19 @@ boardroom at the end.
 
 - **Offices:** General Manager (Grace), Accounting (Penny), Marketing (Max), Email
   Manager (Eddie), Customer Service (Rosa), and your own Chief Human Officer office.
-- **Everyday:** each director works at their desk and every so often walks over to
-  visit another office or the water cooler, then goes back. You (Keith) walk in from
-  the shop door to your desk.
+- **Everyday:** everyone stays at their desk. They only get up when they have
+  something to do with someone else (Rosa walks the booking report to Grace when a
+  day is overbooked) or when you call a board meeting. You (Keith) walk in from the
+  shop door to your desk. Click a person or their office to talk to them.
+- **Customer Service desk** (click Rosa, her office, or the "Customer Service desk"
+  button) has three reports for the next 14 days: **Jayman bookings** (New Home
+  route), **Booking % by route**, and **Total booking %** for the one truck. A full
+  day is 8 hours (4 calls x 2 h), so a day can show over 100%. Waterfront Pointe's
+  all-day jobs push Nov 24, 25 and 27 to 200%, 150% and 125%. Those days are marked
+  OVERBOOKED, and the jobs stay where they are.
+- The preview shows a snapshot (`js/office-data.js`, refresh with
+  `tools/rosa/office-snapshot.mjs`). The live site reads ServiceMonster through the
+  booking server's `/api/office/report`, which needs your owner login.
 - **Board meeting:** "Call a board meeting" sends everyone, you included, to an
   assigned boardroom seat. You sit at the head, Grace, Penny and Max on the far side,
   Eddie and Rosa on the near side, with one spare seat. "Adjourn" sends them back.

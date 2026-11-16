@@ -688,6 +688,7 @@
   function boardChoices(except) {
     const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
     if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
+    if (except !== 'rosa') list.push({ label: 'Customer Service desk', onPick: csDesk });
     list.push(inMeeting
       ? { label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn }
       : { label: 'Call a board meeting', kind: 'primary', onPick: callMeeting });
@@ -699,8 +700,10 @@
   async function enterBoard() {
     clear();
     boardOpen = true; inMeeting = false;
+    report = null; graceKnows = false; handedOff = false;
     S.office.enter(everyone());
     floor(true);
+    maybeHandOff();
   }
 
   async function floor(first) {
@@ -712,6 +715,7 @@
     if (id !== run) return;
     choices(boardChoices());
     $('hint').textContent = 'Click anyone on the floor, or pick a name below. The door on the left goes back to the shop.';
+    maybeHandOff();
   }
 
   async function callMeeting() {
@@ -745,15 +749,99 @@
       if (id !== run) return;
       return choices(boardChoices());
     }
+    if (dirId === 'rosa') return csDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
     S.office.select(d.id);
     nameplate(`${d.name.toUpperCase()} · ${d.title.toUpperCase()}`);
     $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="soon">${esc(cfg.lines.notConnected)}</p></div>`;
-    await say(d.intro);
+    await say(d.id === 'grace' && graceKnows ? cfg.lines.graceFlag.replace('{days}', overDays()) : d.intro);
     if (id !== run) return;
     choices(boardChoices(d.id));
+  }
+
+  /* ------------------------------------------- Customer Service desk (Rosa) */
+  let report = null, graceKnows = false, handedOff = false;
+  const fmtDate = s => new Date(s + 'T12:00:00Z').toLocaleDateString('en-CA', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' });
+  const overDays = () => report ? report.capacity.summary.overbooked.map(o => `${fmtDate(o.date)} (${o.pct}%)`).join(', ') : '';
+  const bar = p => `<span class="bar"><i style="width:${Math.min(100, p)}%"></i></span>${p}%`;
+
+  async function loadReport() {
+    if (report) return report;
+    try { report = await api.officeReport(store.get()); } catch (e) { report = null; }
+    return report;
+  }
+
+  // Once per visit: if days are overbooked, Rosa walks the report to Grace.
+  async function maybeHandOff() {
+    if (handedOff) return;
+    const r = await loadReport();
+    if (!r || !r.capacity.summary.overbooked.length || !boardOpen) return;
+    handedOff = true;
+    setTimeout(() => S.office.errand('rosa', 'v-gm', 5, () => { graceKnows = true; }), 2500);
+  }
+
+  async function csDesk() {
+    const id = clear();
+    S.office.select('rosa');
+    nameplate('ROSA · CUSTOMER SERVICE');
+    const d = cfg.directors.find(x => x.id === 'rosa');
+    $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    await say(cfg.lines.csDesk);
+    if (id !== run) return;
+    csChoices();
+  }
+
+  function csChoices(current) {
+    const list = [
+      { label: 'Jayman bookings', kind: current === 'jay' ? 'primary' : '', onPick: () => csReport('jay') },
+      { label: 'Booking % by route', kind: current === 'route' ? 'primary' : '', onPick: () => csReport('route') },
+      { label: 'Total booking %', kind: current === 'total' ? 'primary' : '', onPick: () => csReport('total') },
+      { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
+    ];
+    choices(list);
+  }
+
+  async function csReport(kind) {
+    const id = clear();
+    S.office.select('rosa');
+    nameplate('ROSA · CUSTOMER SERVICE');
+    $('panel').innerHTML = '<div class="loading">Pulling it from ServiceMonster</div>';
+    const r = await loadReport();
+    if (id !== run) return;
+    if (!r) {
+      $('panel').innerHTML = '';
+      await say("I couldn't reach ServiceMonster just now. Try again in a minute.");
+      return csChoices(kind);
+    }
+    const cap = r.capacity, sumr = cap.summary, routes = Object.keys(cfg.office.routes);
+    const days = cap.days.filter(d => d.work || d.total.hours);
+    const foot = r.live ? `<p class="soon">Live from ServiceMonster, ${esc(r.generatedAt.replace('T', ' ').slice(0, 16))}.</p>`
+      : `<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p>`;
+    const head = `Next ${cfg.office.daysAhead} days · a full day is ${cfg.office.dayHours} h (4 calls x 2 h)`;
+    let html = '', line = '';
+    if (kind === 'jay') {
+      const rows = r.jayman.map(j => `<tr><td>${esc(fmtDate(j.date))}</td><td>${esc(j.start)}-${esc(j.end)}</td><td>${esc(j.city)}</td><td>${esc(j.status)}</td></tr>`).join('');
+      html = `<div class="report"><h3>JAYMAN BOOKINGS · ${esc(cfg.office.jaymanRoute.toUpperCase())} ROUTE</h3>
+        <table><tr><th>Date</th><th>Time</th><th>Town</th><th>Status</th></tr>${rows || '<tr><td colspan="4">Nothing booked.</td></tr>'}</table>
+        <p class="soon">My prep run is every morning at about 6:08 AM. New Jayman orders come to your phone for approval before I book them.</p>${foot}</div>`;
+      line = `${r.jayman.length} Jayman call${r.jayman.length === 1 ? '' : 's'} on the books for the next ${cfg.office.daysAhead} days.`;
+    } else if (kind === 'route') {
+      const rows = days.map(d => `<tr class="${routes.some(k => d.routes[k].pct > 100) ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td>${routes.map(k => `<td>${bar(d.routes[k].pct)} <small>(${d.routes[k].jobs})</small></td>`).join('')}</tr>`).join('');
+      html = `<div class="report"><h3>BOOKING % BY ROUTE</h3><div class="kpis">${routes.map(k => `<div>${esc(k)}<br><span class="big">${sumr.routes[k].pct}%</span></div>`).join('')}<div>${esc(head)}</div></div>
+        <table><tr><th>Day</th>${routes.map(k => `<th>${esc(k)} (calls)</th>`).join('')}</tr>${rows}</table>${foot}</div>`;
+      line = routes.map(k => `${k} is ${sumr.routes[k].pct}% full`).join(', ') + ' over the next two weeks.';
+    } else {
+      const rows = days.map(d => `<tr class="${d.over ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td><td>${bar(d.total.pct)}${d.over ? '<span class="tag">OVERBOOKED</span>' : ''}</td><td class="why">${esc(d.over ? d.big.map(b => `${b.label}: ${b.hours} h on ${b.route}`).join(', ') : '')}${d.notes.length ? esc((d.over ? ' · ' : '') + 'Notes: ' + d.notes.join(', ')) : ''}</td></tr>`).join('');
+      html = `<div class="report"><h3>TOTAL BOOKING % · ONE TRUCK</h3><div class="kpis"><div>All routes<br><span class="big">${sumr.total.pct}%</span></div><div>${esc(head)}</div></div>
+        <table><tr><th>Day</th><th>Truck</th><th>Why</th></tr>${rows}</table>${foot}</div>`;
+      line = sumr.overbooked.length ? cfg.lines.csOver.replace('{days}', overDays()) : cfg.lines.csFine;
+    }
+    $('panel').innerHTML = html;
+    await say(line);
+    if (id !== run) return;
+    csChoices(kind);
   }
 
   async function backToShop() {

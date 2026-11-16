@@ -8,6 +8,7 @@
      POST /api/book                       book a job
      POST /api/login                      owner login -> signed session token
      GET  /api/me                         check a session token
+     GET  /api/office/report              Customer Service reports (owner only)
      GET  /api/health                                           config check
 
    It recomputes the price and re-checks the time slot itself; nothing the
@@ -32,6 +33,7 @@ import '../../js/config.js';
 import '../../js/travel.js';
 import '../../js/pricing.js';
 import '../../js/schedule.js';
+import '../../js/capacity.js';
 
 const CFG = globalThis.HP_CONFIG;
 const { quote, money } = globalThis.HP_PRICING;
@@ -55,6 +57,10 @@ export default {
       if (url.pathname === '/api/me' && req.method === 'GET') {
         const who = await session(req, env);
         return json(who ? { ok: true, user: who } : { error: 'unauthorized' }, who ? 200 : 401, cors);
+      }
+      if (url.pathname === '/api/office/report' && req.method === 'GET') {
+        if (!await session(req, env)) return json({ error: 'unauthorized' }, 401, cors);
+        return json(await officeReport(env), 200, cors);
       }
       if (url.pathname === '/api/book' && req.method === 'POST') {
         const { status, body } = await book(req, env);
@@ -301,4 +307,24 @@ async function session(req, env) {
     const data = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
     return data.exp > Date.now() ? { name: data.sub, role: data.role } : null;
   } catch { return null; }
+}
+
+/* ------------------------ Customer Service reports ------------------------ */
+async function officeReport(env) {
+  const C = CFG.office;
+  const now = SCHED.localNow(CFG.business.timeZone);
+  const from = now.slice(0, 10);
+  const to = new Date(Date.parse(from + 'T00:00:00Z') + (C.daysAhead - 1) * 864e5).toISOString().slice(0, 10);
+  const data = await sm(env, `/scheduling?startDate=${from}&endDate=${to}&getJobColor=false`);
+  const items = Array.isArray(data) ? data : (data.items || []);
+  const names = {};
+  for (const i of items) if (i.accountID && !names[i.accountID] && (Date.parse(i.endDateTime + 'Z') - Date.parse(i.startDateTime + 'Z')) >= 6 * 36e5) {
+    try { names[i.accountID] = (await sm(env, `/accounts/${i.accountID}?fields=accountName`)).accountName; } catch (e) { }
+  }
+  const HPC = globalThis.HP_CAPACITY;
+  return {
+    generatedAt: now, live: true,
+    capacity: HPC.compute(items, { from, days: C.daysAhead, dayHours: C.dayHours, workDays: C.workDays, routes: C.routes, names }),
+    jayman: HPC.jobsOn(items, C.routes[C.jaymanRoute], from),
+  };
 }

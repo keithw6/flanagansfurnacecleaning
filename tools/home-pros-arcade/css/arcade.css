@@ -253,3 +253,20 @@ body.street .cash, body.office .cash { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Customer Service reports */
+.report { background: #101311; border: 3px solid #39413d; padding: 12px 14px; margin: 0 0 14px; overflow-x: auto; }
+.report h3 { font-family: var(--pixel); font-size: 12px; color: var(--edge); margin: 0 0 10px; letter-spacing: .06em; }
+.report table { border-collapse: collapse; width: 100%; font-size: 20px; }
+.report th { text-align: left; font-weight: normal; color: var(--dim); font-size: 16px; padding: 2px 8px 6px 0; white-space: nowrap; }
+.report td { padding: 3px 8px 3px 0; border-top: 1px solid #222826; white-space: nowrap; vertical-align: middle; }
+.report td.why { white-space: normal; color: var(--dim); font-size: 17px; }
+.report .bar { display: inline-block; width: 90px; height: 12px; background: #222826; vertical-align: middle; margin-right: 8px; position: relative; }
+.report .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--edge); max-width: 100%; }
+.report .over { color: #ff8a8a; }
+.report .over .bar i { background: #e2463b; }
+.report .tag { font-family: var(--pixel); font-size: 9px; background: #e2463b; color: #fff; padding: 2px 5px; margin-left: 6px; }
+.report .big { font-size: 30px; color: #fff; }
+.report .soon { margin: 10px 0 0; font-size: 17px; color: var(--dim); }
+.report .kpis { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
+.report .kpis div { font-size: 17px; color: var(--dim); }

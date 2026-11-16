@@ -28,6 +28,18 @@ const HP_CONFIG = {
   // Seats: seat-head, seat-t1..t3 (far side), seat-b1..b3 (near side).
   owner: { name: 'Keith', title: 'Chief Human Officer', home: 'cho', seat: 'seat-head' },
 
+  // Customer Service reports (booking percentage). One truck works both routes.
+  office: {
+    daysAhead: 14,
+    dayHours: 8,                      // a full day per route: 4 calls x 2 hours
+    workDays: [1, 2, 3, 4, 5, 6],
+    routes: {                         // ServiceMonster route IDs
+      'New Home': '9fb1dbd4-3227-11ed-8205-8d92ba0c912a',
+      'Residential': 'ff14fbca-dc45-11e3-b8c3-d9b28ac835cd',
+    },
+    jaymanRoute: 'New Home',
+  },
+
   // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
   directors: [
     {
@@ -166,6 +178,11 @@ const HP_CONFIG = {
     meetingCall: 'Board meeting! Everybody to the boardroom.',
     meetingOpen: "Everyone's seated. You have the floor, {owner}.",
     meetingEnd: 'Meeting adjourned. Back to work, everyone.',
+    csDesk: "Customer Service desk. What do you want to see, boss?",
+    csOver: "Heads up: we're over 100% on {days}. I've already passed it to Grace.",
+    csFine: 'Every day is at or under 100%. No overbooking.',
+    graceFlag: "Rosa just dropped off the booking report. We're overbooked on {days}. I'll keep an eye on it.",
+    snapshotNote: 'Snapshot from ServiceMonster taken {when}. It goes live once the booking server is running.',
     itsYou: "That's you, boss. Corner office, best chair in the building.",
     notConnected: "I'm not hooked up to the real data yet. Once ServiceMonster and your email are connected, this is where I'll report in.",
   },

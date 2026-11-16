@@ -186,6 +186,9 @@
   const DESKS = [[280, 238, 465, 345], [700, 238, 890, 345], [1122, 238, 1310, 345], [258, 925, 445, 1030],
     [675, 925, 862, 1030], [1080, 918, 1362, 1042], [1525, 518, 1862, 672]];
   const SHOP_DOOR = [40, 505, 150, 665];
+  // whole office rooms, so clicking a room opens whoever works there
+  const ROOMS = { gm: [165, 40, 590, 455], acct: [600, 40, 1005, 455], mkt: [1015, 40, 1460, 455],
+    email: [165, 690, 575, 1065], cs: [585, 690, 980, 1065], cho: [995, 690, 1465, 1065] };
 
   const office = { people: [], selected: null, hover: null, meeting: false, onSeated: null };
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -199,8 +202,7 @@
     p.goal = place;
     if (!p.path.length) { p.path = route(p.loc, place); p.loc = null; }
   }
-  const visitSpots = ['v-gm', 'v-acct', 'v-mkt', 'v-email', 'v-cs', 'v-cho', 'cooler'];
-
+  
   function stepOffice(dt) {
     let seated = 0;
     for (const p of office.people) {
@@ -214,24 +216,23 @@
         p.walking = true;
         p.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy > 0 ? 0 : 3);
         if (!p.path.length) {
-          if (p.goal) { p.loc = p.goal; p.dir = PLACES[p.loc].face; p.wait = p.loc === p.home ? rand(8, 18) : rand(3, 7); }
+          if (p.goal) {
+            p.loc = p.goal; p.dir = PLACES[p.loc].face; p.wait = p.errandWait || 4; p.errandWait = 0;
+            if (p.onArrive) { const cb = p.onArrive; p.onArrive = null; cb(); }
+          }
           // a stop on the way somewhere new: carry on
           if (p.next) { const nx = p.next; p.next = null; goTo(p, nx); }
         }
         continue;
       }
       if (p.loc && p.loc.startsWith('seat')) { seated++; continue; }
-      if (office.meeting || p.id === 'keith') continue;
+      // People stay in their offices. They only leave on an errand (taking
+      // something to someone) or for a board meeting, then come straight back.
+      if (office.meeting || p.loc === p.home) continue;
       p.wait -= dt;
-      if (p.wait > 0) continue;
-      if (p.loc !== p.home) goTo(p, p.home);
-      else if (Math.random() < 0.85) {
-        const own = 'v-' + p.home;
-        const choices = visitSpots.filter(s => s !== own && !office.people.some(o => o.goal === s || o.loc === s));
-        if (choices.length) goTo(p, choices[Math.floor(Math.random() * choices.length)]);
-        else p.wait = rand(3, 6);
-      } else p.wait = rand(5, 10);
+      if (p.wait <= 0) { goTo(p, p.home); if (p.onBack) { const cb = p.onBack; p.onBack = null; p.whenHome = cb; } }
     }
+    for (const p of office.people) if (p.whenHome && p.loc === p.home && !p.path.length) { const cb = p.whenHome; p.whenHome = null; cb(); }
     if (office.meeting && office.onSeated && seated === office.people.length) { const cb = office.onSeated; office.onSeated = null; cb(); }
   }
 
@@ -359,6 +360,15 @@
         });
       },
       clear() { office.people = []; office.selected = null; office.meeting = false; },
+      // walk someone to another place, wait there, then back to their desk
+      errand(id, place, waitSec, onArrive, onBack) {
+        const p = office.people.find(x => x.id === id);
+        if (!p || office.meeting) return false;
+        p.errandWait = waitSec; p.onArrive = onArrive || null; p.onBack = onBack || null;
+        if (reduce) { onArrive && onArrive(); onBack && onBack(); return true; }
+        if (p.path.length) p.next = place; else goTo(p, place);
+        return true;
+      },
       select(id) { office.selected = id; },
       hover(id) { office.hover = id; },
       // everyone to their boardroom seat (on) or back to their desks (off)
@@ -379,6 +389,11 @@
         if (hit) return hit.id;
         const [x0, y0, x1, y1] = SHOP_DOOR;
         if (px >= x0 * SX && px <= x1 * SX && py >= y0 * SY && py <= y1 * SY) return 'shop';
+        for (const [room, [a, b, c, d]] of Object.entries(ROOMS))
+          if (px >= a * SX && px <= c * SX && py >= b * SY && py <= d * SY) {
+            const owner = office.people.find(p => p.home === room);
+            return owner ? owner.id : null;
+          }
         return null;
       },
       size: { W, H },

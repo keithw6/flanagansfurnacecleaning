@@ -267,6 +267,23 @@ body.street .cash, body.office .cash { visibility: hidden; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* Customer Service reports */
+.report { background: #101311; border: 3px solid #39413d; padding: 12px 14px; margin: 0 0 14px; overflow-x: auto; }
+.report h3 { font-family: var(--pixel); font-size: 12px; color: var(--edge); margin: 0 0 10px; letter-spacing: .06em; }
+.report table { border-collapse: collapse; width: 100%; font-size: 20px; }
+.report th { text-align: left; font-weight: normal; color: var(--dim); font-size: 16px; padding: 2px 8px 6px 0; white-space: nowrap; }
+.report td { padding: 3px 8px 3px 0; border-top: 1px solid #222826; white-space: nowrap; vertical-align: middle; }
+.report td.why { white-space: normal; color: var(--dim); font-size: 17px; }
+.report .bar { display: inline-block; width: 90px; height: 12px; background: #222826; vertical-align: middle; margin-right: 8px; position: relative; }
+.report .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--edge); max-width: 100%; }
+.report .over { color: #ff8a8a; }
+.report .over .bar i { background: #e2463b; }
+.report .tag { font-family: var(--pixel); font-size: 9px; background: #e2463b; color: #fff; padding: 2px 5px; margin-left: 6px; }
+.report .big { font-size: 30px; color: #fff; }
+.report .soon { margin: 10px 0 0; font-size: 17px; color: var(--dim); }
+.report .kpis { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
+.report .kpis div { font-size: 17px; color: var(--dim); }
+
 </style>
 </head>
 <body class="street">
@@ -347,6 +364,18 @@ const HP_CONFIG = {
   // Offices: gm, acct, mkt (top row), email, cs, cho (bottom row).
   // Seats: seat-head, seat-t1..t3 (far side), seat-b1..b3 (near side).
   owner: { name: 'Keith', title: 'Chief Human Officer', home: 'cho', seat: 'seat-head' },
+
+  // Customer Service reports (booking percentage). One truck works both routes.
+  office: {
+    daysAhead: 14,
+    dayHours: 8,                      // a full day per route: 4 calls x 2 hours
+    workDays: [1, 2, 3, 4, 5, 6],
+    routes: {                         // ServiceMonster route IDs
+      'New Home': '9fb1dbd4-3227-11ed-8205-8d92ba0c912a',
+      'Residential': 'ff14fbca-dc45-11e3-b8c3-d9b28ac835cd',
+    },
+    jaymanRoute: 'New Home',
+  },
 
   // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
   directors: [
@@ -486,6 +515,11 @@ const HP_CONFIG = {
     meetingCall: 'Board meeting! Everybody to the boardroom.',
     meetingOpen: "Everyone's seated. You have the floor, {owner}.",
     meetingEnd: 'Meeting adjourned. Back to work, everyone.',
+    csDesk: "Customer Service desk. What do you want to see, boss?",
+    csOver: "Heads up: we're over 100% on {days}. I've already passed it to Grace.",
+    csFine: 'Every day is at or under 100%. No overbooking.',
+    graceFlag: "Rosa just dropped off the booking report. We're overbooked on {days}. I'll keep an eye on it.",
+    snapshotNote: 'Snapshot from ServiceMonster taken {when}. It goes live once the booking server is running.',
     itsYou: "That's you, boss. Corner office, best chair in the building.",
     notConnected: "I'm not hooked up to the real data yet. Once ServiceMonster and your email are connected, this is where I'll report in.",
   },
@@ -752,6 +786,74 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
 
 </script>
 <script>
+/* Booking percentage. Shared by the booking server (live) and the snapshot
+   script (preview). Pure function of ServiceMonster /scheduling items.
+
+   A route's day is full at `dayHours` of booked jobs (4 calls x 2 hours = 8).
+   One truck works both routes, so the truck's total for a day is
+   New Home + Residential hours over the same 8 hours: over 100% means
+   overbooked. Calendar notes are listed but don't count as booked time.    */
+(function (root) {
+  const hours = i => (Date.parse(i.endDateTime + 'Z') - Date.parse(i.startDateTime + 'Z')) / 36e5;
+  const pct = (h, cap) => Math.round(h / cap * 100);
+
+  function compute(items, opts) {
+    const { from, days, dayHours, workDays, routes, names } = opts;
+    const keys = Object.keys(routes);
+    const out = [];
+    const d0 = Date.parse(from + 'T00:00:00Z');
+    for (let i = 0; i < days; i++) {
+      const date = new Date(d0 + i * 864e5).toISOString().slice(0, 10);
+      const wd = new Date(date + 'T00:00:00Z').getUTCDay();
+      const day = { date, weekday: wd, work: workDays.includes(wd), routes: {}, notes: [], big: [] };
+      for (const k of keys) day.routes[k] = { hours: 0, jobs: 0 };
+      out.push(day);
+    }
+    const byDate = Object.fromEntries(out.map(d => [d.date, d]));
+    for (const it of items) {
+      const day = byDate[(it.startDateTime || '').slice(0, 10)];
+      const key = keys.find(k => routes[k] === it.routeID);
+      if (!day || !key || /cancel/i.test(it.status || '')) continue;
+      if (it.itemType && it.itemType !== 'Job') { day.notes.push(`${it.subject || it.itemType} (${it.startDateTime.slice(11, 16)}-${it.endDateTime.slice(11, 16)})`); continue; }
+      const h = hours(it);
+      day.routes[key].hours += h; day.routes[key].jobs++;
+      if (h >= 6) day.big.push({ route: key, hours: h, label: (names && names[it.accountID]) || it.city || 'all-day job' });
+    }
+    for (const d of out) {
+      for (const k of keys) d.routes[k].pct = pct(d.routes[k].hours, dayHours);
+      d.total = { hours: keys.reduce((s, k) => s + d.routes[k].hours, 0) };
+      d.total.pct = pct(d.total.hours, dayHours);
+      d.over = d.total.pct > 100;
+    }
+    const work = out.filter(d => d.work || d.total.hours > 0);
+    const summary = { routes: {}, workDays: work.length };
+    for (const k of keys) {
+      const h = work.reduce((s, d) => s + d.routes[k].hours, 0);
+      summary.routes[k] = { hours: h, pct: pct(h, dayHours * work.length) };
+    }
+    const th = work.reduce((s, d) => s + d.total.hours, 0);
+    summary.total = { hours: th, pct: pct(th, dayHours * work.length) };
+    summary.overbooked = out.filter(d => d.over).map(d => ({ date: d.date, pct: d.total.pct, why: d.big.map(b => `${b.label} (${b.hours}h, ${b.route})`).join(', ') }));
+    return { from, days: out, summary };
+  }
+
+  // Upcoming jobs on one route (the Jayman list uses New Home).
+  function jobsOn(items, routeID, from) {
+    return items.filter(i => i.routeID === routeID && i.itemType === 'Job' && !/cancel/i.test(i.status || '') && i.startDateTime.slice(0, 10) >= from)
+      .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
+      .map(i => ({ date: i.startDateTime.slice(0, 10), start: i.startDateTime.slice(11, 16), end: i.endDateTime.slice(11, 16), city: i.city || '', status: i.status || '' }));
+  }
+
+  root.HP_CAPACITY = { compute, jobsOn };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+</script>
+<script>
+/* Snapshot for the preview build, made by tools/rosa/office-snapshot.mjs. The live site asks the booking server instead. */
+window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T06:25:18","capacity":{"from":"2026-11-16","days":[{"date":"2026-11-16","weekday":1,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-17","weekday":2,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-18","weekday":3,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-19","weekday":4,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":4,"jobs":2,"pct":50}},"notes":["Jayman Warrenty 3404 122 Street SW - Re: w0735191 (10:00-12:30)"],"big":[],"total":{"hours":4,"pct":50},"over":false},{"date":"2026-11-20","weekday":5,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":4,"pct":100}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-21","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-22","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-23","weekday":1,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-24","weekday":2,"work":true,"routes":{"New Home":{"hours":8,"jobs":4,"pct":100},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":16,"pct":200},"over":true},{"date":"2026-11-25","weekday":3,"work":true,"routes":{"New Home":{"hours":4,"jobs":2,"pct":50},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":12,"pct":150},"over":true},{"date":"2026-11-26","weekday":4,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-27","weekday":5,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":10,"pct":125},"over":true},{"date":"2026-11-28","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-29","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false}],"summary":{"routes":{"New Home":{"hours":32,"pct":33},"Residential":{"hours":62,"pct":65}},"workDays":12,"total":{"hours":94,"pct":98},"overbooked":[{"date":"2026-11-24","pct":200,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-25","pct":150,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-27","pct":125,"why":"Waterfront Pointe (8h, Residential)"}]}},"jayman":[{"date":"2026-11-16","start":"12:00","end":"14:00","city":"Edmonton","status":"Complete"},{"date":"2026-11-23","start":"08:30","end":"16:30","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"11:00","end":"13:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"13:00","end":"15:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"15:00","end":"17:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-25","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-25","start":"11:00","end":"13:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-26","start":"08:30","end":"16:30","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-27","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"}]};
+
+</script>
+<script>
 /* Chiptune sound effects and a quiet shop tune, synthesized with WebAudio.
    Nothing plays until the customer presses Start (browsers require a tap). */
 (function (root) {
@@ -890,6 +992,11 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
     async me(token) {
       if (demo) return token === 'demo' ? { ok: true } : Promise.reject(new Error('unauthorized'));
       return call('/api/me', { headers: { Authorization: 'Bearer ' + token } });
+    },
+    // Customer Service reports. Demo mode shows the snapshot in js/office-data.js.
+    async officeReport(token) {
+      if (demo) { await wait(400); return root.HP_OFFICE_DATA || null; }
+      return call('/api/office/report', { headers: { Authorization: 'Bearer ' + token } });
     },
     async book(payload) {
       if (demo) { await wait(1600); return { ok: true, demo: true, reference: 'DEMO-' + Math.floor(Math.random() * 9000 + 1000) }; }
@@ -1088,6 +1195,9 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
   const DESKS = [[280, 238, 465, 345], [700, 238, 890, 345], [1122, 238, 1310, 345], [258, 925, 445, 1030],
     [675, 925, 862, 1030], [1080, 918, 1362, 1042], [1525, 518, 1862, 672]];
   const SHOP_DOOR = [40, 505, 150, 665];
+  // whole office rooms, so clicking a room opens whoever works there
+  const ROOMS = { gm: [165, 40, 590, 455], acct: [600, 40, 1005, 455], mkt: [1015, 40, 1460, 455],
+    email: [165, 690, 575, 1065], cs: [585, 690, 980, 1065], cho: [995, 690, 1465, 1065] };
 
   const office = { people: [], selected: null, hover: null, meeting: false, onSeated: null };
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -1101,8 +1211,7 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
     p.goal = place;
     if (!p.path.length) { p.path = route(p.loc, place); p.loc = null; }
   }
-  const visitSpots = ['v-gm', 'v-acct', 'v-mkt', 'v-email', 'v-cs', 'v-cho', 'cooler'];
-
+  
   function stepOffice(dt) {
     let seated = 0;
     for (const p of office.people) {
@@ -1116,24 +1225,23 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
         p.walking = true;
         p.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy > 0 ? 0 : 3);
         if (!p.path.length) {
-          if (p.goal) { p.loc = p.goal; p.dir = PLACES[p.loc].face; p.wait = p.loc === p.home ? rand(8, 18) : rand(3, 7); }
+          if (p.goal) {
+            p.loc = p.goal; p.dir = PLACES[p.loc].face; p.wait = p.errandWait || 4; p.errandWait = 0;
+            if (p.onArrive) { const cb = p.onArrive; p.onArrive = null; cb(); }
+          }
           // a stop on the way somewhere new: carry on
           if (p.next) { const nx = p.next; p.next = null; goTo(p, nx); }
         }
         continue;
       }
       if (p.loc && p.loc.startsWith('seat')) { seated++; continue; }
-      if (office.meeting || p.id === 'keith') continue;
+      // People stay in their offices. They only leave on an errand (taking
+      // something to someone) or for a board meeting, then come straight back.
+      if (office.meeting || p.loc === p.home) continue;
       p.wait -= dt;
-      if (p.wait > 0) continue;
-      if (p.loc !== p.home) goTo(p, p.home);
-      else if (Math.random() < 0.85) {
-        const own = 'v-' + p.home;
-        const choices = visitSpots.filter(s => s !== own && !office.people.some(o => o.goal === s || o.loc === s));
-        if (choices.length) goTo(p, choices[Math.floor(Math.random() * choices.length)]);
-        else p.wait = rand(3, 6);
-      } else p.wait = rand(5, 10);
+      if (p.wait <= 0) { goTo(p, p.home); if (p.onBack) { const cb = p.onBack; p.onBack = null; p.whenHome = cb; } }
     }
+    for (const p of office.people) if (p.whenHome && p.loc === p.home && !p.path.length) { const cb = p.whenHome; p.whenHome = null; cb(); }
     if (office.meeting && office.onSeated && seated === office.people.length) { const cb = office.onSeated; office.onSeated = null; cb(); }
   }
 
@@ -1261,6 +1369,15 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
         });
       },
       clear() { office.people = []; office.selected = null; office.meeting = false; },
+      // walk someone to another place, wait there, then back to their desk
+      errand(id, place, waitSec, onArrive, onBack) {
+        const p = office.people.find(x => x.id === id);
+        if (!p || office.meeting) return false;
+        p.errandWait = waitSec; p.onArrive = onArrive || null; p.onBack = onBack || null;
+        if (reduce) { onArrive && onArrive(); onBack && onBack(); return true; }
+        if (p.path.length) p.next = place; else goTo(p, place);
+        return true;
+      },
       select(id) { office.selected = id; },
       hover(id) { office.hover = id; },
       // everyone to their boardroom seat (on) or back to their desks (off)
@@ -1281,6 +1398,11 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
         if (hit) return hit.id;
         const [x0, y0, x1, y1] = SHOP_DOOR;
         if (px >= x0 * SX && px <= x1 * SX && py >= y0 * SY && py <= y1 * SY) return 'shop';
+        for (const [room, [a, b, c, d]] of Object.entries(ROOMS))
+          if (px >= a * SX && px <= c * SX && py >= b * SY && py <= d * SY) {
+            const owner = office.people.find(p => p.home === room);
+            return owner ? owner.id : null;
+          }
         return null;
       },
       size: { W, H },
@@ -1986,6 +2108,7 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
   function boardChoices(except) {
     const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
     if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
+    if (except !== 'rosa') list.push({ label: 'Customer Service desk', onPick: csDesk });
     list.push(inMeeting
       ? { label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn }
       : { label: 'Call a board meeting', kind: 'primary', onPick: callMeeting });
@@ -1997,8 +2120,10 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
   async function enterBoard() {
     clear();
     boardOpen = true; inMeeting = false;
+    report = null; graceKnows = false; handedOff = false;
     S.office.enter(everyone());
     floor(true);
+    maybeHandOff();
   }
 
   async function floor(first) {
@@ -2010,6 +2135,7 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
     if (id !== run) return;
     choices(boardChoices());
     $('hint').textContent = 'Click anyone on the floor, or pick a name below. The door on the left goes back to the shop.';
+    maybeHandOff();
   }
 
   async function callMeeting() {
@@ -2043,15 +2169,99 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
       if (id !== run) return;
       return choices(boardChoices());
     }
+    if (dirId === 'rosa') return csDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
     S.office.select(d.id);
     nameplate(`${d.name.toUpperCase()} · ${d.title.toUpperCase()}`);
     $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="soon">${esc(cfg.lines.notConnected)}</p></div>`;
-    await say(d.intro);
+    await say(d.id === 'grace' && graceKnows ? cfg.lines.graceFlag.replace('{days}', overDays()) : d.intro);
     if (id !== run) return;
     choices(boardChoices(d.id));
+  }
+
+  /* ------------------------------------------- Customer Service desk (Rosa) */
+  let report = null, graceKnows = false, handedOff = false;
+  const fmtDate = s => new Date(s + 'T12:00:00Z').toLocaleDateString('en-CA', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' });
+  const overDays = () => report ? report.capacity.summary.overbooked.map(o => `${fmtDate(o.date)} (${o.pct}%)`).join(', ') : '';
+  const bar = p => `<span class="bar"><i style="width:${Math.min(100, p)}%"></i></span>${p}%`;
+
+  async function loadReport() {
+    if (report) return report;
+    try { report = await api.officeReport(store.get()); } catch (e) { report = null; }
+    return report;
+  }
+
+  // Once per visit: if days are overbooked, Rosa walks the report to Grace.
+  async function maybeHandOff() {
+    if (handedOff) return;
+    const r = await loadReport();
+    if (!r || !r.capacity.summary.overbooked.length || !boardOpen) return;
+    handedOff = true;
+    setTimeout(() => S.office.errand('rosa', 'v-gm', 5, () => { graceKnows = true; }), 2500);
+  }
+
+  async function csDesk() {
+    const id = clear();
+    S.office.select('rosa');
+    nameplate('ROSA · CUSTOMER SERVICE');
+    const d = cfg.directors.find(x => x.id === 'rosa');
+    $('panel').innerHTML = `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    await say(cfg.lines.csDesk);
+    if (id !== run) return;
+    csChoices();
+  }
+
+  function csChoices(current) {
+    const list = [
+      { label: 'Jayman bookings', kind: current === 'jay' ? 'primary' : '', onPick: () => csReport('jay') },
+      { label: 'Booking % by route', kind: current === 'route' ? 'primary' : '', onPick: () => csReport('route') },
+      { label: 'Total booking %', kind: current === 'total' ? 'primary' : '', onPick: () => csReport('total') },
+      { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
+    ];
+    choices(list);
+  }
+
+  async function csReport(kind) {
+    const id = clear();
+    S.office.select('rosa');
+    nameplate('ROSA · CUSTOMER SERVICE');
+    $('panel').innerHTML = '<div class="loading">Pulling it from ServiceMonster</div>';
+    const r = await loadReport();
+    if (id !== run) return;
+    if (!r) {
+      $('panel').innerHTML = '';
+      await say("I couldn't reach ServiceMonster just now. Try again in a minute.");
+      return csChoices(kind);
+    }
+    const cap = r.capacity, sumr = cap.summary, routes = Object.keys(cfg.office.routes);
+    const days = cap.days.filter(d => d.work || d.total.hours);
+    const foot = r.live ? `<p class="soon">Live from ServiceMonster, ${esc(r.generatedAt.replace('T', ' ').slice(0, 16))}.</p>`
+      : `<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p>`;
+    const head = `Next ${cfg.office.daysAhead} days · a full day is ${cfg.office.dayHours} h (4 calls x 2 h)`;
+    let html = '', line = '';
+    if (kind === 'jay') {
+      const rows = r.jayman.map(j => `<tr><td>${esc(fmtDate(j.date))}</td><td>${esc(j.start)}-${esc(j.end)}</td><td>${esc(j.city)}</td><td>${esc(j.status)}</td></tr>`).join('');
+      html = `<div class="report"><h3>JAYMAN BOOKINGS · ${esc(cfg.office.jaymanRoute.toUpperCase())} ROUTE</h3>
+        <table><tr><th>Date</th><th>Time</th><th>Town</th><th>Status</th></tr>${rows || '<tr><td colspan="4">Nothing booked.</td></tr>'}</table>
+        <p class="soon">My prep run is every morning at about 6:08 AM. New Jayman orders come to your phone for approval before I book them.</p>${foot}</div>`;
+      line = `${r.jayman.length} Jayman call${r.jayman.length === 1 ? '' : 's'} on the books for the next ${cfg.office.daysAhead} days.`;
+    } else if (kind === 'route') {
+      const rows = days.map(d => `<tr class="${routes.some(k => d.routes[k].pct > 100) ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td>${routes.map(k => `<td>${bar(d.routes[k].pct)} <small>(${d.routes[k].jobs})</small></td>`).join('')}</tr>`).join('');
+      html = `<div class="report"><h3>BOOKING % BY ROUTE</h3><div class="kpis">${routes.map(k => `<div>${esc(k)}<br><span class="big">${sumr.routes[k].pct}%</span></div>`).join('')}<div>${esc(head)}</div></div>
+        <table><tr><th>Day</th>${routes.map(k => `<th>${esc(k)} (calls)</th>`).join('')}</tr>${rows}</table>${foot}</div>`;
+      line = routes.map(k => `${k} is ${sumr.routes[k].pct}% full`).join(', ') + ' over the next two weeks.';
+    } else {
+      const rows = days.map(d => `<tr class="${d.over ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td><td>${bar(d.total.pct)}${d.over ? '<span class="tag">OVERBOOKED</span>' : ''}</td><td class="why">${esc(d.over ? d.big.map(b => `${b.label}: ${b.hours} h on ${b.route}`).join(', ') : '')}${d.notes.length ? esc((d.over ? ' · ' : '') + 'Notes: ' + d.notes.join(', ')) : ''}</td></tr>`).join('');
+      html = `<div class="report"><h3>TOTAL BOOKING % · ONE TRUCK</h3><div class="kpis"><div>All routes<br><span class="big">${sumr.total.pct}%</span></div><div>${esc(head)}</div></div>
+        <table><tr><th>Day</th><th>Truck</th><th>Why</th></tr>${rows}</table>${foot}</div>`;
+      line = sumr.overbooked.length ? cfg.lines.csOver.replace('{days}', overDays()) : cfg.lines.csFine;
+    }
+    $('panel').innerHTML = html;
+    await say(line);
+    if (id !== run) return;
+    csChoices(kind);
   }
 
   async function backToShop() {
