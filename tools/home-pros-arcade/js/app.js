@@ -1400,7 +1400,7 @@
   }
 
   // keep = index of the card just tapped: redraw without jumping, keep that card where it was, and flash it
-  function drawStmt(keep) {
+  function drawStmt(keep, note) {
     const T = stmt.transactions, st = stmt.statement || {};
     const keepEl = keep != null ? $('panel').querySelector(`.q.tx[data-ti="${keep}"]`) : null, keepTop = keepEl ? keepEl.getBoundingClientRect().top : null;
     if (!stmt.owner) {
@@ -1447,14 +1447,17 @@
     const P = $('panel');
     if ($('stOwner')) $('stOwner').onclick = () => { stmt.owner = ''; drawStmt(); };
     P.querySelectorAll('button[data-d]').forEach(b => b.onclick = () => {
-      const t = T[+b.dataset.i]; t.decision = b.dataset.d;
+      const t = T[+b.dataset.i], same = t.decision === b.dataset.d; t.decision = b.dataset.d;
       if (t.decision === 'business' && !CATS.includes(t.category)) t.category = '';
-      A.select(); stmtSave(); drawStmt(+b.dataset.i);
+      try { A.select(); } catch (e) { }
+      stmtSave();
+      const word = t.decision === 'business' ? 'Business' : t.decision === 'personal' ? 'Personal' : 'Skipped';
+      drawStmt(+b.dataset.i, (same ? `Already marked ${word.toLowerCase()}` : `Saved: ${word}`) + (t.decision === 'business' ? (t.category ? ` \u00b7 ${t.category}. Change the category below if it's wrong.` : '. Now pick a category below.') : '.'));
       const P2 = $('panel'), next = P2.querySelector('.q.tx:not(.done)');
       if (t.decision !== 'business' && next) next.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
-    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; A.select(); stmtSave(); drawStmt(+b.dataset.i); });
-    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(+b.dataset.i); });
+    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; try { A.select(); } catch (e) { } stmtSave(); drawStmt(+b.dataset.i, 'Saved: ' + b.dataset.cat); });
+    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(+b.dataset.i, 'Saved: ' + (t.gstHow === 'none' ? 'no GST' : 'GST ' + $$(t.gst))); });
     P.querySelectorAll('input[data-gstv]').forEach(inp => inp.onchange = () => { const t = T[+inp.dataset.i]; t.gstHow = 'custom'; t.gst = Math.round(Number(inp.value || 0) * 100) / 100; stmtSave(); drawStmt(+inp.dataset.i); });
     P.querySelectorAll('input[data-note]').forEach(inp => inp.onchange = () => { T[+inp.dataset.i].note = inp.value; stmtSave(); });
     $('stAdd').onclick = async () => {
@@ -1486,6 +1489,7 @@
     if (back) {
       if (keepTop != null) { const dy = back.getBoundingClientRect().top - keepTop; let sc = back.parentElement; while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; if (sc && sc !== document.body) sc.scrollTop += dy; else window.scrollBy(0, dy); }
       back.classList.remove('flash'); void back.offsetWidth; back.classList.add('flash');
+      if (note) { const n = document.createElement('p'); n.className = 'savedline'; n.textContent = '\u2713 ' + note; back.querySelector('.txh').after(n); }
     } else if (keep == null && firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
   }
 
