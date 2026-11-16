@@ -402,6 +402,9 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .stmts .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
 .stmts .warnc { color: #ffcf73; } .stmts .okc { color: var(--edge); }
 
+.stmts .q.tx.flash { animation: txflash .7s ease-out; }
+@keyframes txflash { from { box-shadow: 0 0 0 3px var(--edge); } to { box-shadow: 0 0 0 0 transparent; } }
+
 </style>
 </head>
 <body class="street">
@@ -3747,8 +3750,10 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     acctChoices('stmt');
   }
 
-  function drawStmt() {
+  // keep = index of the card just tapped: redraw without jumping, keep that card where it was, and flash it
+  function drawStmt(keep) {
     const T = stmt.transactions, st = stmt.statement || {};
+    const keepEl = keep != null ? $('panel').querySelector(`.q.tx[data-ti="${keep}"]`) : null, keepTop = keepEl ? keepEl.getBoundingClientRect().top : null;
     if (!stmt.owner) {
       const g = guessOwner(st);
       $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
@@ -3776,7 +3781,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         <label class="rf"><span>What it was for (optional)</span><input type="text" data-i="${i}" data-note value="${esc(t.note || '')}"></label>` : '';
       const ask = !t.decision && t.question ? `<p class="pq">${esc(t.question)}</p>` : '';
       const buttons = t.added ? '' : `<div class="qbtns">${['business', 'personal', 'skip'].map(d => `<button class="qa ${t.decision === d ? 'on' + (d === 'personal' ? ' no' : '') : ''}" data-i="${i}" data-d="${d}">${d === 'business' ? 'Business' : d === 'personal' ? 'Personal' : 'Skip'}</button>`).join('')}${t.decision === 'filed' ? `<button class="qa" data-i="${i}" data-d="business">Not the same, it's business too</button>` : ''}</div>`;
-      return `<div class="q tx ${t.decision ? 'done' : ''}"><div class="txh"><span>${esc(fmtDate(t.date))}</span><b>${esc(t.description || '')}</b><span class="amt">${$$(t.amount)}</span></div>${flag}${decided}${ask}${buttons}${body}</div>`;
+      return `<div class="q tx ${t.decision ? 'done' : ''}" data-ti="${i}"><div class="txh"><span>${esc(fmtDate(t.date))}</span><b>${esc(t.description || '')}</b><span class="amt">${$$(t.amount)}</span></div>${flag}${decided}${ask}${buttons}${body}</div>`;
     };
     const firstOpen = T.findIndex(t => !t.decision);
     $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
@@ -3795,13 +3800,13 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     P.querySelectorAll('button[data-d]').forEach(b => b.onclick = () => {
       const t = T[+b.dataset.i]; t.decision = b.dataset.d;
       if (t.decision === 'business' && !CATS.includes(t.category)) t.category = '';
-      A.select(); stmtSave(); drawStmt();
-      const next = P.querySelector('.q.tx:not(.done)');
+      A.select(); stmtSave(); drawStmt(+b.dataset.i);
+      const P2 = $('panel'), next = P2.querySelector('.q.tx:not(.done)');
       if (t.decision !== 'business' && next) next.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
-    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; A.select(); stmtSave(); drawStmt(); });
-    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(); });
-    P.querySelectorAll('input[data-gstv]').forEach(inp => inp.onchange = () => { const t = T[+inp.dataset.i]; t.gstHow = 'custom'; t.gst = Math.round(Number(inp.value || 0) * 100) / 100; stmtSave(); drawStmt(); });
+    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; A.select(); stmtSave(); drawStmt(+b.dataset.i); });
+    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(+b.dataset.i); });
+    P.querySelectorAll('input[data-gstv]').forEach(inp => inp.onchange = () => { const t = T[+inp.dataset.i]; t.gstHow = 'custom'; t.gst = Math.round(Number(inp.value || 0) * 100) / 100; stmtSave(); drawStmt(+inp.dataset.i); });
     P.querySelectorAll('input[data-note]').forEach(inp => inp.onchange = () => { T[+inp.dataset.i].note = inp.value; stmtSave(); });
     $('stAdd').onclick = async () => {
       const add = T.filter(t => t.decision === 'business' && !t.added && t.category);
@@ -3828,7 +3833,11 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         say(`Filed ${add.length} business item${add.length === 1 ? '' : 's'}, ${$$(sum(add))}, into ${Object.keys(byMonth).map(monthName).join(', ')}.` + (personalCard ? ` The business now owes you ${$$(sum(add))} for these. It's on the "owed" list on the Card statements page.` : '') + (persOnBiz.length ? ` ${$$(sum(persOnBiz))} of personal purchases on the business card is listed as owed to the business.` : ''));
       } catch (e) { $('stAdd').disabled = false; $('stMsg').textContent = " Couldn't save just now. Try again in a minute."; }
     };
-    if (firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
+    const back = keep != null ? P.querySelector(`.q.tx[data-ti="${keep}"]`) : null;
+    if (back) {
+      if (keepTop != null) { const dy = back.getBoundingClientRect().top - keepTop; let sc = back.parentElement; while (sc && sc !== document.body && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement; if (sc && sc !== document.body) sc.scrollTop += dy; else window.scrollBy(0, dy); }
+      back.classList.remove('flash'); void back.offsetWidth; back.classList.add('flash');
+    } else if (keep == null && firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
   }
 
   /* ------------------------------------------------ Expenses by month */

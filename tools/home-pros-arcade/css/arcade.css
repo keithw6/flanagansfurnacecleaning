@@ -388,3 +388,6 @@ body.street .cash, body.office .cash { visibility: hidden; }
 
 .stmts .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
 .stmts .warnc { color: #ffcf73; } .stmts .okc { color: var(--edge); }
+
+.stmts .q.tx.flash { animation: txflash .7s ease-out; }
+@keyframes txflash { from { box-shadow: 0 0 0 3px var(--edge); } to { box-shadow: 0 0 0 0 transparent; } }
