@@ -157,7 +157,9 @@ boardroom at the end.
 - Click anyone (hover shows their name) to see what they handle. The TO SHOP door on
   the left goes back to Hank. The directors are not connected to real data yet.
 - Each character has four views (facing you, left, right, walking away) and turns to
-  face the way they walk.
+  face the way they walk. They are drawn as bobbleheads: bigger head, smaller body,
+  a little head wobble. Furniture is drawn back to front, so people sit in their
+  chairs, behind desks, and at the boardroom table.
 
 - Names, titles, lines, duties, offices (`home`) and seats (`seat`) are in `js/config.js` under `owner` and `directors`.
 - Walking routes, desks and seats for the floor plan are at the top of the office section in `js/scene.js` (`PLACES`).

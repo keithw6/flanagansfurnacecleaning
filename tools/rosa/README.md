@@ -27,8 +27,21 @@ about 6:00 AM Alberta time as a scheduled Claude task:
 
 **Warranty calls** are booked as calendar activities (for example "Jayman Warrenty
 3404 122 Street SW - Re: w0735191"). They are **timed** (the crew must arrive at that
-time and they never move) and still need a **work order**. Rosa lists them every
-morning and proposes the work order.
+time and they never move) and still need a **work order**.
+- `jayman-sm.mjs warranty` finds them and prices each one like the original new-home
+  cleaning at that address. It finds the ServiceMonster site and copies the line
+  items from the first work order there. Example: 3404 122 Street SW ->
+  WO 45110 (02138399-0024): furnace $230 + HRV $35 + zone $49 = $314 + GST.
+- Rosa **asks Keith** for each one. Only on a yes, `warranty-apply warranty.json
+  --approved --only=w0735191` creates the work order (Reference = the warranty
+  number), with a job on New Home at the exact time.
+- **Marked special in ServiceMonster:** red job colour (`colorOverride`), plus an
+  admin note and job note "WARRANTY - TIMED: arrive at 10:00 AM sharp". The
+  arrival-window field doesn't save through the API, so the note carries the time.
+- The calendar activity stays. Keith deletes it if he doesn't want both.
+
+The truck starts and ends every day at **53 Umbach Rd, Stony Plain** (from the
+ServiceMonster site there).
 
 The helper re-checks duplicates and the slot immediately before creating anything,
 and stops if its control search (PO 02210518 -> WO 45769) fails.

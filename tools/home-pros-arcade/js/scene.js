@@ -155,7 +155,7 @@
      place has a "chain": the walk from that spot out to the hallway. A route
      between two places is one chain out, along the hallway, the other chain in. */
   const MW = 2000, MH = 1131, SX = W / MW, SY = H / MH;
-  const FW = 220, FH = 440, PERSON_H = 100;          // character frames, height on the map grid
+  const FW = 220, FH = 440, PERSON_H = 122;          // character frames, height on the map grid
   const PLACES = {
     // desks: chair spot first, then out through the door to the hallway
     gm:    { face: 0, chain: [[372, 290], [505, 290], [505, 390], [375, 430], [375, 500], [375, 585]] },
@@ -177,14 +177,15 @@
     'seat-t1': { face: 0, chain: [[1597, 555], [1597, 440], [1500, 440], [1500, 585], [1440, 585]] },
     'seat-t2': { face: 0, chain: [[1695, 555], [1695, 440], [1500, 440], [1500, 585], [1440, 585]] },
     'seat-t3': { face: 0, chain: [[1790, 555], [1790, 440], [1500, 440], [1500, 585], [1440, 585]] },
-    'seat-b1': { face: 3, chain: [[1597, 760], [1597, 780], [1500, 780], [1500, 585], [1440, 585]] },
-    'seat-b2': { face: 3, chain: [[1695, 760], [1695, 780], [1500, 780], [1500, 585], [1440, 585]] },
-    'seat-b3': { face: 3, chain: [[1790, 760], [1790, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-b1': { face: 3, chain: [[1597, 722], [1597, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-b2': { face: 3, chain: [[1695, 722], [1695, 780], [1500, 780], [1500, 585], [1440, 585]] },
+    'seat-b3': { face: 3, chain: [[1790, 722], [1790, 780], [1500, 780], [1500, 585], [1440, 585]] },
     'seat-head': { face: 1, chain: [[1885, 640], [1890, 780], [1500, 780], [1500, 585], [1440, 585]] },
   };
   // furniture people can be "behind": redrawn on top of anyone standing in it
   const DESKS = [[280, 238, 465, 345], [700, 238, 890, 345], [1122, 238, 1310, 345], [258, 925, 445, 1030],
-    [675, 925, 862, 1030], [1080, 918, 1362, 1042], [1525, 518, 1862, 672]];
+    [675, 925, 862, 1030], [1080, 918, 1362, 1042], [1525, 518, 1862, 672],
+    [1560, 664, 1638, 736], [1657, 664, 1735, 736], [1753, 664, 1832, 736]];
   const SHOP_DOOR = [40, 505, 150, 665];
   // whole office rooms, so clicking a room opens whoever works there
   const ROOMS = { gm: [165, 40, 590, 455], acct: [600, 40, 1005, 455], mkt: [1015, 40, 1460, 455],
@@ -236,63 +237,78 @@
     if (office.meeting && office.onSeated && seated === office.people.length) { const cb = office.onSeated; office.onSeated = null; cb(); }
   }
 
+  /* Bobblehead proportions: the head is drawn bigger and the body smaller.
+     NECK is where each character's head ends in their sprite (fraction of the
+     frame height), measured from the art.                                   */
+  const NECK = { grace: 0.27, penny: 0.29, max: 0.24, eddie: 0.25, rosa: 0.25, keith: 0.22 };
+  const HEAD_S = 1.55, BODY_S = 0.8;
+  function dims(p) {
+    const h = PERSON_H * SY, n = NECK[p.id] || 0.25;
+    const k = h / (n * HEAD_S + (1 - n) * BODY_S);          // px per frame height
+    return { h, n, bs: k * BODY_S / FH, hs: k * HEAD_S / FH };
+  }
   function personBox(p) {
-    const h = PERSON_H * SY, w = h * FW / FH;
-    return { x: p.x * SX - w / 2, y: p.y * SY - h, w, h };
+    const d = dims(p), w = FW * d.hs * 0.62;               // the head is the widest part
+    return { x: p.x * SX - w / 2, y: p.y * SY - d.h, w, h: d.h };
   }
   const behind = (p, d) => p.y > d[1] && p.y < d[3] + 4 && p.x > d[0] - 10 && p.x < d[2] + 10;
 
   function drawPerson(p) {
     const sheet = img['dir-' + p.id];
     if (!sheet) return;
-    const b = personBox(p);
+    const D = dims(p), cx = p.x * SX, feet = p.y * SY;
+    const neck = FH * D.n, hip = FH * 0.54, sx0 = p.dir * FW;
+    const bodyW = FW * D.bs, torsoH = (hip - neck) * D.bs;
+    let legH = (FH - hip) * D.bs;
+    const headW = FW * D.hs, headH = neck * D.hs;
+    const walking = p.walking && !reduce;
+    const seated = !p.path.length && p.loc && (p.loc === p.home || p.loc.startsWith('seat'));
+    const step = walking ? Math.sin(t * 11 + p.phase) : 0;
+    const bob = walking ? -Math.abs(step) * D.h * 0.045 : 0;
+    if (seated && (p.dir === 1 || p.dir === 2)) legH *= 0.5;     // knees bent on the chair
+    const hipY = feet - legH, neckY = hipY - torsoH;
+
     ctx.globalAlpha = 0.3; ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(p.x * SX, p.y * SY - 1, b.w * 0.4, b.w * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, feet - 1, bodyW * 0.36, bodyW * 0.12, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    const sx0 = p.dir * FW;
-    if (!p.walking || reduce) { ctx.drawImage(sheet, sx0, 0, FW, FH, b.x, b.y, b.w, b.h); return; }
 
-    // Walking: the sprite is one still frame, so the legs are animated here.
-    // Upper body and legs are drawn separately; the legs swing or lift on
-    // every step, and the body bobs up on each footfall.
-    const step = Math.sin(t * 11 + p.phase);              // -1..1, one stride per cycle
-    const bob = -Math.abs(step) * b.h * 0.05;
-    const HIP = 0.54, hipSrc = FH * HIP, hipY = b.y + b.h * HIP;
-    const legH = b.h * (1 - HIP), half = FW / 2;
-    // upper body (overlaps the hip a little so there is no seam)
-    ctx.drawImage(sheet, sx0, 0, FW, hipSrc + 4, b.x, b.y + bob, b.w, b.h * HIP + 4 * b.h / FH);
-
-    if (p.dir === 1 || p.dir === 2) {
-      // side view: two copies of the legs swinging opposite ways like scissors,
-      // the far leg darker
-      const swing = step * 0.55;                           // horizontal shear: foot travel per unit height
-      const leg = (k, dark) => {
+    // legs: still, a scissor stride side-on, or knee lifts facing you / away
+    if (!walking) {
+      ctx.drawImage(sheet, sx0, hip, FW, FH - hip, cx - bodyW / 2, hipY, bodyW, legH);
+    } else if (p.dir === 1 || p.dir === 2) {
+      const swing = step * 0.55;
+      for (const [k, dark] of [[-swing, true], [swing, false]]) {
         ctx.save();
         if (dark) ctx.filter = 'brightness(0.55)';
-        ctx.translate(p.x * SX, hipY + bob);
+        ctx.translate(cx, hipY + bob);
         ctx.transform(1, 0, k, 1, 0, 0);
-        ctx.drawImage(sheet, sx0, hipSrc, FW, FH - hipSrc, -b.w / 2, 0, b.w, legH - bob);
+        ctx.drawImage(sheet, sx0, hip, FW, FH - hip, -bodyW / 2, 0, bodyW, legH - bob);
         ctx.restore();
-      };
-      leg(-swing, true);
-      leg(swing, false);
+      }
     } else {
-      // facing you or walking away: knees come up one at a time
-      const lift = b.h * 0.12;
-      const up = side => Math.max(0, side * step) * lift;  // how far this leg is raised
+      const lift = D.h * 0.1;
       for (const side of [-1, 1]) {
-        const srcX = sx0 + (side < 0 ? 0 : half), dx = side < 0 ? b.x : b.x + b.w / 2;
-        const raise = up(side);
-        ctx.drawImage(sheet, srcX, hipSrc, half, FH - hipSrc, dx, hipY + bob, b.w / 2, legH - raise - bob);
+        const raise = Math.max(0, side * step) * lift;
+        ctx.drawImage(sheet, sx0 + (side < 0 ? 0 : FW / 2), hip, FW / 2, FH - hip,
+          side < 0 ? cx - bodyW / 2 : cx, hipY + bob, bodyW / 2, legH - raise - bob);
       }
     }
+    // torso
+    ctx.drawImage(sheet, sx0, neck, FW, hip - neck + 3, cx - bodyW / 2, neckY + bob, bodyW, torsoH + 3 * D.bs);
+    // the big head, with a little wobble (more when walking)
+    const wob = walking ? Math.sin(t * 11 + p.phase) * 0.07 : Math.sin(t * 1.8 + p.phase * 2) * 0.025;
+    ctx.save();
+    ctx.translate(cx, neckY + bob + headH * 0.1);
+    ctx.rotate(wob);
+    ctx.drawImage(sheet, sx0, 0, FW, neck, -headW / 2, -headH, headW, headH);
+    ctx.restore();
   }
 
   function label(p) {
     const b = personBox(p);
     const text = p.name;
     ctx.font = "800 22px 'Barlow Condensed', sans-serif";
-    const w = ctx.measureText(text).width + 14, x = p.x * SX - w / 2, y = b.y - 34;
+    const w = ctx.measureText(text).width + 14, x = p.x * SX - w / 2, y = b.y - 30;
     ctx.fillStyle = 'rgba(12,14,13,.88)'; ctx.fillRect(x, y, w, 26);
     ctx.fillStyle = '#3faa35'; ctx.fillRect(x, y + 24, w, 2);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -304,16 +320,17 @@
     if (map) ctx.drawImage(map, 0, 0, W, H);
     else { ctx.fillStyle = '#141715'; ctx.fillRect(0, 0, W, H); }
     const people = office.people.slice().sort((a, b) => a.y - b.y);
-    const back = people.filter(p => DESKS.some(d => behind(p, d)));
-    back.forEach(drawPerson);
-    if (map) for (const d of DESKS) if (back.some(p => behind(p, d))) {
+    // Back to front: each piece of furniture someone is sitting or standing
+    // behind is redrawn right after them, before anyone further forward.
+    const layers = people.map(p => ({ y: p.y, draw: () => drawPerson(p) }));
+    if (map) for (const d of DESKS) if (people.some(p => behind(p, d))) layers.push({ y: d[3], draw: () => {
       const kx = map.naturalWidth / MW, ky = map.naturalHeight / MH;
       ctx.drawImage(map, d[0] * kx, d[1] * ky, (d[2] - d[0]) * kx, (d[3] - d[1]) * ky, d[0] * SX, d[1] * SY, (d[2] - d[0]) * SX, (d[3] - d[1]) * SY);
-    }
-    people.filter(p => !back.includes(p)).forEach(drawPerson);
+    } });
+    layers.sort((a, b) => a.y - b.y).forEach(l => l.draw());
     for (const p of people) {
       if (office.selected === p.id) {
-        const b = personBox(p), cx = p.x * SX, top = b.y - 40 + Math.sin(t * 5) * 3;
+        const b = personBox(p), cx = p.x * SX, top = b.y - 18 + Math.sin(t * 5) * 3;
         ctx.fillStyle = '#3faa35';
         ctx.beginPath(); ctx.moveTo(cx - 10, top - 12); ctx.lineTo(cx + 10, top - 12); ctx.lineTo(cx, top); ctx.fill();
       }

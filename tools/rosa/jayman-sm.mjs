@@ -12,6 +12,18 @@
                                               that day's Jayman calls (saved to a file)
      node jayman-sm.mjs reorder-apply reorder-2026-11-24.json --approved
                                            -> moves the job times in ServiceMonster
+     node jayman-sm.mjs warranty           -> finds Jayman warranty activities in the next
+                                              14 days and proposes a work order for each,
+                                              priced like the original new-home cleaning
+     node jayman-sm.mjs warranty-apply warranty.json --approved
+                                           -> creates those work orders (only after Keith
+                                              says yes to each one)
+
+   Warranty calls are booked as calendar activities ("Jayman Warrenty 3404 122
+   Street SW - Re: w0735191"). They are TIMED: the crew arrives at that exact time.
+   The work order copies the line items from the original cleaning at that
+   address, and the job is marked special in ServiceMonster: red job colour and
+   an admin note "WARRANTY - TIMED: arrive at 10:00 AM sharp".
 
    Driving: Jayman calls only have to happen on their day, so Rosa puts a new
    call in the free slot that adds the least driving, and can swap the times
@@ -258,7 +270,85 @@ async function reorderApply(file) {
   }
 }
 
+/* ------------------------------ warranty calls ----------------------------- */
+const WARRANTY_COLOR = '226, 59, 59';   // red on the ServiceMonster calendar
+const ampm = t => { let [h, m] = t.split(':').map(Number); const p = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${String(m).padStart(2, '0')} ${p}`; };
+
+async function warranty() {
+  const from = new Date().toISOString().slice(0, 10);
+  const to = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+  const items = list(await sm(`/scheduling?startDate=${from}&endDate=${to}&getJobColor=false`))
+    .filter(i => i.itemType !== 'Job' && /jayman/i.test(`${i.subject} ${i.note}`) && WARRANTY.test(`${i.subject} ${i.note}`));
+  const out = [];
+  for (const i of items) {
+    const text = `${i.subject || ''} ${i.note || ''}`;
+    const address = ((i.subject || '').match(/\d{3,6}\s+[^-]+?(?=\s+-|$)/) || [''])[0].trim();
+    const ref = (text.match(/\bw\d{5,}\b/i) || [''])[0];
+    const w = { activityID: i.itemID, date: i.startDateTime.slice(0, 10), start: i.startDateTime.slice(11, 16), end: i.endDateTime.slice(11, 16),
+      address, ref, subject: i.subject, holds: [] };
+    // the original new-home cleaning at this address
+    const [num, street] = address.split(/\s+/);
+    const sites = list(await sm(`/sites?wField=address1&wValue=${encodeURIComponent(num + ' ' + street)}&wOperator=like&fields=siteID,accountID,address1,city`));
+    const site = sites.find(x => JAY.has(x.accountID)) || sites[0];
+    if (!site) w.holds.push(`no ServiceMonster site found for "${address}"`);
+    else {
+      w.siteID = site.siteID; w.accountID = site.accountID; w.city = site.city; w.siteAddress = site.address1;
+      const orders = list(await sm(`/orders?wField=siteID&wValue=${site.siteID}&fields=orderID,orderNumber,orderType,RefNumber,dateCreated,subTotal`))
+        .filter(o => o.orderType !== 'Voided').sort((a, b) => String(a.dateCreated).localeCompare(String(b.dateCreated)));
+      const orig = orders[0];
+      if (!orig) w.holds.push('no original order at that site to copy the price from');
+      else {
+        const lines = list(await sm(`/orders/${orig.orderID}/lineitems`));
+        w.original = { wo: orig.orderNumber, ref: orig.RefNumber, date: String(orig.dateCreated).slice(0, 10) };
+        w.lines = lines.map(l => ({ itemID: l.itemID, description: l.description, price: Number(l.price), qty: Number(l.quantity) || 1 }));
+        w.subtotal = Math.round(w.lines.reduce((s, l) => s + l.price * l.qty, 0) * 100) / 100;
+        w.total = Math.round(w.subtotal * 105) / 100;
+        if (orders.some(o => o !== orig && new RegExp(ref, 'i').test(o.RefNumber || ''))) w.holds.push(`a work order for ${ref} already exists`);
+      }
+    }
+    if (!ref) w.holds.push('no warranty number (w0000000) in the activity');
+    out.push(w);
+  }
+  writeFileSync('warranty.json', JSON.stringify(out, null, 2));
+  if (!out.length) { console.log('No Jayman warranty calls in the next 14 days.'); return; }
+  for (const w of out) {
+    console.log(`\n${w.date} at ${w.start} (TIMED) - ${w.address} - warranty ${w.ref || '?'}`);
+    if (w.lines) console.log(`  Price like the original cleaning, WO ${w.original.wo} (${w.original.ref}, ${w.original.date}): ` +
+      w.lines.map(l => `${l.description} $${l.price}${l.qty > 1 ? ' x' + l.qty : ''}`).join(' + ') + ` = $${w.subtotal} + GST = $${w.total}`);
+    if (w.holds.length) console.log('  HELD: ' + w.holds.join('; '));
+    else console.log(`  Question for Keith: do you want me to turn this into a work order? It will be marked special (red) and TIMED for ${ampm(w.start)}.`);
+  }
+  console.log('\nSaved warranty.json. Nothing was created.');
+}
+
+async function warrantyApply(file) {
+  if (!process.argv.includes('--approved')) throw new Error('Refusing to create warranty work orders without --approved (Keith says yes first).');
+  const only = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
+  const todo = JSON.parse(readFileSync(file, 'utf8')).filter(w => !w.holds.length && (!only.length || only.includes(w.ref)));
+  for (const w of todo) {
+    const dup = list(await sm(`/orders?wField=RefNumber&wValue=${encodeURIComponent(w.ref)}&wOperator=like&fields=orderNumber`));
+    if (dup.length) { console.log(`skip ${w.ref}: already on WO ${dup[0].orderNumber}`); continue; }
+    const timed = `WARRANTY - TIMED: arrive at ${ampm(w.start)} sharp. Jayman warranty ${w.ref}. Original cleaning WO ${w.original.wo} (${w.original.ref}).`;
+    const order = await sm('/orders', { method: 'POST', body: JSON.stringify({
+      accountID: IDS.account, siteID: w.siteID, orderType: 'Work Order', RefNumber: w.ref,
+      salesRepID: IDS.salesRep, taxID: IDS.tax, note: timed,
+    }) });
+    const orderID = order.recordID || order.orderID;
+    for (const [i, l] of w.lines.entries())
+      await sm('/lineitems', { method: 'POST', body: JSON.stringify({ orderID, itemID: l.itemID, price: l.price, quantity: l.qty, rowIndex: i }) });
+    await sm('/jobs', { method: 'POST', body: JSON.stringify({
+      accountID: IDS.account, orderID, routeID: IDS.newHome,
+      estDateTimeStart: `${w.date}T${w.start}:00`, estDateTimeEnd: `${w.date}T${w.end}:00`,
+      colorOverride: WARRANTY_COLOR, adminNote: timed, note: timed,
+    }) });
+    const saved = await sm(`/orders/${orderID}`);
+    console.log(`created WO ${saved.orderNumber} for ${w.address} (${w.ref}), ${w.date} ${w.start} TIMED, $${saved.grandTotal}. The calendar activity is still there; delete it in ServiceMonster if you don't want both.`);
+  }
+}
+
 const [cmd, file] = process.argv.slice(2);
+if (cmd === 'warranty') { await warranty(); process.exit(0); }
+if (cmd === 'warranty-apply' && file) { await warrantyApply(file); process.exit(0); }
 if (cmd === 'reorder' && file) { await reorder(file); process.exit(0); }
 if (cmd === 'reorder-apply' && file) { await reorderApply(file); process.exit(0); }
 if (cmd === 'check' && file) await check(file);

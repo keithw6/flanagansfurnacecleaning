@@ -839,7 +839,7 @@
       const timed = J.days.flatMap(d => d.calls).filter(c => c.timed && !c.done);
       const saves = J.days.filter(d => d.drive && d.drive.saveKm > 0);
       line = `${T.total} Jayman calls in the next two weeks: ${T.done} done, ${T.todo} to go.`
-        + (timed.length ? ` ${timed.map(c => `The warranty call on ${fmtDate(c.date)} at ${c.start} is timed${c.needsWO ? ' and still needs a work order' : ''}.`).join(' ')}` : '')
+        + (timed.length ? ` ${timed.map(c => `The warranty call on ${fmtDate(c.date)} at ${c.start} is timed${c.needsWO ? '. Do you want me to turn it into a work order? I\'ll price it like the original cleaning and mark it red and timed in ServiceMonster. I\'ll ask you in my morning report' : ''}.`).join(' ')}` : '')
         + (saves.length ? ` I can save about ${saves.reduce((s, d) => s + d.drive.saveKm, 0)} km of driving by reordering ${saves.map(d => fmtDate(d.date)).join(', ')}.` : '');
     } else if (kind === 'route') {
       const rows = days.map(d => `<tr class="${routes.some(k => d.routes[k].pct > 100) ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td>${routes.map(k => `<td>${bar(d.routes[k].pct)} <small>(${d.routes[k].jobs})</small></td>`).join('')}</tr>`).join('');
