@@ -323,6 +323,7 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .receipt img.rprev { display: block; max-width: 100%; max-height: 320px; margin: 8px 0; border: 2px solid #39413d; }
 .questions .q.info p { color: #f4f7f4; }
 .questions .q.info p.small { color: var(--dim); }
+.questions .q h4 { line-height: 1.5; }
 
 </style>
 </head>
@@ -1195,9 +1196,31 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T08:43:17","capacity":{"from":
     },
     /* Penny's brief and this month's expenses: {brief, expenses} or undefined. */
     async penny(month) {
-      const [brief, expenses] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny')]);
+      const [brief, expenses, marks, accounts] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny'), read('marks', 'penny'), read('accounts', 'penny')]);
       if (brief === undefined && expenses === undefined) return undefined;
-      return { brief: brief || null, expenses: expenses || null };
+      return { brief: brief || null, expenses: expenses || null, marks: marks || { jobs: {} }, accounts: accounts || { commercial: [], notCommercial: [] } };
+    },
+    /* Keith's answer about one job: {how: 'billed'|'paid', method, at}. */
+    async markJob(wo, answer) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('marks'), cur = await ref.get();
+      const jobs = Object.assign({}, (cur.exists && cur.data().jobs) || {});
+      jobs[String(wo)] = answer;
+      await ref.set({ jobs });
+      return { jobs };
+    },
+    /* Keith's answer about one account: commercial (billed on account) or not. */
+    async markAccount(acct, isCommercial) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('accounts'), cur = await ref.get();
+      const d = cur.exists ? cur.data() : {};
+      const strip = l => (l || []).filter(a => a.accountID !== acct.accountID);
+      const doc = { commercial: strip(d.commercial), notCommercial: strip(d.notCommercial) };
+      (isCommercial ? doc.commercial : doc.notCommercial).push({ accountID: acct.accountID, name: acct.name });
+      await ref.set(doc);
+      return doc;
     },
     /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
     async receiptAbilities() {
@@ -2679,15 +2702,19 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T08:43:17","capacity":{"from":
   async function loadLedger() {
     if (ledger) return ledger;
     const snap = (window.HP_OFFICE_DATA || {}).penny || null;
-    ledger = { brief: snap, expenses: null, fromSnapshot: !!snap };
+    ledger = { brief: snap, expenses: null, fromSnapshot: !!snap, marks: { jobs: {} }, accounts: { commercial: [], notCommercial: [] }, live: false };
     const month = (snap ? snap.date : new Date().toISOString()).slice(0, 7);
     const L = root.HP_LIVE ? await root.HP_LIVE.penny(month) : undefined;
-    if (L && L.brief) ledger = { brief: L.brief, expenses: L.expenses, fromSnapshot: false };
+    if (L && L.brief) ledger = { brief: L.brief, expenses: L.expenses, fromSnapshot: false, marks: L.marks, accounts: L.accounts, live: true };
+    else if (L) Object.assign(ledger, { marks: L.marks, accounts: L.accounts, live: true });
+    applyAnswers();
     if (L && !L.brief && L.expenses) ledger.expenses = L.expenses;
     return ledger;
   }
   function acctChoices(current) {
+    const n = pennyQs().length;
     choices([
+      ...(n || current === 'pq' ? [{ label: n ? `Penny's questions (${n})` : "Penny's questions", kind: current === 'pq' ? 'primary' : '', onPick: () => pennyQuestions() }] : []),
       { label: 'Daily brief', kind: current === 'day' ? 'primary' : '', onPick: () => acctReport('day') },
       { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
@@ -2702,6 +2729,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T08:43:17","capacity":{"from":
     nameplate('PENNY · ACCOUNTING');
     await loadLedger();
     if (id !== run) return;
+    if (ledger.brief && pennyQs().length) return pennyQuestions();
     if (ledger.brief) return acctReport('day');
     $('panel').innerHTML = '';
     await say("My first brief comes in tonight at 8, boss. Check back after that.");
@@ -2774,6 +2802,106 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T08:43:17","capacity":{"from":
     await say(line);
     if (id !== run) return;
     acctChoices(kind);
+  }
+
+  /* Penny's questions: billed or paid on site, and commercial accounts.
+     Answers are saved to the arcade's database and applied to the brief on
+     screen straight away; tonight's brief recalculates from ServiceMonster. */
+  function pennyQs() {
+    const B = ledger && ledger.brief;
+    if (!B) return [];
+    const M = (ledger.marks && ledger.marks.jobs) || {}, A = ledger.accounts || {};
+    const known = id => (A.commercial || []).concat(A.notCommercial || []).some(a => a.accountID === id);
+    return [
+      ...(B.askPaid || []).filter(j => !M[String(j.wo)]).map(j => ({ kind: 'paid', ...j })),
+      ...(B.askCommercial || []).filter(a => !known(a.accountID)).map(a => ({ kind: 'comm', ...a })),
+    ];
+  }
+  const r2c = n => Math.round(n * 100) / 100;
+  // Bring the brief on screen in line with Keith's answers (the same rules as tools/penny/brief.mjs).
+  function applyAnswers() {
+    const B = ledger && ledger.brief;
+    if (!B || !B.unpaid) return;
+    const M = (ledger.marks && ledger.marks.jobs) || {}, A = ledger.accounts || {};
+    const isComm = id => (A.commercial || []).some(a => a.accountID === id);
+    const U = B.unpaid;
+    U.toRecord = U.toRecord || []; U.commercial = U.commercial || [];
+    for (const o of U.notPaid.slice()) {
+      const m = M[String(o.wo)];
+      if (isComm(o.accountID)) { U.notPaid.splice(U.notPaid.indexOf(o), 1); U.commercial.push(o); continue; }
+      if (m && m.how === 'paid') {
+        U.notPaid.splice(U.notPaid.indexOf(o), 1); U.toRecord.push({ ...o, method: m.method || '' });
+        for (const s2 of [B.today, B.month]) if (s2 && o.completed >= s2.from && o.completed <= s2.to) s2.paid = r2c(s2.paid + o.balance);
+      } else if (m && m.how === 'billed') o.billed = true;
+    }
+    for (const j of (B.today && B.today.list) || []) {
+      const m = M[String(j.wo)];
+      if (j.status === 'Not paid' && m) { j.status = m.how === 'paid' ? 'Paid on site' : 'Billed, waiting'; j.method = m.method || ''; }
+    }
+    const sum = l => r2c(l.reduce((t, o) => t + o.balance, 0));
+    U.notPaidTotal = sum(U.notPaid); U.commercialTotal = sum(U.commercial); U.toRecordTotal = sum(U.toRecord);
+    U.over30 = sum(U.notPaid.filter(o => o.days > 30)); U.over60 = sum(U.notPaid.filter(o => o.days > 60));
+    U.total = r2c(U.notPaidTotal + U.commercialTotal);
+  }
+
+  async function pennyQuestions() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    await loadLedger();
+    if (id !== run) return;
+    drawPennyQs();
+    const q = pennyQs(), paid = q.filter(x => x.kind === 'paid').length, comm = q.filter(x => x.kind === 'comm').length;
+    await say(q.length ? `Evening, boss. ${[paid ? `${paid} job${paid === 1 ? '' : 's'} I need to check: billed, or paid on site?` : '', comm ? `And ${comm} customer${comm === 1 ? '' : 's'} that look like companies: do you bill them on account?` : ''].filter(Boolean).join(' ')}` : "That's everything, boss. Your answers are in the books.");
+    if (id !== run) return;
+    acctChoices('pq');
+  }
+
+  function drawPennyQs(note) {
+    const B = ledger.brief, q = pennyQs(), U = B.unpaid;
+    const can = ledger.live;
+    const paidQs = q.filter(x => x.kind === 'paid'), commQs = q.filter(x => x.kind === 'comm');
+    const btn = (k, v, label, extra) => `<button class="qa" data-q="${esc(k)}" data-v="${esc(v)}"${extra || ''}>${esc(label)}</button>`;
+    let n = 0;
+    const cards = [
+      ...paidQs.map(j => `<div class="q"><h4>${++n}. BILLED OR PAID ON SITE?</h4><p><b>WO ${esc(j.wo)}</b>, ${esc(j.account)}, done ${esc(fmtDate(j.done))}: ServiceMonster shows <b>${$$(j.balance)}</b> owing.</p>
+        <div class="qbtns">${btn('p:' + j.wo, 'billed', 'Billed, they pay later')}</div>
+        <p class="small">Paid on site? How:</p><div class="qbtns">${['Cash', 'Cheque', 'Debit/credit', 'E-transfer'].map(m => btn('p:' + j.wo, 'paid:' + m, m)).join('')}</div></div>`),
+      ...(commQs.length ? [`<div class="q"><h4>${++n}. COMMERCIAL ACCOUNTS?</h4><p>Do you bill these customers on account? Yes moves their unpaid jobs to the commercial list, so they're not mixed in with homeowners who haven't paid.</p>
+        <table>${commQs.map(a => { const owed = U.notPaid.filter(o => o.accountID === a.accountID); return `<tr><td><b>${esc(a.name)}</b><br><small>${owed.length} job${owed.length === 1 ? '' : 's'}, ${$$(owed.reduce((t, o) => t + o.balance, 0))}</small></td><td><div class="qbtns">${btn('c:' + a.accountID, 'yes', 'Yes, billed')}${btn('c:' + a.accountID, 'no', 'No')}</div></td></tr>`; }).join('')}</table></div>`] : []),
+    ];
+    const answered = Object.entries((ledger.marks && ledger.marks.jobs) || {}).slice(-6).reverse();
+    const done = answered.length ? `<div class="q info"><h4>YOUR ANSWERS</h4><ul>${answered.map(([wo, m]) => `<li>WO ${esc(wo)}: ${m.how === 'paid' ? 'paid on site' + (m.method ? ' (' + esc(m.method) + ')' : '') : 'billed, waiting'}</li>`).join('')}</ul></div>` : '';
+    $('panel').innerHTML = `<div class="report questions"><h3>PENNY'S QUESTIONS</h3>
+      ${can ? '' : '<p><b>Answering needs the arcade open in claude.ai.</b></p>'}
+      ${cards.join('') || '<div class="q"><p>No questions right now. Everything is answered.</p></div>'}
+      <div class="kpis"><div>Today paid<br><span class="big">${$$(B.today.paid)}</span></div><div>Not paid yet<br><span class="big">${$$(U.notPaidTotal)}</span>${U.notPaid.length} jobs</div><div>Commercial, billed<br><span class="big">${$$(U.commercialTotal)}</span></div>${(U.toRecord || []).length ? `<div>Paid on site, enter in ServiceMonster<br><span class="big">${$$(U.toRecordTotal)}</span></div>` : ''}</div>
+      ${note ? `<p class="small">${esc(note)}</p>` : ''}${done}
+      <p class="soon">Your answers are saved for Penny right away. Paid-on-site jobs still need the payment entered in ServiceMonster; Penny lists them until it shows paid.</p></div>`;
+    $('panel').querySelectorAll('button[data-q]').forEach(b => b.onclick = async () => {
+      if (!can) return;
+      const [t, key] = [b.dataset.q.slice(0, 1), b.dataset.q.slice(2)], v = b.dataset.v;
+      $('panel').querySelectorAll('button[data-q]').forEach(x => x.disabled = true);
+      try {
+        if (t === 'p') {
+          const ans = v === 'billed' ? { how: 'billed', at: new Date().toISOString() } : { how: 'paid', method: v.slice(5), at: new Date().toISOString() };
+          ledger.marks = await root.HP_LIVE.markJob(key, ans);
+          A.select();
+          applyAnswers();
+          const j = (B.askPaid || []).find(x => String(x.wo) === key);
+          drawPennyQs(`WO ${key} is ${ans.how === 'paid' ? 'paid on site (' + ans.method + ')' : 'billed, waiting for payment'}.`);
+          say(ans.how === 'paid' ? `Got it, WO ${key} was paid on site by ${ans.method.toLowerCase()}. Today's paid is now ${$$(B.today.paid)}. Remember to enter the payment in ServiceMonster.` : `Got it, WO ${key} was billed${j ? ` to ${j.account}` : ''}. It stays on the not-paid list, marked billed.`);
+        } else {
+          const a = (B.askCommercial || []).find(x => x.accountID === key);
+          ledger.accounts = await root.HP_LIVE.markAccount(a, v === 'yes');
+          A.select();
+          applyAnswers();
+          drawPennyQs(`${a.name}: ${v === 'yes' ? 'commercial, billed on account' : 'not a commercial account'}.`);
+          if (v === 'yes') say(`${a.name} is on the commercial list now. Not paid yet is ${$$(U.notPaidTotal)}, commercial billed is ${$$(U.commercialTotal)}.`);
+        }
+        acctChoices('pq');
+      } catch (e) { drawPennyQs("Couldn't save that just now. Try again in a minute."); }
+    });
   }
 
   /* Receipts: a photo from the phone, Penny reads it, asks what she needs, saves it. */

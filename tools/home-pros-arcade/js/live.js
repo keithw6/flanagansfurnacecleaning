@@ -38,9 +38,31 @@
     },
     /* Penny's brief and this month's expenses: {brief, expenses} or undefined. */
     async penny(month) {
-      const [brief, expenses] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny')]);
+      const [brief, expenses, marks, accounts] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny'), read('marks', 'penny'), read('accounts', 'penny')]);
       if (brief === undefined && expenses === undefined) return undefined;
-      return { brief: brief || null, expenses: expenses || null };
+      return { brief: brief || null, expenses: expenses || null, marks: marks || { jobs: {} }, accounts: accounts || { commercial: [], notCommercial: [] } };
+    },
+    /* Keith's answer about one job: {how: 'billed'|'paid', method, at}. */
+    async markJob(wo, answer) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('marks'), cur = await ref.get();
+      const jobs = Object.assign({}, (cur.exists && cur.data().jobs) || {});
+      jobs[String(wo)] = answer;
+      await ref.set({ jobs });
+      return { jobs };
+    },
+    /* Keith's answer about one account: commercial (billed on account) or not. */
+    async markAccount(acct, isCommercial) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('accounts'), cur = await ref.get();
+      const d = cur.exists ? cur.data() : {};
+      const strip = l => (l || []).filter(a => a.accountID !== acct.accountID);
+      const doc = { commercial: strip(d.commercial), notCommercial: strip(d.notCommercial) };
+      (isCommercial ? doc.commercial : doc.notCommercial).push({ accountID: acct.accountID, name: acct.name });
+      await ref.set(doc);
+      return doc;
     },
     /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
     async receiptAbilities() {

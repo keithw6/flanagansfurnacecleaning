@@ -310,3 +310,4 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .receipt img.rprev { display: block; max-width: 100%; max-height: 320px; margin: 8px 0; border: 2px solid #39413d; }
 .questions .q.info p { color: #f4f7f4; }
 .questions .q.info p.small { color: var(--dim); }
+.questions .q h4 { line-height: 1.5; }
