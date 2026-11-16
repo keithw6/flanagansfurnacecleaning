@@ -2369,7 +2369,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T07:29:08","capacity":{"from":
      booking-desk session (the arcade can't change ServiceMonster itself). */
   const answers = {};
   const inboxCount = r => r && r.inbox ? r.inbox.warranty.length + r.inbox.drive.length + r.inbox.ready.length : 0;
-  const money = n => '$' + Number(n).toFixed(2);
+  const cash = n => "$" + Number(n).toFixed(2);
   const t12 = s => { const [h, m] = s.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
 
   function replyText(I) {
@@ -2390,9 +2390,9 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T07:29:08","capacity":{"from":
     let q = 0;
     const cards = [
       ...I.warranty.map(w => `<div class="q"><h4>${++q}. WARRANTY CALL · TIMED</h4><p>Do you want me to turn the warranty call at <b>${esc(w.address)}</b> on <b>${esc(fmtDate(w.date))} at ${esc(t12(w.start))}</b> (${esc(w.ref)}) into a work order?</p>
-        <p class="small">Priced like the original cleaning${w.original ? ` (WO ${esc(w.original.wo)})` : ''}: ${w.lines.map(l => `${esc(l.description)} ${money(l.price * l.qty)}`).join(' + ')} = <b>${money(w.subtotal)} + GST (${money(w.total)})</b>. It shows red in ServiceMonster with "WARRANTY - TIMED: arrive at ${esc(t12(w.start))} sharp".</p>
+        <p class="small">Priced like the original cleaning${w.original ? ` (WO ${esc(w.original.wo)})` : ''}: ${w.lines.map(l => `${esc(l.description)} ${cash(l.price * l.qty)}`).join(' + ')} = <b>${cash(w.subtotal)} + GST (${cash(w.total)})</b>. It shows red in ServiceMonster with "WARRANTY - TIMED: arrive at ${esc(t12(w.start))} sharp".</p>
         ${btns('w:' + w.ref, 'Yes, make the work order', 'No')}</div>`),
-      ...I.ready.map(b => `<div class="q"><h4>${++q}. NEW JAYMAN BOOKING</h4><p><b>${esc(b.address)}, ${esc(b.city)}</b> · POs ${esc(b.pos.join(', '))} · ${esc(fmtDate(b.date))} at ${esc(t12(b.slot))} · ${money(b.total)} incl GST${b.addedKm != null ? ` · adds ${b.addedKm} km` : ''}</p>${btns('b:' + b.pos.join(), 'Approve booking', 'Don\'t book')}</div>`),
+      ...I.ready.map(b => `<div class="q"><h4>${++q}. NEW JAYMAN BOOKING</h4><p><b>${esc(b.address)}, ${esc(b.city)}</b> · POs ${esc(b.pos.join(', '))} · ${esc(fmtDate(b.date))} at ${esc(t12(b.slot))} · ${cash(b.total)} incl GST${b.addedKm != null ? ` · adds ${b.addedKm} km` : ''}</p>${btns('b:' + b.pos.join(), 'Approve booking', 'Don\'t book')}</div>`),
       ...I.drive.map(d => `<div class="q"><h4>${++q}. BETTER DRIVING ORDER · ${esc(fmtDate(d.date).toUpperCase())}</h4><p>Swap the times so the closest calls are back to back. Saves about <b>${d.saveKm} km</b> (${d.currentKm} km to ${d.bestKm} km).</p>
         <table>${d.order.map(c => `<tr><td><b>${esc(t12(c.to))}</b></td><td>${esc(c.address)}</td><td class="small">${c.from !== c.to ? 'was ' + esc(t12(c.from)) : 'stays'}</td></tr>`).join('')}</table>${btns('d:' + d.date, 'Approve', 'Leave it')}</div>`),
     ];
