@@ -316,3 +316,7 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report table.cmp td:nth-child(4) span.up { color: var(--edge); }
 .report table.cmp td:nth-child(4) span.down { color: #ff8a8a; }
 .report ul { font-size: 19px; padding-left: 22px; white-space: normal; }
+
+.report .dots { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.report .dot { width: 16px; height: 16px; display: inline-block; background: #3a423e; }
+.report .dot.ok { background: var(--edge); } .report .dot.warn { background: #d99a1e; } .report .dot.problem { background: #e2463b; }

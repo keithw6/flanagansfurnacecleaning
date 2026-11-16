@@ -690,6 +690,7 @@
     if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
     if (except !== 'rosa') list.push({ label: 'Customer Service desk', onPick: csDesk });
     if (except !== 'penny') list.push({ label: 'Accounting desk', onPick: () => acctDesk() });
+    if (except !== 'eddie') list.push({ label: 'Email desk', onPick: () => emailDesk() });
     list.push(inMeeting
       ? { label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn }
       : { label: 'Call a board meeting', kind: 'primary', onPick: callMeeting });
@@ -752,6 +753,7 @@
     }
     if (dirId === 'rosa') return csDesk();
     if (dirId === 'penny') return acctDesk();
+    if (dirId === 'eddie') return emailDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
@@ -1338,6 +1340,46 @@
       { label: 'See expenses', onPick: () => acctReport('exp') },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
+  }
+
+  /* ---------------------------------------------------- Email desk (Eddie) */
+  const EMAIL_MAP = [
+    ['keith@homeprosgroup.com', 'Inbox', 'Keith', 'Everything else'],
+    ['bookings@homeprosgroup.com', 'Rosa', 'Rosa', 'Jayman orders, booking mail, customer booking questions'],
+    ['accounts@homeprosgroup.com', 'Penny', 'Penny', 'Invoices, payment notices, supplier bills'],
+    ['receipts@homeprosgroup.com', 'Penny', 'Penny', 'Receipts you email or forward; Penny files them'],
+  ];
+  async function emailDesk() {
+    const id = clear();
+    S.office.select('eddie');
+    nameplate('EDDIE · EMAIL MANAGER');
+    $('panel').innerHTML = '<div class="loading">Checking the inbox</div>';
+    const L = root.HP_LIVE ? await root.HP_LIVE.eddie() : undefined;
+    if (id !== run) return;
+    const R = L && L.report, H = (L && L.history && L.history.days) || [];
+    const tag = st => `<span class="tag ${st === 'ok' ? 'ok' : st === 'warn' ? 'wo' : ''}">${esc(st === 'ok' ? 'OK' : st === 'warn' ? 'CHECK' : st === 'todo' ? 'NOT SET UP' : 'PROBLEM')}</span>`;
+    const list = (title, items) => items && items.length ? `<h3>${esc(title)}</h3><ul>${items.map(x => `<li>${esc(typeof x === 'string' ? x : x.text || JSON.stringify(x))}</li>`).join('')}</ul>` : '';
+    const map = `<h3>THE EMAIL MAP</h3><table><tr><th>Address</th><th>Gmail label</th><th>Read by</th><th>What goes there</th></tr>${EMAIL_MAP.map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td class="why">${esc(r[3])}</td></tr>`).join('')}</table>`;
+    let html, line;
+    if (!R) {
+      html = `<div class="report"><h3>DAILY EMAIL CHECK</h3><p>My first check runs once my daily task is set up. Each morning after Rosa's run I check that mail reaches the right label, nothing gets missed, and everything that goes out looks right.</p>${map}</div>`;
+      line = "No check yet, boss. Once my daily task is on, I'll report here every morning.";
+    } else {
+      const checks = (R.checks || []).map(c => `<tr><td>${esc(c.name)}</td><td>${tag(c.status)}</td><td class="why">${esc(c.detail || '')}</td></tr>`).join('');
+      const hist = H.slice(-14).map(d => `<span class="dot ${esc(d.status)}" title="${esc(d.date + ': ' + d.status)}"></span>`).join('');
+      html = `<div class="report"><h3>DAILY EMAIL CHECK · ${esc(fmtDate(R.date).toUpperCase())}</h3>
+        <div class="kpis"><div>Overall<br>${tag(R.status)}</div><div>Mail in, last day<br><span class="big">${Number(R.received || 0)}</span></div><div>Sent, last day<br><span class="big">${Number(R.sent || 0)}</span></div><div>Drafts waiting<br><span class="big">${Number(R.drafts || 0)}</span></div></div>
+        <table><tr><th>Check</th><th></th><th>Details</th></tr>${checks}</table>
+        ${list('MISSED OR UNLABELLED', R.missed)}${list('CUSTOMERS WAITING FOR A REPLY', R.unanswered)}${list('FORMATTING', R.formatting)}${list('TEST MESSAGES', R.tests)}
+        ${hist ? `<h3>LAST 14 DAYS</h3><div class="dots">${hist}</div>` : ''}
+        ${map}<p class="soon">From Eddie's check made ${esc(String(R.generatedAt || '').replace('T', ' ').slice(0, 16))}. ${R.session ? `<a class="qa link" href="${esc(R.session)}" target="_blank" rel="noopener noreferrer">Open Eddie's session &#8599;</a>` : ''}</p></div>`;
+      const bad = (R.checks || []).filter(c => c.status !== 'ok');
+      line = R.status === 'ok' ? `All clear on ${fmtDate(R.date)}, boss. Every address is delivering to the right place and nothing's been missed.` : `${bad.length} thing${bad.length === 1 ? '' : 's'} to look at: ${bad.map(c => c.name.toLowerCase()).join(', ')}.`;
+    }
+    $('panel').innerHTML = html;
+    await say(line);
+    if (id !== run) return;
+    choices(boardChoices('eddie'));
   }
 
   async function backToShop() {

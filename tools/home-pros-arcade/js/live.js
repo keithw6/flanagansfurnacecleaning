@@ -64,6 +64,12 @@
       await ref.set(doc);
       return doc;
     },
+    /* Eddie's daily email check: {report, history} or undefined. */
+    async eddie() {
+      const [report, history] = await Promise.all([read('report', 'eddie'), read('history', 'eddie')]);
+      if (report === undefined && history === undefined) return undefined;
+      return { report: report || null, history: history || null };
+    },
     /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
     async receiptAbilities() {
       const [sample, assets, db] = await Promise.all([timeout(sampleP, 6000), timeout(assetsP, 6000), timeout(dbP, 6000)]);
