@@ -1038,7 +1038,7 @@
     let html = '', line = '';
     if (kind === 'day') {
       const T = B.today;
-      const rows = T.list.map(j => `<tr><td>WO ${esc(j.wo)}</td><td>${esc(j.account)}</td><td>${$$(j.total)}</td><td><span class="tag ${j.status === 'Paid' ? 'ok' : j.status === 'Not paid' || j.status === 'Not invoiced yet' ? '' : 'wo'}">${esc(j.status.toUpperCase())}</span>${j.status === 'Not paid' ? ' owes ' + $$(j.balance) : ''}${j.invoicedOn ? ` <small>(invoiced ${esc(fmtDate(j.invoicedOn))})</small>` : ''}</td></tr>`).join('');
+      const rows = T.list.map(j => `<tr><td>WO ${esc(j.wo)}</td><td>${esc(j.account)}</td><td>${$$(j.total)}</td><td><span class="tag ${j.status === 'Paid' || j.status === 'Paid on site' ? 'ok' : j.status === 'Not paid' || j.status === 'Not invoiced yet' ? '' : 'wo'}">${esc(j.status.toUpperCase())}</span>${j.status === 'Not paid' || j.status === 'Billed, waiting' ? ' owes ' + $$(j.balance) : ''}${j.method ? ' (' + esc(j.method) + ')' : ''}${j.invoicedOn ? ` <small>(invoiced ${esc(fmtDate(j.invoicedOn))})</small>` : ''}</td></tr>`).join('');
       html = `<div class="report"><h3>DAILY BRIEF · ${esc(fmtDate(B.date).toUpperCase())}</h3>${kpis(T)}
         <table><tr><th>Job</th><th>Customer</th><th>Total</th><th>Paid?</th></tr>${rows || '<tr><td colspan="4">No jobs completed.</td></tr>'}</table>
         <p>Expenses today: <b>${$$(tot(expDay))}</b>${expDay.length ? ` (${expDay.length} receipt${expDay.length === 1 ? '' : 's'})` : ' (none recorded yet)'}. Revenue less expenses: <b>${$$(T.revenue - tot(expDay))}</b>.</p>${foot}</div>`;
@@ -1055,15 +1055,16 @@
       line = `Month to date: ${M.jobs} jobs and ${$$(M.revenue)} revenue` + (p == null ? '.' : `, ${p >= 0 ? 'up' : 'down'} ${Math.abs(p)}% on the same days last month.`);
     } else if (kind === 'unpaid') {
       const U = B.unpaid;
-      const tbl = l => l.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')}</td><td>${o.days != null ? o.days + ' days' : ''}</td><td>${$$(o.balance)}</td></tr>`).join('');
+      const tbl = l => l.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}${o.billed ? ' <span class="tag wo">BILLED</span>' : ''}${o.method ? ' (' + esc(o.method) + ')' : ''}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')}</td><td>${o.days != null ? o.days + ' days' : ''}</td><td>${$$(o.balance)}</td></tr>`).join('');
       html = `<div class="report"><h3>NOT PAID YET · RUNNING TOTAL</h3>
         <div class="kpis"><div>Not paid<br><span class="big">${$$(U.notPaidTotal)}</span>${U.notPaid.length} jobs</div><div>Over 30 days<br><span class="big">${$$(U.over30)}</span></div><div>Over 60 days<br><span class="big">${$$(U.over60)}</span></div><div>Commercial, billed<br><span class="big">${$$(U.commercialTotal)}</span>${U.commercial.length} jobs</div></div>
         <table><tr><th>Job</th><th>Customer</th><th>Done</th><th>Age</th><th>Owes</th></tr>${tbl(U.notPaid)}</table>
         ${U.commercial.length ? `<h3>COMMERCIAL, BILLED</h3><table>${tbl(U.commercial)}</table>` : ''}
+        ${(U.toRecord || []).length ? `<h3>PAID ON SITE · ENTER THE PAYMENT IN SERVICEMONSTER</h3><table>${tbl(U.toRecord)}</table>` : ''}
         ${(B.notInvoiced || []).length ? `<h3>DONE BUT NOT INVOICED YET</h3><table>${B.notInvoiced.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}</td><td>${esc(fmtDate(o.done))}</td><td>${$$(o.total)}</td></tr>`).join('')}</table>` : ''}
         ${(B.askCommercial || []).length ? `<p class="soon">Penny will ask you whether these are commercial accounts on billing: ${esc(B.askCommercial.map(a => a.name).join(', '))}.</p>` : ''}
         <p class="soon">Every non-Jayman invoice in ServiceMonster with a balance, oldest first. Jayman jobs are billed through Supply Pro and are not listed.</p>${foot}</div>`;
-      line = `${U.notPaid.length} jobs not paid yet, ${$$(U.notPaidTotal)} in all. ${$$(U.over60)} of it is over 60 days old.` + ((B.notInvoiced || []).length ? ` And ${B.notInvoiced.length} job${B.notInvoiced.length === 1 ? ' is' : 's are'} done but not invoiced yet.` : '');
+      line = `${U.notPaid.length} jobs not paid yet, ${$$(U.notPaidTotal)} in all. ${$$(U.over60)} of it is over 60 days old.` + ((U.toRecord || []).length ? ` ${U.toRecord.length === 1 ? '1 job was' : U.toRecord.length + ' jobs were'} paid on site and still need${U.toRecord.length === 1 ? 's' : ''} the payment entered in ServiceMonster.` : '') + ((B.notInvoiced || []).length ? ` And ${B.notInvoiced.length} job${B.notInvoiced.length === 1 ? ' is' : 's are'} done but not invoiced yet.` : '');
     } else {
       const cats = {}; for (const x of expMonth) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
       html = `<div class="report"><h3>EXPENSES · ${esc((E && E.month) || B.date.slice(0, 7))}</h3>

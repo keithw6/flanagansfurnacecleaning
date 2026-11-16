@@ -28,6 +28,7 @@ ServiceMonster login. She only reads ServiceMonster; she never changes it.
 | doc | what |
 |---|---|
 | `penny/brief` | the latest `brief.json` (with `notInvoiced`: non-Jayman jobs done but still work orders), plus `session` (her session link) |
+| `penny/marks` | `{jobs: {"<WO>": {how: "billed" or "paid", method, at}}}`: Keith's answer for unpaid non-Jayman jobs. Paid on site counts as paid and goes on the "record it in ServiceMonster" list until ServiceMonster shows it paid |
 | `penny/accounts` | `{commercial: [{accountID, name}], notCommercial: [...]}` from Keith's answers |
 | `penny/expenses-YYYY-MM` | `{month, items: [{date, vendor, category, amount, gst, paidWith, note, photoId, enteredIn, enteredAt}]}`. `amount` includes GST |
 
