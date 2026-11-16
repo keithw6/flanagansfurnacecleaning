@@ -1047,8 +1047,9 @@
       html = `<div class="report"><h3>DAILY BRIEF · ${esc(fmtDate(B.date).toUpperCase())}</h3>${kpis(T)}
         <table><tr><th>Job</th><th>Customer</th><th>Total</th><th>Paid?</th></tr>${rows || '<tr><td colspan="4">No jobs completed.</td></tr>'}</table>
         <p>Expenses today: <b>${$$(tot(expDay))}</b>${expDay.length ? ` (${expDay.length} receipt${expDay.length === 1 ? '' : 's'})` : ' (none recorded yet)'}. Revenue less expenses: <b>${$$(T.revenue - tot(expDay))}</b>.</p>${foot}</div>`;
-      const np = T.list.filter(j => j.status === 'Not paid');
-      line = T.jobs ? `${T.jobs} job${T.jobs === 1 ? '' : 's'} done on ${fmtDate(B.date)}: ${$$(T.revenue)} revenue, ${$$(T.paid)} paid, about ${T.km} km.` + (np.length ? ` ${np.length} not paid yet.` : ' Everything that should be paid is paid.') : `No completed jobs on ${fmtDate(B.date)}, boss.`;
+      const np = T.list.filter(j => j.status === 'Not paid'), bw = T.list.filter(j => /^(Billed, waiting|Commercial)/.test(j.status)), ps = T.list.filter(j => j.status === 'Paid on site');
+      const words = [np.length ? `${np.length} not paid yet` : '', bw.length ? `${bw.map(j => 'WO ' + j.wo).join(', ')} billed, waiting for payment` : '', ps.length ? `${ps.map(j => 'WO ' + j.wo).join(', ')} paid on site` : ''].filter(Boolean);
+      line = T.jobs ? `${T.jobs} job${T.jobs === 1 ? '' : 's'} done on ${fmtDate(B.date)}: ${$$(T.revenue)} revenue, ${$$(T.paid)} paid, about ${T.km} km.` + (words.length ? ' ' + words.join('; ') + '.' : ' Everything that should be paid is paid.') : `No completed jobs on ${fmtDate(B.date)}, boss.`;
     } else if (kind === 'month') {
       const M = B.month, P = B.lastMonth;
       const rows = (M.days || []).map(d => `<tr><td>${esc(fmtDate(d.date))}</td><td>${d.jobs}</td><td>${$$(d.revenue)}</td><td>~${d.km}</td></tr>`).join('');
@@ -1060,11 +1061,12 @@
       line = `Month to date: ${M.jobs} jobs and ${$$(M.revenue)} revenue` + (p == null ? '.' : `, ${p >= 0 ? 'up' : 'down'} ${Math.abs(p)}% on the same days last month.`);
     } else if (kind === 'unpaid') {
       const U = B.unpaid;
-      const tbl = l => l.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}${o.billed ? ' <span class="tag wo">BILLED</span>' : ''}${o.method ? ' (' + esc(o.method) + ')' : ''}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')}</td><td>${o.days != null ? o.days + ' days' : ''}</td><td>${$$(o.balance)}</td></tr>`).join('');
+      const MJ = (ledger.marks && ledger.marks.jobs) || {};
+      const tbl = (l, comm) => l.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}${o.billed || comm || (MJ[String(o.wo)] || {}).how === 'billed' ? ' <span class="tag wo">BILLED</span>' : ''}${o.method ? ' (' + esc(o.method) + ')' : ''}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')}</td><td>${o.days != null ? o.days + ' days' : ''}</td><td>${$$(o.balance)}</td></tr>`).join('');
       html = `<div class="report"><h3>NOT PAID YET · RUNNING TOTAL</h3>
         <div class="kpis"><div>Not paid<br><span class="big">${$$(U.notPaidTotal)}</span>${U.notPaid.length} jobs</div><div>Over 30 days<br><span class="big">${$$(U.over30)}</span></div><div>Over 60 days<br><span class="big">${$$(U.over60)}</span></div><div>Commercial, billed<br><span class="big">${$$(U.commercialTotal)}</span>${U.commercial.length} jobs</div></div>
         <table><tr><th>Job</th><th>Customer</th><th>Done</th><th>Age</th><th>Owes</th></tr>${tbl(U.notPaid)}</table>
-        ${U.commercial.length ? `<h3>COMMERCIAL, BILLED</h3><table>${tbl(U.commercial)}</table>` : ''}
+        ${U.commercial.length ? `<h3>COMMERCIAL, BILLED · WAITING FOR PAYMENT</h3><table>${tbl(U.commercial, true)}</table>` : ''}
         ${(U.toRecord || []).length ? `<h3>PAID ON SITE · ENTER THE PAYMENT IN SERVICEMONSTER</h3><table>${tbl(U.toRecord)}</table>` : ''}
         ${(B.notInvoiced || []).length ? `<h3>DONE BUT NOT INVOICED YET</h3><table>${B.notInvoiced.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}</td><td>${esc(fmtDate(o.done))}</td><td>${$$(o.total)}</td></tr>`).join('')}</table>` : ''}
         ${(B.askCommercial || []).length ? `<p class="soon">Penny will ask you whether these are commercial accounts on billing: ${esc(B.askCommercial.map(a => a.name).join(', '))}.</p>` : ''}
@@ -1116,7 +1118,8 @@
     }
     for (const j of (B.today && B.today.list) || []) {
       const m = M[String(j.wo)];
-      if (j.status === 'Not paid' && m) { j.status = m.how === 'paid' ? 'Paid on site' : 'Billed, waiting'; j.method = m.method || ''; }
+      if (/^(Not paid|Commercial)/.test(j.status) && m) { j.status = m.how === 'paid' ? 'Paid on site' : 'Billed, waiting'; j.method = m.method || ''; }
+      else if (j.status === 'Not paid' && (A.commercial || []).some(a => a.name === j.account)) j.status = 'Billed, waiting';
     }
     const sum = l => r2c(l.reduce((t, o) => t + o.balance, 0));
     U.notPaidTotal = sum(U.notPaid); U.commercialTotal = sum(U.commercial); U.toRecordTotal = sum(U.toRecord);
