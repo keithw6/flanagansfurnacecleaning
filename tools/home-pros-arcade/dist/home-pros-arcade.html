@@ -284,6 +284,12 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report .kpis { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
 .report .kpis div { font-size: 17px; color: var(--dim); }
 
+.report tr.dayrow td { border-top: 2px solid #39413d; padding-top: 8px; color: #fff; }
+.report tr.done td { color: #6f7672; }
+.report tr.drive td { border-top: 0; color: var(--green); font-size: 17px; white-space: normal; }
+.report .tag.wo { background: #c98a1b; }
+.report .tag.ok { background: #2c7a25; }
+
 </style>
 </head>
 <body class="street">
@@ -375,6 +381,12 @@ const HP_CONFIG = {
       'Residential': 'ff14fbca-dc45-11e3-b8c3-d9b28ac835cd',
     },
     jaymanRoute: 'New Home',
+    // every Jayman account in ServiceMonster (the all-caps one is the live one)
+    jaymanAccounts: ['1b833231-89e7-11e7-8c1a-fec578518208', 'b803ae7f-e037-11e3-b8c3-d9b28ac835cd',
+      'fbcd4a4f-77fe-11ee-8213-9988e7b79539', 'bffc865a-531e-11ee-820e-bc04de1dccaf', '6bd33c7b-342a-11eb-a7d2-bd12f7e942c9'],
+    warrantyWord: 'warr[ae]nt',       // "Warranty" or "Warrenty" in a call = timed warranty call
+    base: { lat: 53.545, lon: -113.91, name: 'the shop' },   // where the truck starts and ends the day
+    roadFactor: 1.3,
   },
 
   // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
@@ -402,7 +414,7 @@ const HP_CONFIG = {
     {
       id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
       intro: "Every customer leaves happy. That's my whole job.",
-      duties: ['Every morning before 6:30: reads new Jayman purchase orders and prepares them for the New Home route, for your approval', 'Never double-books: checks New Home and Edmonton Residential before proposing a slot', 'Questions, reschedules and cancellations', 'Catches unhappy customers before they post a review'],
+      duties: ['Every morning before 6:30: reads new Jayman purchase orders and prepares them for the New Home route, for your approval', 'Never double-books: checks New Home and Edmonton Residential before proposing a slot', 'Plans the driving: closest Jayman calls back to back (warranty calls keep their time)', 'Turns Jayman warranty calls into work orders', 'Questions, reschedules and cancellations', 'Catches unhappy customers before they post a review'],
     },
   ],
 
@@ -786,6 +798,72 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
 
 </script>
 <script>
+/* Driving order for a day's calls. Shared by the Customer Service report
+   (game + booking server) and Rosa's booking helper.
+
+   Jayman calls only have to happen on their day; the time doesn't matter.
+   So within a day we can swap which call goes in which time slot to cut
+   driving. Timed calls (warranty visits) stay exactly where they are.
+   Distance is straight-line km x a road factor, from the shop and back:
+   good enough to rank orders, not a GPS route.                            */
+(function (root) {
+  const km = (a, b) => {
+    const R = 6371, r = Math.PI / 180;
+    const h = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lon - a.lon) * r / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  // stops in time order -> km from base, through every stop, back to base
+  function routeKm(base, stops, roadFactor) {
+    let d = 0, at = base;
+    for (const s of stops) { if (s.lat == null) continue; d += km(at, s); at = s; }
+    return Math.round((d + km(at, base)) * (roadFactor || 1.3));
+  }
+
+  function permutations(a) {
+    if (a.length <= 1) return [a];
+    const out = [];
+    a.forEach((x, i) => permutations(a.slice(0, i).concat(a.slice(i + 1))).forEach(p => out.push([x].concat(p))));
+    return out;
+  }
+
+  /* calls: [{ id, start: 'HH:MM', lat, lon, movable: bool, ... }] for one day.
+     Movable calls trade time slots among themselves; fixed calls keep theirs.
+     Returns { currentKm, bestKm, saveKm, order: [{ ...call, newStart }] }.  */
+  function bestOrder(base, calls, roadFactor) {
+    const sorted = calls.slice().sort((a, b) => a.start.localeCompare(b.start));
+    const currentKm = routeKm(base, sorted, roadFactor);
+    const movable = sorted.filter(c => c.movable && c.lat != null);
+    const times = movable.map(c => c.start);
+    let best = { km: currentKm, assign: movable.map(c => c) };
+    if (movable.length >= 2 && movable.length <= 7) {
+      for (const p of permutations(movable)) {
+        const placed = sorted.map(c => (c.movable && c.lat != null ? null : c));
+        let k = 0;
+        const withTimes = sorted.map((c, i) => placed[i] || Object.assign({}, p[k], { start: times[k++] }));
+        const d = routeKm(base, withTimes.slice().sort((a, b) => a.start.localeCompare(b.start)), roadFactor);
+        if (d < best.km) best = { km: d, assign: p };
+      }
+    }
+    const newStart = new Map(best.assign.map((c, i) => [c.id, times[i]]));
+    const order = sorted.map(c => Object.assign({}, c, { newStart: newStart.get(c.id) || c.start }))
+      .sort((a, b) => a.newStart.localeCompare(b.newStart));
+    return { currentKm, bestKm: best.km, saveKm: currentKm - best.km, order };
+  }
+
+  // Added driving if a new stop goes into a given slot of a day's calls.
+  function addedKm(base, calls, stop, roadFactor) {
+    const sorted = calls.slice().sort((a, b) => a.start.localeCompare(b.start));
+    const before = routeKm(base, sorted, roadFactor);
+    const after = routeKm(base, sorted.concat([stop]).sort((a, b) => a.start.localeCompare(b.start)), roadFactor);
+    return after - before;
+  }
+
+  root.HP_DRIVE = { km, routeKm, bestOrder, addedKm };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+
+</script>
+<script>
 /* Booking percentage. Shared by the booking server (live) and the snapshot
    script (preview). Pure function of ServiceMonster /scheduling items.
 
@@ -837,20 +915,56 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
     return { from, days: out, summary };
   }
 
-  // Upcoming jobs on one route (the Jayman list uses New Home).
-  function jobsOn(items, routeID, from) {
-    return items.filter(i => i.routeID === routeID && i.itemType === 'Job' && !/cancel/i.test(i.status || '') && i.startDateTime.slice(0, 10) >= from)
+  /* Every Jayman call in the window, on any route: jobs for a Jayman account,
+     plus calendar activities that mention Jayman (warranty visits are booked
+     as activities first and still need a work order). Warranty calls are
+     TIMED: the crew has to arrive at that time. Other Jayman calls only have to
+     happen that day, so their order is free to change for driving.          */
+  function jayman(items, o) {
+    const accounts = new Set(o.accounts);
+    const routeName = Object.fromEntries(Object.entries(o.routes).map(([k, v]) => [v, k]));
+    const isJay = i => accounts.has(i.accountID) || /jayman/i.test(`${i.subject || ''} ${i.note || ''}`);
+    const list = items.filter(i => isJay(i) && !/cancel/i.test(i.status || '') && (i.startDateTime || '').slice(0, 10) >= o.from)
       .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
-      .map(i => ({ date: i.startDateTime.slice(0, 10), start: i.startDateTime.slice(11, 16), end: i.endDateTime.slice(11, 16), city: i.city || '', status: i.status || '' }));
+      .map(i => {
+        const text = `${i.subject || ''} ${i.note || ''}`;
+        const warranty = o.warranty.test(text);
+        const activity = i.itemType && i.itemType !== 'Job';
+        const addr = i.address1 || ((i.subject || '').match(/\d{3,6}\s+[^-]+?(?:\s+(?:NW|SW|NE|SE))?(?=\s+-|$)/) || [''])[0].trim();
+        return {
+          id: i.itemID, date: i.startDateTime.slice(0, 10), start: i.startDateTime.slice(11, 16), end: i.endDateTime.slice(11, 16),
+          // an activity's "Complete" doesn't mean the visit happened: it still needs a work order
+          route: routeName[i.routeID] || 'other', status: activity ? 'Needs work order' : (i.status || ''),
+          done: !activity && /complete/i.test(i.status || ''),
+          kind: warranty ? 'warranty' : activity ? 'activity' : 'job', timed: warranty, needsWO: activity,
+          address: addr, city: i.city || '', lat: i.latitude, lon: i.longitude, label: activity ? (i.subject || '') : '',
+        };
+      });
+    const days = [];
+    for (const c of list) {
+      let d = days[days.length - 1];
+      if (!d || d.date !== c.date) days.push(d = { date: c.date, calls: [] });
+      d.calls.push(c);
+    }
+    for (const d of days) {
+      d.total = d.calls.length; d.done = d.calls.filter(c => c.done).length; d.todo = d.total - d.done;
+      const left = d.calls.filter(c => !c.done).map(c => ({ ...c, movable: !c.timed }));
+      d.drive = left.length >= 2 && root.HP_DRIVE ? root.HP_DRIVE.bestOrder(o.base, left, o.roadFactor) : null;
+    }
+    return {
+      days,
+      totals: { total: list.length, done: list.filter(c => c.done).length, todo: list.filter(c => !c.done).length,
+        warranty: list.filter(c => c.kind === 'warranty').length, needsWO: list.filter(c => c.needsWO).length },
+    };
   }
 
-  root.HP_CAPACITY = { compute, jobsOn };
+  root.HP_CAPACITY = { compute, jayman };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
 
 </script>
 <script>
 /* Snapshot for the preview build, made by tools/rosa/office-snapshot.mjs. The live site asks the booking server instead. */
-window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T06:25:18","capacity":{"from":"2026-11-16","days":[{"date":"2026-11-16","weekday":1,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-17","weekday":2,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-18","weekday":3,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-19","weekday":4,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":4,"jobs":2,"pct":50}},"notes":["Jayman Warrenty 3404 122 Street SW - Re: w0735191 (10:00-12:30)"],"big":[],"total":{"hours":4,"pct":50},"over":false},{"date":"2026-11-20","weekday":5,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":4,"pct":100}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-21","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-22","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-23","weekday":1,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-24","weekday":2,"work":true,"routes":{"New Home":{"hours":8,"jobs":4,"pct":100},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":16,"pct":200},"over":true},{"date":"2026-11-25","weekday":3,"work":true,"routes":{"New Home":{"hours":4,"jobs":2,"pct":50},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":12,"pct":150},"over":true},{"date":"2026-11-26","weekday":4,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-27","weekday":5,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":10,"pct":125},"over":true},{"date":"2026-11-28","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-29","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false}],"summary":{"routes":{"New Home":{"hours":32,"pct":33},"Residential":{"hours":62,"pct":65}},"workDays":12,"total":{"hours":94,"pct":98},"overbooked":[{"date":"2026-11-24","pct":200,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-25","pct":150,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-27","pct":125,"why":"Waterfront Pointe (8h, Residential)"}]}},"jayman":[{"date":"2026-11-16","start":"12:00","end":"14:00","city":"Edmonton","status":"Complete"},{"date":"2026-11-23","start":"08:30","end":"16:30","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"11:00","end":"13:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"13:00","end":"15:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-24","start":"15:00","end":"17:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-25","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-25","start":"11:00","end":"13:00","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-26","start":"08:30","end":"16:30","city":"Edmonton","status":"Scheduled"},{"date":"2026-11-27","start":"08:00","end":"10:00","city":"Edmonton","status":"Scheduled"}]};
+window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T06:39:38","capacity":{"from":"2026-11-16","days":[{"date":"2026-11-16","weekday":1,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-17","weekday":2,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-18","weekday":3,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":6,"jobs":3,"pct":75}},"notes":[],"big":[],"total":{"hours":6,"pct":75},"over":false},{"date":"2026-11-19","weekday":4,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":4,"jobs":2,"pct":50}},"notes":["Jayman Warrenty 3404 122 Street SW - Re: w0735191 (10:00-12:30)"],"big":[],"total":{"hours":4,"pct":50},"over":false},{"date":"2026-11-20","weekday":5,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":4,"pct":100}},"notes":[],"big":[],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-21","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-22","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false},{"date":"2026-11-23","weekday":1,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-24","weekday":2,"work":true,"routes":{"New Home":{"hours":8,"jobs":4,"pct":100},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":16,"pct":200},"over":true},{"date":"2026-11-25","weekday":3,"work":true,"routes":{"New Home":{"hours":4,"jobs":2,"pct":50},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":12,"pct":150},"over":true},{"date":"2026-11-26","weekday":4,"work":true,"routes":{"New Home":{"hours":8,"jobs":1,"pct":100},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[{"route":"New Home","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-27","weekday":5,"work":true,"routes":{"New Home":{"hours":2,"jobs":1,"pct":25},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":10,"pct":125},"over":true},{"date":"2026-11-28","weekday":6,"work":true,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":8,"jobs":1,"pct":100}},"notes":[],"big":[{"route":"Residential","hours":8,"label":"Waterfront Pointe"}],"total":{"hours":8,"pct":100},"over":false},{"date":"2026-11-29","weekday":0,"work":false,"routes":{"New Home":{"hours":0,"jobs":0,"pct":0},"Residential":{"hours":0,"jobs":0,"pct":0}},"notes":[],"big":[],"total":{"hours":0,"pct":0},"over":false}],"summary":{"routes":{"New Home":{"hours":32,"pct":33},"Residential":{"hours":62,"pct":65}},"workDays":12,"total":{"hours":94,"pct":98},"overbooked":[{"date":"2026-11-24","pct":200,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-25","pct":150,"why":"Waterfront Pointe (8h, Residential)"},{"date":"2026-11-27","pct":125,"why":"Waterfront Pointe (8h, Residential)"}]}},"jayman":{"days":[{"date":"2026-11-16","calls":[{"id":"66ea68a7-ca2e-11f1-8264-fa16e457a5c3","date":"2026-11-16","start":"08:00","end":"10:00","route":"Residential","status":"Complete","done":true,"kind":"job","timed":false,"needsWO":false,"address":"4779 Kinney Road SW","city":"Edmonton","lat":53.4145652,"lon":-113.6232589,"label":""},{"id":"1c96a080-ca2e-11f1-84bc-807f9b6f3bb4","date":"2026-11-16","start":"10:00","end":"12:00","route":"Residential","status":"Complete","done":true,"kind":"job","timed":false,"needsWO":false,"address":"4629 Kinsella Lndg SW","city":"Edmonton","lat":53.4149553,"lon":-113.6218168,"label":""},{"id":"b9b3a602-ca2e-11f1-8263-bef275cadfa2","date":"2026-11-16","start":"12:00","end":"14:00","route":"New Home","status":"Complete","done":true,"kind":"job","timed":false,"needsWO":false,"address":"4350 Clayton Wy SW","city":"Edmonton","lat":53.4003765,"lon":-113.5650956,"label":""}],"total":3,"done":3,"todo":0,"drive":null},{"date":"2026-11-18","calls":[{"id":"1997807e-ca2f-11f1-8263-bef275cadfa2","date":"2026-11-18","start":"08:00","end":"10:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4647 Kinsella Lndg SW","city":"Edmonton","lat":53.4147555,"lon":-113.6206884,"label":""},{"id":"a235780f-ca2f-11f1-8263-bef275cadfa2","date":"2026-11-18","start":"13:00","end":"15:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"12818 213A Street NW","city":"Edmonton","lat":53.4873794,"lon":-113.6870744,"label":""}],"total":2,"done":0,"todo":2,"drive":{"currentKm":64,"bestKm":64,"saveKm":0,"order":[{"id":"1997807e-ca2f-11f1-8263-bef275cadfa2","date":"2026-11-18","start":"08:00","end":"10:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4647 Kinsella Lndg SW","city":"Edmonton","lat":53.4147555,"lon":-113.6206884,"label":"","movable":true,"newStart":"08:00"},{"id":"a235780f-ca2f-11f1-8263-bef275cadfa2","date":"2026-11-18","start":"13:00","end":"15:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"12818 213A Street NW","city":"Edmonton","lat":53.4873794,"lon":-113.6870744,"label":"","movable":true,"newStart":"13:00"}]}},{"date":"2026-11-19","calls":[{"id":"4d7e6248-c703-11f1-8262-8d4dc828b0fa","date":"2026-11-19","start":"08:00","end":"10:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4330 Clayton Wy SW","city":"Edmonton","lat":53.40129,"lon":-113.5648,"label":""},{"id":"8693ce4b-cf13-11f1-8266-b036e191fac3","date":"2026-11-19","start":"10:00","end":"12:30","route":"Residential","status":"Needs work order","done":false,"kind":"warranty","timed":true,"needsWO":true,"address":"3404 122 Street SW","city":"","lat":null,"lon":null,"label":"Jayman Warrenty 3404 122 Street SW - Re: w0735191"}],"total":2,"done":0,"todo":2,"drive":{"currentKm":72,"bestKm":72,"saveKm":0,"order":[{"id":"4d7e6248-c703-11f1-8262-8d4dc828b0fa","date":"2026-11-19","start":"08:00","end":"10:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4330 Clayton Wy SW","city":"Edmonton","lat":53.40129,"lon":-113.5648,"label":"","movable":true,"newStart":"08:00"},{"id":"8693ce4b-cf13-11f1-8266-b036e191fac3","date":"2026-11-19","start":"10:00","end":"12:30","route":"Residential","status":"Needs work order","done":false,"kind":"warranty","timed":true,"needsWO":true,"address":"3404 122 Street SW","city":"","lat":null,"lon":null,"label":"Jayman Warrenty 3404 122 Street SW - Re: w0735191","movable":false,"newStart":"10:00"}]}},{"date":"2026-11-20","calls":[{"id":"eb3bbfed-dcff-11f1-8265-e818ab51bb5b","date":"2026-11-20","start":"11:00","end":"13:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22734 93a Ave NW","city":"Edmonton","lat":53.5293,"lon":-113.7097,"label":""},{"id":"8f3126df-dd00-11f1-8266-b036e191fac3","date":"2026-11-20","start":"15:00","end":"17:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22435 87 Ave NW","city":"Edmonton","lat":53.52079,"lon":-113.704,"label":""}],"total":2,"done":0,"todo":2,"drive":{"currentKm":37,"bestKm":37,"saveKm":0,"order":[{"id":"eb3bbfed-dcff-11f1-8265-e818ab51bb5b","date":"2026-11-20","start":"11:00","end":"13:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22734 93a Ave NW","city":"Edmonton","lat":53.5293,"lon":-113.7097,"label":"","movable":true,"newStart":"11:00"},{"id":"8f3126df-dd00-11f1-8266-b036e191fac3","date":"2026-11-20","start":"15:00","end":"17:00","route":"Residential","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22435 87 Ave NW","city":"Edmonton","lat":53.52079,"lon":-113.704,"label":"","movable":true,"newStart":"15:00"}]}},{"date":"2026-11-24","calls":[{"id":"f27bc562-ca2f-11f1-8264-fa16e457a5c3","date":"2026-11-24","start":"08:00","end":"10:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4627 Kinsella Lndg SW","city":"Edmonton","lat":53.4149559,"lon":-113.6220467,"label":""},{"id":"e9309bc6-dd00-11f1-8266-b036e191fac3","date":"2026-11-24","start":"11:00","end":"13:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"12856 214 St NW","city":"Edmonton","lat":53.58787,"lon":-113.6881,"label":""},{"id":"8f47cc62-dd01-11f1-84be-875315bfcdfe","date":"2026-11-24","start":"13:00","end":"15:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"17707 7 St NE","city":"Edmonton","lat":53.64001,"lon":-113.3338,"label":""},{"id":"1146eb07-dd02-11f1-84be-875315bfcdfe","date":"2026-11-24","start":"15:00","end":"17:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"8715 224 St NW","city":"Edmonton","lat":53.52187,"lon":-113.7034,"label":""}],"total":4,"done":0,"todo":4,"drive":{"currentKm":142,"bestKm":127,"saveKm":15,"order":[{"id":"e9309bc6-dd00-11f1-8266-b036e191fac3","date":"2026-11-24","start":"11:00","end":"13:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"12856 214 St NW","city":"Edmonton","lat":53.58787,"lon":-113.6881,"label":"","movable":true,"newStart":"08:00"},{"id":"8f47cc62-dd01-11f1-84be-875315bfcdfe","date":"2026-11-24","start":"13:00","end":"15:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"17707 7 St NE","city":"Edmonton","lat":53.64001,"lon":-113.3338,"label":"","movable":true,"newStart":"11:00"},{"id":"f27bc562-ca2f-11f1-8264-fa16e457a5c3","date":"2026-11-24","start":"08:00","end":"10:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4627 Kinsella Lndg SW","city":"Edmonton","lat":53.4149559,"lon":-113.6220467,"label":"","movable":true,"newStart":"13:00"},{"id":"1146eb07-dd02-11f1-84be-875315bfcdfe","date":"2026-11-24","start":"15:00","end":"17:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"8715 224 St NW","city":"Edmonton","lat":53.52187,"lon":-113.7034,"label":"","movable":true,"newStart":"15:00"}]}},{"date":"2026-11-25","calls":[{"id":"9d64a019-dd02-11f1-84be-875315bfcdfe","date":"2026-11-25","start":"08:00","end":"10:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"8675 224 St NW","city":"Edmonton","lat":53.52152,"lon":-113.7034,"label":""},{"id":"23f8ddd9-dd03-11f1-8265-e818ab51bb5b","date":"2026-11-25","start":"11:00","end":"13:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22709 89a Ave NW","city":"Edmonton","lat":53.52351,"lon":-113.7069,"label":""}],"total":2,"done":0,"todo":2,"drive":{"currentKm":36,"bestKm":36,"saveKm":0,"order":[{"id":"9d64a019-dd02-11f1-84be-875315bfcdfe","date":"2026-11-25","start":"08:00","end":"10:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"8675 224 St NW","city":"Edmonton","lat":53.52152,"lon":-113.7034,"label":"","movable":true,"newStart":"08:00"},{"id":"23f8ddd9-dd03-11f1-8265-e818ab51bb5b","date":"2026-11-25","start":"11:00","end":"13:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"22709 89a Ave NW","city":"Edmonton","lat":53.52351,"lon":-113.7069,"label":"","movable":true,"newStart":"11:00"}]}},{"date":"2026-11-27","calls":[{"id":"d13f11fd-dd03-11f1-8265-e818ab51bb5b","date":"2026-11-27","start":"08:00","end":"10:00","route":"New Home","status":"Scheduled","done":false,"kind":"job","timed":false,"needsWO":false,"address":"4386 Clayton Wy SW","city":"Edmonton","lat":53.4,"lon":-113.5636,"label":""}],"total":1,"done":0,"todo":1,"drive":null}],"totals":{"total":16,"done":3,"todo":13,"warranty":1,"needsWO":1}}};
 
 </script>
 <script>
@@ -2242,11 +2356,25 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T06:25:18","capacity":{"from":
     const head = `Next ${cfg.office.daysAhead} days · a full day is ${cfg.office.dayHours} h (4 calls x 2 h)`;
     let html = '', line = '';
     if (kind === 'jay') {
-      const rows = r.jayman.map(j => `<tr><td>${esc(fmtDate(j.date))}</td><td>${esc(j.start)}-${esc(j.end)}</td><td>${esc(j.city)}</td><td>${esc(j.status)}</td></tr>`).join('');
-      html = `<div class="report"><h3>JAYMAN BOOKINGS · ${esc(cfg.office.jaymanRoute.toUpperCase())} ROUTE</h3>
-        <table><tr><th>Date</th><th>Time</th><th>Town</th><th>Status</th></tr>${rows || '<tr><td colspan="4">Nothing booked.</td></tr>'}</table>
-        <p class="soon">My prep run is every morning at about 6:08 AM. New Jayman orders come to your phone for approval before I book them.</p>${foot}</div>`;
-      line = `${r.jayman.length} Jayman call${r.jayman.length === 1 ? '' : 's'} on the books for the next ${cfg.office.daysAhead} days.`;
+      const J = r.jayman, T = J.totals;
+      const badge = c => (c.timed ? `<span class="tag">WARRANTY · TIMED ${esc(c.start)}</span>` : '')
+        + (c.needsWO ? '<span class="tag wo">NEEDS WORK ORDER</span>' : '')
+        + (c.done ? '<span class="tag ok">DONE</span>' : '');
+      const rows = J.days.map(d => {
+        const save = d.drive && d.drive.saveKm > 0
+          ? `<tr class="drive"><td></td><td colspan="4">Better driving order saves about <b>${d.drive.saveKm} km</b> (${d.drive.currentKm} km to ${d.drive.bestKm} km): ${d.drive.order.map(c => `${esc(c.newStart)} ${esc(c.address)}`).join(' &rarr; ')}</td></tr>` : '';
+        return `<tr class="dayrow"><td>${esc(fmtDate(d.date))}</td><td><b>${d.total}</b> call${d.total === 1 ? '' : 's'}</td><td>${d.done} done</td><td>${d.todo} to do</td><td></td></tr>`
+          + d.calls.map(c => `<tr class="${c.done ? 'done' : ''}"><td></td><td>${c.timed ? '<b>' + esc(c.start) + '</b>' : esc(c.start)}</td><td>${esc(c.address || c.label)}</td><td>${esc(c.route)}</td><td>${badge(c)}</td></tr>`).join('') + save;
+      }).join('');
+      html = `<div class="report"><h3>JAYMAN CALLS · NEXT ${cfg.office.daysAhead} DAYS</h3>
+        <div class="kpis"><div>Total<br><span class="big">${T.total}</span></div><div>Done<br><span class="big">${T.done}</span></div><div>To do<br><span class="big">${T.todo}</span></div>${T.needsWO ? `<div>Need a work order<br><span class="big">${T.needsWO}</span></div>` : ''}</div>
+        <table><tr><th>Day</th><th>Calls</th><th></th><th></th><th></th></tr>${rows || '<tr><td colspan="5">Nothing booked.</td></tr>'}</table>
+        <p class="soon">Every Jayman account, on any route, plus calendar activities that mention Jayman. Warranty calls are timed: the crew has to arrive at that time. All other Jayman calls only have to happen that day, so their order can change to cut driving.</p>${foot}</div>`;
+      const timed = J.days.flatMap(d => d.calls).filter(c => c.timed && !c.done);
+      const saves = J.days.filter(d => d.drive && d.drive.saveKm > 0);
+      line = `${T.total} Jayman calls in the next two weeks: ${T.done} done, ${T.todo} to go.`
+        + (timed.length ? ` ${timed.map(c => `The warranty call on ${fmtDate(c.date)} at ${c.start} is timed${c.needsWO ? ' and still needs a work order' : ''}.`).join(' ')}` : '')
+        + (saves.length ? ` I can save about ${saves.reduce((s, d) => s + d.drive.saveKm, 0)} km of driving by reordering ${saves.map(d => fmtDate(d.date)).join(', ')}.` : '');
     } else if (kind === 'route') {
       const rows = days.map(d => `<tr class="${routes.some(k => d.routes[k].pct > 100) ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td>${routes.map(k => `<td>${bar(d.routes[k].pct)} <small>(${d.routes[k].jobs})</small></td>`).join('')}</tr>`).join('');
       html = `<div class="report"><h3>BOOKING % BY ROUTE</h3><div class="kpis">${routes.map(k => `<div>${esc(k)}<br><span class="big">${sumr.routes[k].pct}%</span></div>`).join('')}<div>${esc(head)}</div></div>

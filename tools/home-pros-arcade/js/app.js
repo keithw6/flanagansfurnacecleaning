@@ -822,11 +822,25 @@
     const head = `Next ${cfg.office.daysAhead} days · a full day is ${cfg.office.dayHours} h (4 calls x 2 h)`;
     let html = '', line = '';
     if (kind === 'jay') {
-      const rows = r.jayman.map(j => `<tr><td>${esc(fmtDate(j.date))}</td><td>${esc(j.start)}-${esc(j.end)}</td><td>${esc(j.city)}</td><td>${esc(j.status)}</td></tr>`).join('');
-      html = `<div class="report"><h3>JAYMAN BOOKINGS · ${esc(cfg.office.jaymanRoute.toUpperCase())} ROUTE</h3>
-        <table><tr><th>Date</th><th>Time</th><th>Town</th><th>Status</th></tr>${rows || '<tr><td colspan="4">Nothing booked.</td></tr>'}</table>
-        <p class="soon">My prep run is every morning at about 6:08 AM. New Jayman orders come to your phone for approval before I book them.</p>${foot}</div>`;
-      line = `${r.jayman.length} Jayman call${r.jayman.length === 1 ? '' : 's'} on the books for the next ${cfg.office.daysAhead} days.`;
+      const J = r.jayman, T = J.totals;
+      const badge = c => (c.timed ? `<span class="tag">WARRANTY · TIMED ${esc(c.start)}</span>` : '')
+        + (c.needsWO ? '<span class="tag wo">NEEDS WORK ORDER</span>' : '')
+        + (c.done ? '<span class="tag ok">DONE</span>' : '');
+      const rows = J.days.map(d => {
+        const save = d.drive && d.drive.saveKm > 0
+          ? `<tr class="drive"><td></td><td colspan="4">Better driving order saves about <b>${d.drive.saveKm} km</b> (${d.drive.currentKm} km to ${d.drive.bestKm} km): ${d.drive.order.map(c => `${esc(c.newStart)} ${esc(c.address)}`).join(' &rarr; ')}</td></tr>` : '';
+        return `<tr class="dayrow"><td>${esc(fmtDate(d.date))}</td><td><b>${d.total}</b> call${d.total === 1 ? '' : 's'}</td><td>${d.done} done</td><td>${d.todo} to do</td><td></td></tr>`
+          + d.calls.map(c => `<tr class="${c.done ? 'done' : ''}"><td></td><td>${c.timed ? '<b>' + esc(c.start) + '</b>' : esc(c.start)}</td><td>${esc(c.address || c.label)}</td><td>${esc(c.route)}</td><td>${badge(c)}</td></tr>`).join('') + save;
+      }).join('');
+      html = `<div class="report"><h3>JAYMAN CALLS · NEXT ${cfg.office.daysAhead} DAYS</h3>
+        <div class="kpis"><div>Total<br><span class="big">${T.total}</span></div><div>Done<br><span class="big">${T.done}</span></div><div>To do<br><span class="big">${T.todo}</span></div>${T.needsWO ? `<div>Need a work order<br><span class="big">${T.needsWO}</span></div>` : ''}</div>
+        <table><tr><th>Day</th><th>Calls</th><th></th><th></th><th></th></tr>${rows || '<tr><td colspan="5">Nothing booked.</td></tr>'}</table>
+        <p class="soon">Every Jayman account, on any route, plus calendar activities that mention Jayman. Warranty calls are timed: the crew has to arrive at that time. All other Jayman calls only have to happen that day, so their order can change to cut driving.</p>${foot}</div>`;
+      const timed = J.days.flatMap(d => d.calls).filter(c => c.timed && !c.done);
+      const saves = J.days.filter(d => d.drive && d.drive.saveKm > 0);
+      line = `${T.total} Jayman calls in the next two weeks: ${T.done} done, ${T.todo} to go.`
+        + (timed.length ? ` ${timed.map(c => `The warranty call on ${fmtDate(c.date)} at ${c.start} is timed${c.needsWO ? ' and still needs a work order' : ''}.`).join(' ')}` : '')
+        + (saves.length ? ` I can save about ${saves.reduce((s, d) => s + d.drive.saveKm, 0)} km of driving by reordering ${saves.map(d => fmtDate(d.date)).join(', ')}.` : '');
     } else if (kind === 'route') {
       const rows = days.map(d => `<tr class="${routes.some(k => d.routes[k].pct > 100) ? 'over' : ''}"><td>${esc(fmtDate(d.date))}</td>${routes.map(k => `<td>${bar(d.routes[k].pct)} <small>(${d.routes[k].jobs})</small></td>`).join('')}</tr>`).join('');
       html = `<div class="report"><h3>BOOKING % BY ROUTE</h3><div class="kpis">${routes.map(k => `<div>${esc(k)}<br><span class="big">${sumr.routes[k].pct}%</span></div>`).join('')}<div>${esc(head)}</div></div>

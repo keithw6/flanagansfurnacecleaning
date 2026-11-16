@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import '../home-pros-arcade/js/config.js';
 import '../home-pros-arcade/js/schedule.js';
+import '../home-pros-arcade/js/drive.js';
 import '../home-pros-arcade/js/capacity.js';
 const CFG = globalThis.HP_CONFIG, C = CFG.office, here = dirname(fileURLToPath(import.meta.url));
 const AUTH = 'Basic ' + (process.env.SM_API_TOKEN || 'proxy-injected');
@@ -22,9 +23,9 @@ for (const i of items) if (i.accountID && !names[i.accountID] && (Date.parse(i.e
   try { names[i.accountID] = (await sm(`/accounts/${i.accountID}?fields=accountName`)).accountName; } catch { }
 }
 const cap = globalThis.HP_CAPACITY.compute(items, { from, days: C.daysAhead, dayHours: C.dayHours, workDays: C.workDays, routes: C.routes, names });
-const jayman = globalThis.HP_CAPACITY.jobsOn(items, C.routes[C.jaymanRoute], from);
+const jayman = globalThis.HP_CAPACITY.jayman(items, { from, accounts: C.jaymanAccounts, routes: C.routes, warranty: new RegExp(C.warrantyWord, 'i'), base: C.base, roadFactor: C.roadFactor });
 const data = { generatedAt: now, capacity: cap, jayman };
 writeFileSync(join(here, '../home-pros-arcade/js/office-data.js'),
   '/* Snapshot for the preview build, made by tools/rosa/office-snapshot.mjs. The live site asks the booking server instead. */\n' +
   'window.HP_OFFICE_DATA = ' + JSON.stringify(data) + ';\n');
-console.log('snapshot', now, 'overbooked:', cap.summary.overbooked.map(o => `${o.date} ${o.pct}%`).join(', '), '| totals', JSON.stringify(cap.summary.routes), 'truck', cap.summary.total.pct + '%', '| jayman jobs', jayman.length);
+console.log('snapshot', now, 'overbooked:', cap.summary.overbooked.map(o => `${o.date} ${o.pct}%`).join(', '), '| totals', JSON.stringify(cap.summary.routes), 'truck', cap.summary.total.pct + '%', '| jayman', JSON.stringify(jayman.totals));

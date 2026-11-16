@@ -14,6 +14,22 @@ about 6:00 AM Alberta time as a scheduled Claude task:
    booked until Keith replies "approve" in that run's session. Then she runs
    `jayman-sm.mjs book ... --approved` and hands over the Supply Pro write-back sheet.
 
+**Driving.** Jayman calls only have to happen on their day, so the time is free:
+- A new call goes in the free slot that adds the least driving. Its location comes
+  from past jobs on the same street (ServiceMonster stores coordinates on jobs, not
+  sites), otherwise the town centre, flagged as approximate.
+- `jayman-sm.mjs reorder YYYY-MM-DD` proposes swapping a day's call times so the
+  closest calls are done back to back. Example: Nov 24 goes from about 142 km to
+  127 km. `reorder-apply ... --approved` moves the times, after re-checking nothing
+  changed.
+- Distances are straight-line x 1.3, from the shop and back. Good for comparing
+  orders, not a GPS route.
+
+**Warranty calls** are booked as calendar activities (for example "Jayman Warrenty
+3404 122 Street SW - Re: w0735191"). They are **timed** (the crew must arrive at that
+time and they never move) and still need a **work order**. Rosa lists them every
+morning and proposes the work order.
+
 The helper re-checks duplicates and the slot immediately before creating anything,
 and stops if its control search (PO 02210518 -> WO 45769) fails.
 

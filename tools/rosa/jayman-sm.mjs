@@ -8,6 +8,15 @@
      node jayman-sm.mjs book plan-checked.json --approved
                                            -> creates the work orders, prints the
                                               Supply Pro write-back sheet
+     node jayman-sm.mjs reorder 2026-11-24 -> proposes a better driving order for
+                                              that day's Jayman calls (saved to a file)
+     node jayman-sm.mjs reorder-apply reorder-2026-11-24.json --approved
+                                           -> moves the job times in ServiceMonster
+
+   Driving: Jayman calls only have to happen on their day, so Rosa puts a new
+   call in the free slot that adds the least driving, and can swap the times
+   of a day's calls so the closest ones are done back to back. Warranty calls
+   are timed and never move.
 
    plan.json is the list of work orders Rosa built from the Jayman emails (one
    per address, POs already grouped and priced per the skill):
@@ -35,6 +44,10 @@
      NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node jayman-sm.mjs ...
    Elsewhere, set SM_API_TOKEN to base64("username:password").                 */
 import { readFileSync, writeFileSync } from 'fs';
+import '../home-pros-arcade/js/config.js';
+import '../home-pros-arcade/js/travel.js';
+import '../home-pros-arcade/js/drive.js';
+const CFG = globalThis.HP_CONFIG, DRIVE = globalThis.HP_DRIVE, BASE = CFG.office.base, RF = CFG.office.roadFactor;
 
 const SM = 'https://api.servicemonster.net/v1';
 const AUTH = 'Basic ' + (process.env.SM_API_TOKEN || 'proxy-injected');
@@ -71,6 +84,23 @@ const list = d => (Array.isArray(d) ? d : d.items || []);
 const min = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const clock = s => s.slice(11, 16);
 
+// Where an address is: past jobs on the same street (ServiceMonster stores job
+// coordinates, not site coordinates), else the town centre (approximate).
+let pastJobs = null;
+async function geo(address, city) {
+  if (!pastJobs) {
+    const from = new Date(Date.now() - 200 * 864e5).toISOString().slice(0, 10);
+    const to = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10);
+    pastJobs = list(await sm(`/scheduling?startDate=${from}&endDate=${to}&getJobColor=false`)).filter(i => i.latitude && i.address1);
+  }
+  const street = a => String(a || '').toLowerCase().replace(/^\s*\d+[a-z]?\s+/, '').replace(/\b(street|st|avenue|ave|road|rd|way|wy|crescent|cres|landing|lndg|drive|dr)\b/g, '').replace(/\s+/g, ' ').trim();
+  const want = street(address);
+  const hits = pastJobs.filter(i => street(i.address1) === want);
+  if (hits.length) return { lat: hits.reduce((s, i) => s + i.latitude, 0) / hits.length, lon: hits.reduce((s, i) => s + i.longitude, 0) / hits.length, how: `street match (${hits.length} past jobs)` };
+  const t = globalThis.HP_TRAVEL.findTown(city || 'Edmonton');
+  return t ? { lat: t.lat, lon: t.lon, how: `town centre of ${t.name} (approximate)` } : { lat: BASE.lat, lon: BASE.lon, how: 'unknown, used the shop' };
+}
+
 async function duplicates(pos) {
   const hits = [];
   for (const po of pos) {
@@ -91,20 +121,28 @@ async function dayBusy(date) {
   return list(d).filter(i => !/cancel/i.test(i.status || ''))
     .filter(i => i.routeID === IDS.newHome || i.routeID === IDS.residential)
     .map(i => ({ route: i.routeID === IDS.newHome ? 'New Home' : 'Residential', start: i.startDateTime, end: i.endDateTime,
-      what: i.itemType === 'Job' ? (i.city || 'job') : `${i.itemType || 'item'} "${i.subject || ''}"` }))
+      what: i.itemType === 'Job' ? (i.city || 'job') : `${i.itemType || 'item'} "${i.subject || ''}"`,
+      lat: i.latitude || null, lon: i.longitude || null, id: i.itemID, address: i.address1 || '', status: i.status || '', type: i.itemType, accountID: i.accountID, subject: i.subject || '' }))
     .filter(b => b.start && b.start.slice(0, 10) === date);
 }
 
-function pickSlot(busy, date, taken) {
+function pickSlot(busy, date, taken, here) {
   const newHomeCount = busy.filter(b => b.route === 'New Home').length + taken.length;
   if (newHomeCount >= MAX_PER_DAY) return { why: `${date} already has ${newHomeCount} New Home calls` };
-  for (const s of SLOTS) {
+  const stops = busy.filter(x => x.lat).map(x => ({ start: clock(x.start), lat: x.lat, lon: x.lon }))
+    .concat(taken.map(t => ({ start: t.slot, lat: t.lat, lon: t.lon })));
+  const free = SLOTS.filter(s => {
     const a = min(s), b = a + JOB_HOURS * 60;
-    const clash = busy.find(x => min(clock(x.start)) < b && min(clock(x.end)) > a) || taken.includes(s);
-    if (!clash) return { slot: s };
+    return !busy.find(x => min(clock(x.start)) < b && min(clock(x.end)) > a) && !taken.some(t => t.slot === s);
+  });
+  if (!free.length) {
+    const reasons = busy.map(x => `${x.route} ${clock(x.start)}-${clock(x.end)} ${x.what}`).join(', ');
+    return { why: `no free slot on ${date} (booked: ${reasons})` };
   }
-  const reasons = busy.map(x => `${x.route} ${clock(x.start)}-${clock(x.end)} ${x.what}`).join(', ');
-  return { why: `no free slot on ${date} (booked: ${reasons})` };
+  // the free slot that adds the least driving to the day
+  const scored = free.map(s => ({ slot: s, added: DRIVE.addedKm(BASE, stops, { start: s, lat: here.lat, lon: here.lon }, RF) }))
+    .sort((a, b) => a.added - b.added);
+  return { slot: scored[0].slot, addedKm: scored[0].added, options: scored };
 }
 
 function price(lines) {
@@ -133,16 +171,18 @@ async function check(file) {
     if (dups.length) r.holds.push(...dups);
     if (w.date && !dups.length) {
       byDay[w.date] = byDay[w.date] || { busy: await dayBusy(w.date), taken: [] };
-      const s = pickSlot(byDay[w.date].busy, w.date, byDay[w.date].taken);
-      if (s.slot) { r.slot = s.slot; byDay[w.date].taken.push(s.slot); } else r.holds.push(s.why);
+      const here = await geo(w.address, w.city);
+      r.geo = here.how;
+      const s = pickSlot(byDay[w.date].busy, w.date, byDay[w.date].taken, here);
+      if (s.slot) { r.slot = s.slot; r.addedKm = s.addedKm; byDay[w.date].taken.push({ slot: s.slot, lat: here.lat, lon: here.lon }); } else r.holds.push(s.why);
     }
     if (r.holds.length) r.status = 'HELD';
     out.push(r);
   }
   const outFile = file.replace(/\.json$/, '') + '-checked.json';
   writeFileSync(outFile, JSON.stringify(out, null, 2));
-  console.log('| Status | Date | Slot | Address | POs | Total (incl GST) | Note |\n|---|---|---|---|---|---|---|');
-  for (const r of out) console.log(`| ${r.status} | ${r.date || '-'} | ${r.slot || '-'} | ${r.address}, ${r.city} | ${(r.pos || []).join(', ')} | $${r.total.toFixed(2)} | ${r.holds.join('; ') || (r.lines.some(l => l.stale) ? 'PO price differs from ServiceMonster default' : '')} |`);
+  console.log('| Status | Date | Slot | Extra driving | Address | POs | Total (incl GST) | Note |\n|---|---|---|---|---|---|---|---|');
+  for (const r of out) console.log(`| ${r.status} | ${r.date || '-'} | ${r.slot || '-'} | ${r.addedKm != null ? '+' + r.addedKm + ' km' : '-'} | ${r.address}, ${r.city} | ${(r.pos || []).join(', ')} | $${r.total.toFixed(2)} | ${r.holds.join('; ') || [r.lines.some(l => l.stale) ? 'PO price differs from ServiceMonster default' : '', r.geo && /approx|unknown/.test(r.geo) ? 'location ' + r.geo : ''].filter(Boolean).join('; ')} |`);
   console.log(`\nSaved ${outFile}. Nothing was booked.`);
 }
 
@@ -183,7 +223,44 @@ async function book(file) {
   if (!sheet.length) console.log('| (none) | | | | |');
 }
 
+const JAY = new Set(CFG.office.jaymanAccounts), WARRANTY = new RegExp(CFG.office.warrantyWord, 'i');
+
+async function reorder(date) {
+  const day = (await dayBusy(date)).filter(x => JAY.has(x.accountID) || /jayman/i.test(x.subject));
+  const calls = day.filter(x => !/complete/i.test(x.status) || x.type !== 'Job')
+    .map(x => ({ id: x.id, start: clock(x.start), end: clock(x.end), lat: x.lat, lon: x.lon, address: x.address || x.subject,
+      movable: x.type === 'Job' && !WARRANTY.test(x.subject) }));
+  if (calls.filter(c => c.movable).length < 2) { console.log(`${date}: fewer than two movable Jayman calls, nothing to reorder.`); return; }
+  const r = DRIVE.bestOrder(BASE, calls, RF);
+  const moves = r.order.filter(c => c.movable && c.newStart !== c.start);
+  console.log(`${date}: now about ${r.currentKm} km, best order about ${r.bestKm} km (saves ${r.saveKm} km).`);
+  for (const c of r.order) console.log(`  ${c.newStart}  ${c.address}${c.newStart !== c.start ? `   (was ${c.start})` : ''}${c.movable ? '' : '   [timed, stays]'}`);
+  if (!moves.length) { console.log('Already the best order.'); return; }
+  const outFile = `reorder-${date}.json`;
+  writeFileSync(outFile, JSON.stringify({ date, moves: moves.map(c => ({ id: c.id, address: c.address, from: c.start, to: c.newStart, end: c.end })) }, null, 2));
+  console.log(`Saved ${outFile}. Nothing was changed.`);
+}
+
+async function reorderApply(file) {
+  if (!process.argv.includes('--approved')) throw new Error('Refusing to move jobs without --approved.');
+  const { date, moves } = JSON.parse(readFileSync(file, 'utf8'));
+  const now = await dayBusy(date);
+  for (const m of moves) {
+    const j = now.find(x => x.id === m.id);
+    if (!j || clock(j.start) !== m.from) throw new Error(`${m.address}: job changed since the proposal. Run reorder again.`);
+  }
+  for (const m of moves) {
+    const j = now.find(x => x.id === m.id);
+    const dur = min(clock(j.end)) - min(clock(j.start)), endMin = min(m.to) + dur;
+    const end = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+    await sm(`/jobs/${m.id}`, { method: 'PATCH', body: JSON.stringify({ estDateTimeStart: `${date}T${m.to}:00`, estDateTimeEnd: `${date}T${end}:00` }) });
+    console.log(`moved ${m.address}: ${m.from} -> ${m.to}`);
+  }
+}
+
 const [cmd, file] = process.argv.slice(2);
+if (cmd === 'reorder' && file) { await reorder(file); process.exit(0); }
+if (cmd === 'reorder-apply' && file) { await reorderApply(file); process.exit(0); }
 if (cmd === 'check' && file) await check(file);
 else if (cmd === 'book' && file) await book(file);
-else console.log('usage: node jayman-sm.mjs check plan.json | book plan-checked.json --approved');
+else console.log('usage: node jayman-sm.mjs check plan.json | book plan-checked.json --approved | reorder YYYY-MM-DD | reorder-apply reorder-YYYY-MM-DD.json --approved');

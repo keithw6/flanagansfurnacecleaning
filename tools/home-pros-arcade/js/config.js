@@ -38,6 +38,12 @@ const HP_CONFIG = {
       'Residential': 'ff14fbca-dc45-11e3-b8c3-d9b28ac835cd',
     },
     jaymanRoute: 'New Home',
+    // every Jayman account in ServiceMonster (the all-caps one is the live one)
+    jaymanAccounts: ['1b833231-89e7-11e7-8c1a-fec578518208', 'b803ae7f-e037-11e3-b8c3-d9b28ac835cd',
+      'fbcd4a4f-77fe-11ee-8213-9988e7b79539', 'bffc865a-531e-11ee-820e-bc04de1dccaf', '6bd33c7b-342a-11eb-a7d2-bd12f7e942c9'],
+    warrantyWord: 'warr[ae]nt',       // "Warranty" or "Warrenty" in a call = timed warranty call
+    base: { lat: 53.545, lon: -113.91, name: 'the shop' },   // where the truck starts and ends the day
+    roadFactor: 1.3,
   },
 
   // The board of directors in the boardroom. `id` matches img/dir-<id>.webp.
@@ -65,7 +71,7 @@ const HP_CONFIG = {
     {
       id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
       intro: "Every customer leaves happy. That's my whole job.",
-      duties: ['Every morning before 6:30: reads new Jayman purchase orders and prepares them for the New Home route, for your approval', 'Never double-books: checks New Home and Edmonton Residential before proposing a slot', 'Questions, reschedules and cancellations', 'Catches unhappy customers before they post a review'],
+      duties: ['Every morning before 6:30: reads new Jayman purchase orders and prepares them for the New Home route, for your approval', 'Never double-books: checks New Home and Edmonton Residential before proposing a slot', 'Plans the driving: closest Jayman calls back to back (warranty calls keep their time)', 'Turns Jayman warranty calls into work orders', 'Questions, reschedules and cancellations', 'Catches unhappy customers before they post a review'],
     },
   ],
 

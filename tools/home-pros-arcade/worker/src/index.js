@@ -33,6 +33,7 @@ import '../../js/config.js';
 import '../../js/travel.js';
 import '../../js/pricing.js';
 import '../../js/schedule.js';
+import '../../js/drive.js';
 import '../../js/capacity.js';
 
 const CFG = globalThis.HP_CONFIG;
@@ -325,6 +326,6 @@ async function officeReport(env) {
   return {
     generatedAt: now, live: true,
     capacity: HPC.compute(items, { from, days: C.daysAhead, dayHours: C.dayHours, workDays: C.workDays, routes: C.routes, names }),
-    jayman: HPC.jobsOn(items, C.routes[C.jaymanRoute], from),
+    jayman: HPC.jayman(items, { from, accounts: C.jaymanAccounts, routes: C.routes, warranty: new RegExp(C.warrantyWord, 'i'), base: C.base, roadFactor: C.roadFactor }),
   };
 }

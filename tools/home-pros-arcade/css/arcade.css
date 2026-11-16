@@ -270,3 +270,9 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report .soon { margin: 10px 0 0; font-size: 17px; color: var(--dim); }
 .report .kpis { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
 .report .kpis div { font-size: 17px; color: var(--dim); }
+
+.report tr.dayrow td { border-top: 2px solid #39413d; padding-top: 8px; color: #fff; }
+.report tr.done td { color: #6f7672; }
+.report tr.drive td { border-top: 0; color: var(--green); font-size: 17px; white-space: normal; }
+.report .tag.wo { background: #c98a1b; }
+.report .tag.ok { background: #2c7a25; }
