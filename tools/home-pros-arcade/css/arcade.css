@@ -320,3 +320,29 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report .dots { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
 .report .dot { width: 16px; height: 16px; display: inline-block; background: #3a423e; }
 .report .dot.ok { background: var(--edge); } .report .dot.warn { background: #d99a1e; } .report .dot.problem { background: #e2463b; }
+
+/* "How we clean" brochure stand on the counter, left of Hank */
+.howto {
+  position: absolute; left: 25.5%; top: 52.5%; width: 13.5%; height: 15.6%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35cqw;
+  background: linear-gradient(#141a16, #0b0f0c); border: .25cqw solid #000; outline: .2cqw solid var(--edge);
+  box-shadow: 0 .4cqw 0 #000, 0 0 1.4cqw rgba(63, 170, 53, .45); transform: perspective(40cqw) rotateX(6deg);
+  cursor: pointer; padding: .4cqw; color: #f4f6f4; font-family: var(--pixel);
+  animation: howtoGlow 2.4s ease-in-out infinite;
+}
+.howto-house { width: 3.2cqw; height: 2.6cqw; position: relative; }
+.howto-house::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1.2cqw; background: var(--edge); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.howto-house i { position: absolute; left: .5cqw; right: .5cqw; top: 1.2cqw; bottom: 0; background: #e8ebe9; border-bottom: .3cqw solid #a97b4f; }
+.howto-txt { font-size: .95cqw; line-height: 1.3; text-align: center; letter-spacing: .08em; }
+.howto-go { font-size: .7cqw; color: var(--edge); }
+.howto:hover, .howto:focus-visible { outline-color: #7fd977; box-shadow: 0 .4cqw 0 #000, 0 0 2.4cqw rgba(127, 217, 119, .8); }
+.howto:focus-visible { outline-width: .35cqw; }
+@keyframes howtoGlow { 50% { box-shadow: 0 .4cqw 0 #000, 0 0 2.2cqw rgba(63, 170, 53, .75); } }
+@media (prefers-reduced-motion: reduce) { .howto { animation: none; } }
+
+.howto-modal { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, .78); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 16px; }
+.howto-modal[hidden] { display: none; }
+.howto-box { position: relative; width: 100%; max-width: 1220px; border: 3px solid var(--edge); box-shadow: 0 0 0 3px #000, 0 0 40px rgba(63, 170, 53, .4); background: #0c0e0d; }
+.howto-close { position: sticky; top: 0; z-index: 2; display: block; margin-left: auto; font-family: var(--pixel); font-size: 12px; color: #0c0e0d; background: var(--edge); border: 0; padding: 10px 14px; cursor: pointer; }
+.howto-close:hover, .howto-close:focus-visible { background: #7fd977; outline: none; }
+.howto-box #our-process { padding-top: 24px; }

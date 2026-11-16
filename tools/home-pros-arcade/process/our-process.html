@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How we clean your ducts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Sora:wght@400;600&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0c0e0d}/* ============ OUR PROCESS SECTION ============ */
+  #our-process{
+    --hp-green:#3faa35;
+    --hp-green-soft:#7fd977;
+    --hp-dark:#0c0e0d;
+    --hp-panel:#121514;
+    --hp-line:#2a2f2c;
+    --hp-text:#e8ebe9;
+    --hp-muted:#9aa39e;
+    --hp-debris:#a97b4f;
+    background:var(--hp-dark);
+    color:var(--hp-text);
+    font-family:'Sora', -apple-system, 'Segoe UI', sans-serif;
+    padding:72px 20px;
+  }
+  #our-process .op-wrap{max-width:1180px;margin:0 auto;}
+  #our-process .op-eyebrow{
+    font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+    font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--hp-green);font-size:15px;margin:0 0 8px;
+  }
+  #our-process h2{
+    font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+    font-weight:700;font-size:clamp(34px,5vw,52px);
+    line-height:1.05;margin:0 0 10px;text-transform:uppercase;letter-spacing:.01em;
+  }
+  #our-process .op-sub{color:var(--hp-muted);font-size:16px;max-width:640px;margin:0 0 34px;line-height:1.6;}
+
+  #our-process .op-grid{display:flex;gap:32px;align-items:stretch;}
+  #our-process .op-scene{
+    flex:1 1 62%;min-width:0;background:var(--hp-panel);
+    border:1px solid var(--hp-line);border-radius:14px;padding:14px;
+    position:relative;
+  }
+  #our-process .op-scene svg{width:100%;height:auto;display:block;}
+
+  /* ---- step list ---- */
+  #our-process .op-steps{flex:1 1 38%;display:flex;flex-direction:column;gap:8px;}
+  #our-process .op-step{
+    display:flex;gap:14px;align-items:flex-start;text-align:left;
+    background:transparent;border:1px solid var(--hp-line);border-radius:10px;
+    padding:11px 14px;cursor:pointer;color:var(--hp-text);
+    font-family:inherit;transition:border-color .3s,background .3s;
+  }
+  #our-process .op-step:hover{border-color:#3f4642;}
+  #our-process .op-step[aria-current="step"]{
+    border-color:var(--hp-green);background:rgba(63,170,53,.08);
+  }
+  #our-process .op-step .n{
+    font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+    font-weight:700;font-size:24px;line-height:1;color:var(--hp-muted);
+    min-width:26px;padding-top:2px;transition:color .3s;
+  }
+  #our-process .op-step[aria-current="step"] .n{color:var(--hp-green);}
+  #our-process .op-step b{
+    display:block;font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+    font-weight:600;font-size:19px;letter-spacing:.02em;text-transform:uppercase;
+  }
+  #our-process .op-step span{display:block;color:var(--hp-muted);font-size:13.5px;line-height:1.5;margin-top:2px;}
+
+  #our-process .op-ctrl{
+    margin-top:6px;display:flex;align-items:center;gap:12px;
+  }
+  #our-process .op-play{
+    font-family:'Barlow Condensed','Arial Narrow',sans-serif;
+    font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--hp-green);color:#07100a;border:0;border-radius:8px;
+    padding:9px 22px;cursor:pointer;
+  }
+  #our-process .op-play:focus-visible,
+  #our-process .op-step:focus-visible{outline:2px solid var(--hp-green);outline-offset:2px;}
+  #our-process .op-hint{color:var(--hp-muted);font-size:12.5px;}
+
+  @media (max-width:860px){
+    #our-process .op-grid{flex-direction:column;}
+  }
+
+  /* ============ SVG ANIMATION STATES ============ */
+  /* hoses draw with pathLength=100 trick */
+  #our-process .draw{
+    stroke-dasharray:100;stroke-dashoffset:100;
+    transition:stroke-dashoffset 1.4s ease-in-out;
+  }
+  /* truck drives in */
+  #our-process .truck{transform:translateX(-360px);transition:transform 2.1s cubic-bezier(.25,.7,.35,1);}
+  #our-process .go-p1 .truck{transform:translateX(0);}
+  /* truck-to-KOP75 air line + KOP75 unit arrives */
+  #our-process .kop-grp{opacity:0;transform:translateY(14px);transition:opacity .9s,transform .9s;}
+  #our-process .go-p2 .kop-grp{opacity:1;transform:translateY(0);}
+  #our-process .go-p2 .hose-truck{stroke-dashoffset:0;transition-delay:.35s;}
+  /* collar seals to plenum + exhaust setup (step 3) */
+  #our-process .go-p3 .hose-collar{stroke-dashoffset:0;transition-delay:.3s;}
+  #our-process .go-p3 .hose-exhaust{stroke-dashoffset:0;transition-delay:.9s;}
+  #our-process .bag{transform:scale(.14);transform-origin:940px 545px;transition:transform 2.4s ease;}
+  #our-process .go-p3 .bag{transform:scale(.22);}
+  #our-process .go-p7 .bag{transform:scale(1);}
+  /* whip hose variants — visible only in their phase */
+  #our-process .hose-top,#our-process .hose-main,#our-process .hose-base{opacity:0;transition:opacity .4s;}
+  #our-process .at-p4 .hose-top,#our-process .at-p5a .hose-top{opacity:1;}
+  #our-process .at-p4 .hose-top{stroke-dashoffset:0;}
+  #our-process .at-p5a .hose-top{stroke-dasharray:none;}
+  #our-process .at-p5b .hose-main{opacity:1;stroke-dasharray:none;}
+  #our-process .at-p6 .hose-base{opacity:1;stroke-dasharray:none;}
+  /* particle groups */
+  #our-process .fx{opacity:0;transition:opacity .35s;}
+  #our-process .at-p5a .fx-top,
+  #our-process .at-p5b .fx-main,
+  #our-process .at-p6  .fx-base,
+  #our-process .at-p7  .fx-ex{opacity:1;}
+  /* KOP75 running light */
+  #our-process .kop-light{opacity:.25;}
+  #our-process .at-p5a .kop-light,#our-process .at-p5b .kop-light,
+  #our-process .at-p6 .kop-light,#our-process .at-p7 .kop-light{
+    opacity:1;animation:opPulse 1s ease-in-out infinite alternate;
+  }
+  @keyframes opPulse{from{opacity:.55}to{opacity:1}}
+
+  @media (prefers-reduced-motion:reduce){
+    #our-process .truck,#our-process .kop-grp,#our-process .bag{transition:none;transform:none;opacity:1;}
+    #our-process .draw{transition:none;stroke-dashoffset:0;}
+    #our-process .fx{display:none;}
+    #our-process .kop-light{animation:none;opacity:1;}
+    #our-process .hose-base{opacity:1;stroke-dasharray:none;}
+  }
+</style>
+</head>
+<body>
+<section id="our-process" aria-label="Our duct cleaning process">
+  <div class="op-wrap">
+    <p class="op-eyebrow">Our Process</p>
+    <h2>How we clean your ducts, start to finish</h2>
+    <p class="op-sub">Every job follows the same seven steps — powerful truck-mounted air, our KOP75 negative-air vacuum sealed to your furnace, and every last bit of debris captured outside your home. Nothing gets stirred up into your living space.</p>
+
+    <div class="op-grid">
+
+      <!-- ================= SCENE ================= -->
+      <div class="op-scene" id="opScene">
+        <svg viewBox="0 0 1100 640" xmlns="http://www.w3.org/2000/svg" role="img"
+             aria-label="Animated cutaway of a house showing the Home Pros duct cleaning process">
+
+          <!-- sky / ground -->
+          <rect x="0" y="0" width="1100" height="470" fill="#121514"/>
+          <rect x="0" y="470" width="1100" height="170" fill="#171a18"/>
+          <line x1="0" y1="470" x2="1100" y2="470" stroke="#2f3532" stroke-width="2"/>
+
+          <!-- ===== HOUSE CUTAWAY ===== -->
+          <!-- basement pit -->
+          <rect x="380" y="470" width="520" height="150" fill="#101312"/>
+          <!-- foundation -->
+          <rect x="380" y="470" width="18" height="150" fill="#3a403c"/>
+          <rect x="882" y="470" width="18" height="150" fill="#3a403c"/>
+          <rect x="380" y="612" width="520" height="10" fill="#3a403c"/>
+          <!-- basement windows -->
+          <rect x="382" y="476" width="14" height="26" rx="2" fill="#1d2320" stroke="#556058" stroke-width="1.5"/>
+          <rect x="884" y="476" width="14" height="26" rx="2" fill="#1d2320" stroke="#556058" stroke-width="1.5"/>
+          <!-- main + upper walls -->
+          <rect x="380" y="190" width="10" height="280" fill="#454c48"/>
+          <rect x="890" y="190" width="10" height="280" fill="#454c48"/>
+          <!-- floor bands -->
+          <rect x="390" y="460" width="500" height="10" fill="#454c48"/>
+          <rect x="390" y="320" width="500" height="10" fill="#454c48"/>
+          <!-- roof -->
+          <path d="M366,192 L640,84 L914,192" fill="none" stroke="#454c48" stroke-width="10" stroke-linecap="round"/>
+          <path d="M390,190 L640,92 L890,190 Z" fill="#151817"/>
+          <!-- interior fills -->
+          <rect x="390" y="330" width="500" height="130" fill="#151817"/>
+          <rect x="390" y="190" width="500" height="130" fill="#151817"/>
+          <!-- simple interior hints -->
+          <rect x="770" y="380" width="70" height="80" rx="3" fill="#1c211e"/> <!-- main flr furniture -->
+          <rect x="560" y="230" width="90" height="60" rx="3" fill="#1c211e"/> <!-- bed upstairs -->
+          <!-- upstairs window / main window -->
+          <rect x="740" y="220" width="46" height="52" rx="3" fill="#1d2320" stroke="#556058" stroke-width="1.5"/>
+          <rect x="470" y="370" width="46" height="52" rx="3" fill="#1d2320" stroke="#556058" stroke-width="1.5"/>
+
+          <!-- floor labels -->
+          <g font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-size="15" fill="#5c655f" letter-spacing="2">
+            <text x="860" y="212" text-anchor="end">TOP FLOOR</text>
+            <text x="860" y="352" text-anchor="end">MAIN FLOOR</text>
+            <text x="500" y="600">BASEMENT</text>
+          </g>
+
+          <!-- ===== DUCTWORK ===== -->
+          <!-- trunk along basement ceiling -->
+          <rect x="470" y="488" width="340" height="24" fill="#8f9995" stroke="#6c7572" stroke-width="1.5"/>
+          <!-- riser up through floors -->
+          <rect x="470" y="330" width="24" height="160" fill="#8f9995" stroke="#6c7572" stroke-width="1.5"/>
+          <!-- top-floor register (on floor band y=320..330) -->
+          <rect x="460" y="318" width="44" height="12" rx="2" fill="#6c7572" stroke="#556058"/>
+          <g stroke="#39413d" stroke-width="2"><line x1="466" y1="321" x2="498" y2="321"/><line x1="466" y1="325" x2="498" y2="325"/></g>
+          <!-- branch to main-floor register -->
+          <rect x="494" y="450" width="50" height="14" fill="#8f9995" stroke="#6c7572" stroke-width="1.5"/>
+          <rect x="534" y="458" width="44" height="12" rx="2" fill="#6c7572" stroke="#556058"/>
+          <g stroke="#39413d" stroke-width="2"><line x1="540" y1="461" x2="572" y2="461"/><line x1="540" y1="465" x2="572" y2="465"/></g>
+          <!-- riser between main register branch and trunk -->
+          <rect x="470" y="464" width="24" height="24" fill="#8f9995" stroke="#6c7572" stroke-width="1.5"/>
+
+          <!-- exhaust hose KOP -> right basement window (runs behind the furnace) -->
+          <path class="draw hose-exhaust" d="M748,592 C790,602 838,602 862,594 C878,588 883,564 884,536 C885,516 886,503 887,492" pathLength="100"
+                fill="none" stroke="#9aa39e" stroke-width="10" stroke-linecap="round" stroke-dasharray="100"/>
+          <!-- EXHAUST -> BAG particles (7) — behind furnace like the hose -->
+          <g class="fx fx-ex">
+            <g fill="#a97b4f">
+              <circle r="3.2"><animateMotion dur="1.8s" repeatCount="indefinite" path="M748,592 C790,602 838,602 862,594 C878,588 883,564 884,536 C885,516 886,503 888,492 L940,514"/></circle>
+              <circle r="2.5" fill="#8a6a48"><animateMotion dur="1.8s" begin="-0.6s" repeatCount="indefinite" path="M749,593 C791,603 839,603 863,595 C879,589 884,565 885,537 C886,517 887,504 889,493 L946,526"/></circle>
+              <circle r="2.2"><animateMotion dur="1.8s" begin="-1.2s" repeatCount="indefinite" path="M748,591 C790,601 838,601 862,593 C878,587 883,563 884,535 C885,515 886,502 888,491 L950,538"/></circle>
+            </g>
+          </g>
+
+          <!-- ===== FURNACE ===== -->
+          <rect x="790" y="540" width="62" height="72" rx="4" fill="#6c7572" stroke="#556058" stroke-width="2"/>
+          <rect x="800" y="556" width="42" height="22" rx="2" fill="#454c48"/>
+          <rect x="806" y="505" width="30" height="35" fill="#8f9995" stroke="#6c7572" stroke-width="1.5"/> <!-- plenum -->
+          <text x="821" y="602" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-size="14" fill="#e8ebe9" letter-spacing="1">FURNACE</text>
+
+          <!-- ===== KOP75 (arrives step 2, seals step 3) ===== -->
+          <g class="kop-grp">
+            <rect x="660" y="548" width="96" height="64" rx="6" fill="#0f1a0e" stroke="#3faa35" stroke-width="2.5"/>
+            <circle class="kop-light" cx="676" cy="562" r="4" fill="#3faa35"/>
+            <text x="708" y="586" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-weight="700" font-size="20" fill="#3faa35" letter-spacing="1">KOP75</text>
+            <text x="708" y="602" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-size="11" fill="#9aa39e" letter-spacing="2">DUCT VACUUM</text>
+            <!-- wheels -->
+            <circle cx="676" cy="614" r="5" fill="#454c48"/><circle cx="740" cy="614" r="5" fill="#454c48"/>
+          </g>
+          <!-- flex collar KOP -> plenum, sealing right above the furnace -->
+          <path class="draw hose-collar" d="M744,552 C772,547 792,536 804,524" pathLength="100"
+                fill="none" stroke="#9aa39e" stroke-width="14" stroke-linecap="round" stroke-dasharray="100" />
+          <path class="draw hose-collar" d="M744,552 C772,547 792,536 804,524" pathLength="100"
+                fill="none" stroke="#39413d" stroke-width="14" stroke-linecap="round" stroke-dasharray="4 6" opacity=".5"/>
+
+          <!-- ===== COLLECTION BAG (outside, right) ===== -->
+          <g class="bag">
+            <path d="M905,489 C925,478 985,478 1005,500 C1022,520 1018,560 995,572 C965,586 920,582 908,558 C898,538 898,505 905,489 Z"
+                  fill="rgba(127,217,119,.14)" stroke="#7fd977" stroke-width="2.5"/>
+            <text x="957" y="536" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-size="14" fill="#7fd977" letter-spacing="2">DEBRIS BAG</text>
+          </g>
+
+          <!-- ===== TRUCK (drives in step 1) ===== -->
+          <g class="truck">
+            <rect x="60" y="368" width="188" height="88" rx="6" fill="#151817" stroke="#454c48" stroke-width="2.5"/>
+            <text x="154" y="406" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-weight="700" font-size="26" fill="#3faa35" letter-spacing="1">HOME PROS</text>
+            <text x="154" y="428" text-anchor="middle" font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-size="13" fill="#9aa39e" letter-spacing="3">FURNACE &amp; DUCT CLEANING</text>
+            <!-- cab -->
+            <path d="M248,456 L248,392 L286,392 C300,392 310,404 314,420 L318,456 Z" fill="#151817" stroke="#454c48" stroke-width="2.5"/>
+            <path d="M256,400 L284,400 C292,400 298,408 300,418 L256,418 Z" fill="#1d2320" stroke="#556058" stroke-width="1.5"/>
+            <!-- wheels -->
+            <circle cx="112" cy="458" r="17" fill="#0c0e0d" stroke="#454c48" stroke-width="4"/>
+            <circle cx="286" cy="458" r="17" fill="#0c0e0d" stroke="#454c48" stroke-width="4"/>
+            <circle cx="112" cy="458" r="5" fill="#454c48"/><circle cx="286" cy="458" r="5" fill="#454c48"/>
+          </g>
+
+          <!-- truck air line -> through basement window -> KOP75 unit (step 2) -->
+          <path class="draw hose-truck" d="M250,452 C280,470 320,474 352,474 L374,474 C384,474 390,480 390,492 C390,532 404,586 448,586 L610,586 L656,586"
+                pathLength="100" fill="none" stroke="#3faa35" stroke-width="7" stroke-linecap="round" stroke-dasharray="100"/>
+
+          <!-- ===== WHIP HOSE VARIANTS (run from the KOP75) ===== -->
+          <!-- to top floor (draws step 4, blows step 5a) -->
+          <path class="draw hose-top" d="M672,548 C672,530 660,524 636,524 L520,524 C470,524 452,472 452,420 L452,340 C452,306 462,298 476,300 C482,303 482,307 482,312"
+                pathLength="100" fill="none" stroke="#7fd977" stroke-width="5" stroke-linecap="round" stroke-dasharray="100"/>
+          <!-- to main floor (step 5b) -->
+          <path class="hose-main" d="M672,548 C672,532 658,526 632,526 L544,526 C520,526 514,498 518,478 C522,464 534,459 545,459"
+                fill="none" stroke="#7fd977" stroke-width="5" stroke-linecap="round"/>
+          <!-- to basement trunk (step 6) -->
+          <path class="hose-base" d="M672,548 C672,534 660,528 640,528 L520,528 C498,528 480,518 466,504"
+                fill="none" stroke="#7fd977" stroke-width="5" stroke-linecap="round"/>
+
+          <!-- ===== PARTICLE FX ===== -->
+          <!-- air puffs + debris: TOP FLOOR (5a) -->
+          <g class="fx fx-top">
+            <g fill="rgba(232,235,233,.5)">
+              <circle r="3"><animateMotion dur="0.9s" repeatCount="indefinite" path="M480,314 L482,336"/><animate attributeName="opacity" values="0;.8;0" dur="0.9s" repeatCount="indefinite"/></circle>
+              <circle r="2.4"><animateMotion dur="0.9s" begin="-0.45s" repeatCount="indefinite" path="M478,314 L480,340"/><animate attributeName="opacity" values="0;.8;0" dur="0.9s" begin="-0.45s" repeatCount="indefinite"/></circle>
+            </g>
+            <g fill="#a97b4f">
+              <circle r="3.4"><animateMotion dur="2.6s" repeatCount="indefinite" path="M482,336 L482,478 Q482,499 512,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551"/></circle>
+              <circle r="2.6" fill="#8a6a48"><animateMotion dur="2.6s" begin="-0.9s" repeatCount="indefinite" path="M482,340 L482,480 Q482,499 514,499 L790,499 Q805,503 805,517 C805,531 785,543 763,550"/></circle>
+              <circle r="2.2"><animateMotion dur="2.6s" begin="-1.7s" repeatCount="indefinite" path="M481,338 L481,479 Q481,500 513,500 L791,500 Q807,505 807,519 C807,533 787,545 765,552"/></circle>
+            </g>
+          </g>
+          <!-- MAIN FLOOR (5b) -->
+          <g class="fx fx-main">
+            <g fill="rgba(232,235,233,.5)">
+              <circle r="3"><animateMotion dur="0.9s" repeatCount="indefinite" path="M552,458 L554,470"/><animate attributeName="opacity" values="0;.8;0" dur="0.9s" repeatCount="indefinite"/></circle>
+            </g>
+            <g fill="#a97b4f">
+              <circle r="3.2"><animateMotion dur="2.4s" repeatCount="indefinite" path="M552,464 C540,470 500,468 486,478 Q478,486 482,494 Q490,500 520,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551"/></circle>
+              <circle r="2.4" fill="#8a6a48"><animateMotion dur="2.4s" begin="-1.2s" repeatCount="indefinite" path="M554,464 C542,472 502,470 488,480 Q480,488 486,495 Q494,500 522,500 L789,500 Q805,504 805,517 C805,531 785,543 763,550"/></circle>
+            </g>
+          </g>
+          <!-- BASEMENT TRUNK (6) — agitate & blow toward furnace / KOP75 -->
+          <g class="fx fx-base">
+            <g fill="rgba(232,235,233,.5)">
+              <circle r="3"><animateMotion dur="0.8s" repeatCount="indefinite" path="M468,503 L492,500"/><animate attributeName="opacity" values="0;.8;0" dur="0.8s" repeatCount="indefinite"/></circle>
+              <circle r="2.4"><animateMotion dur="0.8s" begin="-0.4s" repeatCount="indefinite" path="M470,501 L496,499"/><animate attributeName="opacity" values="0;.8;0" dur="0.8s" begin="-0.4s" repeatCount="indefinite"/></circle>
+            </g>
+            <g fill="#a97b4f">
+              <circle r="3.4"><animateMotion dur="2s" repeatCount="indefinite" path="M476,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551"/></circle>
+              <circle r="2.6" fill="#8a6a48"><animateMotion dur="2s" begin="-0.7s" repeatCount="indefinite" path="M480,499 L789,499 Q805,503 805,517 C805,531 785,543 763,550"/></circle>
+              <circle r="2.2"><animateMotion dur="2s" begin="-1.35s" repeatCount="indefinite" path="M478,501 L791,501 Q807,505 807,519 C807,533 787,545 765,552"/></circle>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ================= STEP LIST ================= -->
+      <div class="op-steps" role="list">
+        <button class="op-step" data-step="1" role="listitem"><span class="n">1</span><span><b>We arrive at your home</b><span>Our fully equipped truck pulls up — everything we need is on board.</span></span></button>
+        <button class="op-step" data-step="2" role="listitem"><span class="n">2</span><span><b>Air line runs to the KOP75</b><span>We bring in the KOP75 and run a high-pressure air line from the truck to it in your basement.</span></span></button>
+        <button class="op-step" data-step="3" role="listitem"><span class="n">3</span><span><b>KOP75 seals above your furnace</b><span>The vacuum connects directly to your ductwork right above the furnace.</span></span></button>
+        <button class="op-step" data-step="4" role="listitem"><span class="n">4</span><span><b>Whip hose goes to the top floor</b><span>A small air line runs from the KOP75 up to the farthest vent from the furnace.</span></span></button>
+        <button class="op-step" data-step="5" role="listitem"><span class="n">5</span><span><b>Every vent gets blasted</b><span>Compressed air pushes dust and debris out of each vent — top floor first, then the main floor.</span></span></button>
+        <button class="op-step" data-step="6" role="listitem"><span class="n">6</span><span><b>Ductwork is agitated &amp; cleaned</b><span>We agitate and blow the trunk lines toward the furnace, where the KOP75 collects the debris.</span></span></button>
+        <button class="op-step" data-step="7" role="listitem"><span class="n">7</span><span><b>Debris is captured outside</b><span>The KOP75 exhausts through a basement window into a sealed collection bag — nothing ends up back in your home.</span></span></button>
+        <div class="op-ctrl">
+          <button class="op-play" id="opPlay" aria-pressed="true">Pause</button>
+          <span class="op-hint">Tap any step to jump to it.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  var scene = document.getElementById('opScene');
+  var playBtn = document.getElementById('opPlay');
+  var stepBtns = Array.prototype.slice.call(document.querySelectorAll('#our-process .op-step'));
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // internal phases (step 5 has two passes: top floor, main floor)
+  var phases = [
+    {id:'p1', step:1, dur:2600},
+    {id:'p2', step:2, dur:2100},
+    {id:'p3', step:3, dur:2600},
+    {id:'p4', step:4, dur:2000},
+    {id:'p5a',step:5, dur:2600},
+    {id:'p5b',step:5, dur:2600},
+    {id:'p6', step:6, dur:2900},
+    {id:'p7', step:7, dur:4400}
+  ];
+  var idx = 0, timer = null, playing = true;
+
+  function applyPhase(i){
+    idx = i;
+    var cls = [];
+    for (var j=0;j<=i;j++) cls.push('go-'+phases[j].id);
+    cls.push('at-'+phases[i].id);
+    scene.className = 'op-scene ' + cls.join(' ');
+    var step = phases[i].step;
+    stepBtns.forEach(function(b){
+      if (+b.dataset.step === step) b.setAttribute('aria-current','step');
+      else b.removeAttribute('aria-current');
+    });
+  }
+
+  function schedule(){
+    clearTimeout(timer);
+    if (!playing) return;
+    timer = setTimeout(function(){
+      if (idx < phases.length - 1){
+        applyPhase(idx + 1);
+        schedule();
+      } else {
+        // hold finished scene, then restart loop
+        timer = setTimeout(restart, 2200);
+      }
+    }, phases[idx].dur);
+  }
+
+  function restart(){
+    scene.className = 'op-scene';
+    stepBtns.forEach(function(b){ b.removeAttribute('aria-current'); });
+    // force reflow so transitions replay
+    void scene.offsetWidth;
+    applyPhase(0);
+    schedule();
+  }
+
+  stepBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var s = +b.dataset.step;
+      var target = 0;
+      for (var k=0;k<phases.length;k++){ if (phases[k].step === s){ target = k; break; } }
+      // rebuild states cleanly when jumping backward
+      scene.className = 'op-scene';
+      void scene.offsetWidth;
+      applyPhase(target);
+      schedule();
+    });
+  });
+
+  playBtn.addEventListener('click', function(){
+    playing = !playing;
+    playBtn.textContent = playing ? 'Pause' : 'Play';
+    playBtn.setAttribute('aria-pressed', String(playing));
+    if (playing) schedule(); else clearTimeout(timer);
+  });
+
+  if (reduced){
+    // static final state, no timers
+    playing = false;
+    playBtn.style.display = 'none';
+    applyPhase(phases.length - 1);
+  } else {
+    applyPhase(0);
+    schedule();
+  }
+})();
+</script>
+</body>
+</html>

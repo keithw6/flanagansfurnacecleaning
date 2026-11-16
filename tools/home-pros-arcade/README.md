@@ -191,3 +191,11 @@ Everything works by tap, mouse or keyboard. Number keys pick answers, Enter/Spac
 skip Hank's typing, and Esc goes back. Sound starts muted until the customer presses
 Start, and there's a mute button. With "reduce motion" turned on, the rain, typing
 and animations are turned off. It fits phone screens with no sideways scrolling.
+
+## How we clean (on the counter)
+
+The "HOW WE CLEAN" brochure stand on the counter (and "How do you clean my ducts?" in
+Hank's menu) opens the seven-step Our Process section from homeprosgroup.com: the
+animated house diagram, play/pause and tap-a-step. `process/extract.py` copies it from
+the live page into `js/process.js` (and a standalone `process/our-process.html`).
+Re-run it after the section changes on the website.

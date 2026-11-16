@@ -184,6 +184,7 @@ const HP_CONFIG = {
     meetingCall: 'Board meeting! Everybody to the boardroom.',
     meetingOpen: "Everyone's seated. You have the floor, {owner}.",
     meetingEnd: 'Meeting adjourned. Back to work, everyone.',
+    howTo: "Here's exactly how we clean your ducts, start to finish. Seven steps, and nothing gets stirred up into your home. Tap any step to jump to it.",
     csDesk: "Customer Service desk. What do you want to see, boss?",
     csOver: "Heads up: we're over 100% on {days}. I've already passed it to Grace.",
     csFine: 'Every day is at or under 100%. No overbooking.',

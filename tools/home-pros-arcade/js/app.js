@@ -194,9 +194,37 @@
     if (id !== run) return;
     choices([
       { label: 'Get my flat-rate price', amt: 'from ' + money(pr.base), kind: 'primary', onPick: () => ask('town') },
+      { label: 'How do you clean my ducts?', onPick: () => openHowTo() },
       { label: 'Just looking at prices', kind: 'ghost', onPick: browse },
     ]);
   }
+
+  /* "How we clean" brochure on the counter: the 7 steps from homeprosgroup.com */
+  let howtoBack = null;
+  function openHowTo() {
+    const m = $('howtoModal');
+    if (!m || !root.HP_PROCESS) return;
+    root.HP_PROCESS.mount($('howtoMount'));
+    howtoBack = document.activeElement;
+    m.hidden = false;
+    m.scrollTop = 0;
+    $('howtoClose').focus();
+    A.select();
+    if (S.mood) S.mood('talk');
+    say(cfg.lines.howTo || "Here's exactly how we do it, start to finish. Tap any step to jump to it.");
+  }
+  function closeHowTo() {
+    const m = $('howtoModal');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    A.back();
+    if (S.mood) S.mood('idle');
+    if (howtoBack && howtoBack.focus) howtoBack.focus();
+  }
+  if ($('howtoBtn')) $('howtoBtn').onclick = openHowTo;
+  if ($('howtoClose')) $('howtoClose').onclick = closeHowTo;
+  if ($('howtoModal')) $('howtoModal').addEventListener('click', e => { if (e.target === $('howtoModal')) closeHowTo(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('howtoModal') && !$('howtoModal').hidden) { e.stopPropagation(); closeHowTo(); } }, true);
 
   async function browse() {
     const id = clear();

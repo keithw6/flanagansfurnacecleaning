@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0c0a22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Press+Start+2P&family=Sora:wght@400;600&family=VT323&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #0c0e0d;
@@ -334,6 +334,32 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report .dot { width: 16px; height: 16px; display: inline-block; background: #3a423e; }
 .report .dot.ok { background: var(--edge); } .report .dot.warn { background: #d99a1e; } .report .dot.problem { background: #e2463b; }
 
+/* "How we clean" brochure stand on the counter, left of Hank */
+.howto {
+  position: absolute; left: 25.5%; top: 52.5%; width: 13.5%; height: 15.6%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35cqw;
+  background: linear-gradient(#141a16, #0b0f0c); border: .25cqw solid #000; outline: .2cqw solid var(--edge);
+  box-shadow: 0 .4cqw 0 #000, 0 0 1.4cqw rgba(63, 170, 53, .45); transform: perspective(40cqw) rotateX(6deg);
+  cursor: pointer; padding: .4cqw; color: #f4f6f4; font-family: var(--pixel);
+  animation: howtoGlow 2.4s ease-in-out infinite;
+}
+.howto-house { width: 3.2cqw; height: 2.6cqw; position: relative; }
+.howto-house::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1.2cqw; background: var(--edge); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.howto-house i { position: absolute; left: .5cqw; right: .5cqw; top: 1.2cqw; bottom: 0; background: #e8ebe9; border-bottom: .3cqw solid #a97b4f; }
+.howto-txt { font-size: .95cqw; line-height: 1.3; text-align: center; letter-spacing: .08em; }
+.howto-go { font-size: .7cqw; color: var(--edge); }
+.howto:hover, .howto:focus-visible { outline-color: #7fd977; box-shadow: 0 .4cqw 0 #000, 0 0 2.4cqw rgba(127, 217, 119, .8); }
+.howto:focus-visible { outline-width: .35cqw; }
+@keyframes howtoGlow { 50% { box-shadow: 0 .4cqw 0 #000, 0 0 2.2cqw rgba(63, 170, 53, .75); } }
+@media (prefers-reduced-motion: reduce) { .howto { animation: none; } }
+
+.howto-modal { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, .78); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 16px; }
+.howto-modal[hidden] { display: none; }
+.howto-box { position: relative; width: 100%; max-width: 1220px; border: 3px solid var(--edge); box-shadow: 0 0 0 3px #000, 0 0 40px rgba(63, 170, 53, .4); background: #0c0e0d; }
+.howto-close { position: sticky; top: 0; z-index: 2; display: block; margin-left: auto; font-family: var(--pixel); font-size: 12px; color: #0c0e0d; background: var(--edge); border: 0; padding: 10px 14px; cursor: pointer; }
+.howto-close:hover, .howto-close:focus-visible { background: #7fd977; outline: none; }
+.howto-box #our-process { padding-top: 24px; }
+
 </style>
 </head>
 <body class="street">
@@ -359,6 +385,11 @@ body.street .cash, body.office .cash { visibility: hidden; }
       <div class="register" id="register" aria-hidden="true">0.00</div>
       <div class="counter-text">HOME PROS &middot; FLAT RATE</div>
       <button type="button" class="staff-door" id="staffDoor" aria-label="Staff only door"></button>
+      <button type="button" class="howto" id="howtoBtn" aria-label="How we clean your ducts: see the seven steps">
+        <span class="howto-house" aria-hidden="true"><i></i></span>
+        <span class="howto-txt">HOW WE<br>CLEAN</span>
+        <span class="howto-go" aria-hidden="true">&#9654; 7 STEPS</span>
+      </button>
     </div>
 
     <div class="brand" aria-hidden="true"><img src="data:image/webp;base64,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" alt=""><div><b>HOME<span>PROS</span></b><small>QUALITY YOU CAN TRUST</small></div></div>
@@ -372,6 +403,13 @@ body.street .cash, body.office .cash { visibility: hidden; }
     </div>
     <div class="demo-tag" id="demoTag" hidden>DEMO MODE</div>
     <div class="fade" id="fade"></div>
+  </div>
+
+  <div class="howto-modal" id="howtoModal" role="dialog" aria-modal="true" aria-label="How we clean your ducts" hidden>
+    <div class="howto-box">
+      <button type="button" class="howto-close" id="howtoClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
+      <div id="howtoMount"></div>
+    </div>
   </div>
 
   <section class="dialog" id="dialog" aria-live="polite">
@@ -571,6 +609,7 @@ const HP_CONFIG = {
     meetingCall: 'Board meeting! Everybody to the boardroom.',
     meetingOpen: "Everyone's seated. You have the floor, {owner}.",
     meetingEnd: 'Meeting adjourned. Back to work, everyone.',
+    howTo: "Here's exactly how we clean your ducts, start to finish. Seven steps, and nothing gets stirred up into your home. Tap any step to jump to it.",
     csDesk: "Customer Service desk. What do you want to see, boss?",
     csOver: "Heads up: we're over 100% on {days}. I've already passed it to Grace.",
     csFine: 'Every day is at or under 100%. No overbooking.',
@@ -1305,6 +1344,114 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
 
 </script>
 <script>
+/* "How we clean your ducts": the Our Process section from homeprosgroup.com,
+   made by process/extract.py. HP_PROCESS.mount(el) puts it in el the first time
+   it is opened; the website's own script then runs it (play/pause, tap a step). */
+(function (root) {
+  'use strict';
+  const CSS = "/* ============ OUR PROCESS SECTION ============ */\n  #our-process{\n    --hp-green:#3faa35;\n    --hp-green-soft:#7fd977;\n    --hp-dark:#0c0e0d;\n    --hp-panel:#121514;\n    --hp-line:#2a2f2c;\n    --hp-text:#e8ebe9;\n    --hp-muted:#9aa39e;\n    --hp-debris:#a97b4f;\n    background:var(--hp-dark);\n    color:var(--hp-text);\n    font-family:'Sora', -apple-system, 'Segoe UI', sans-serif;\n    padding:72px 20px;\n  }\n  #our-process .op-wrap{max-width:1180px;margin:0 auto;}\n  #our-process .op-eyebrow{\n    font-family:'Barlow Condensed','Arial Narrow',sans-serif;\n    font-weight:600;letter-spacing:.22em;text-transform:uppercase;\n    color:var(--hp-green);font-size:15px;margin:0 0 8px;\n  }\n  #our-process h2{\n    font-family:'Barlow Condensed','Arial Narrow',sans-serif;\n    font-weight:700;font-size:clamp(34px,5vw,52px);\n    line-height:1.05;margin:0 0 10px;text-transform:uppercase;letter-spacing:.01em;\n  }\n  #our-process .op-sub{color:var(--hp-muted);font-size:16px;max-width:640px;margin:0 0 34px;line-height:1.6;}\n\n  #our-process .op-grid{display:flex;gap:32px;align-items:stretch;}\n  #our-process .op-scene{\n    flex:1 1 62%;min-width:0;background:var(--hp-panel);\n    border:1px solid var(--hp-line);border-radius:14px;padding:14px;\n    position:relative;\n  }\n  #our-process .op-scene svg{width:100%;height:auto;display:block;}\n\n  /* ---- step list ---- */\n  #our-process .op-steps{flex:1 1 38%;display:flex;flex-direction:column;gap:8px;}\n  #our-process .op-step{\n    display:flex;gap:14px;align-items:flex-start;text-align:left;\n    background:transparent;border:1px solid var(--hp-line);border-radius:10px;\n    padding:11px 14px;cursor:pointer;color:var(--hp-text);\n    font-family:inherit;transition:border-color .3s,background .3s;\n  }\n  #our-process .op-step:hover{border-color:#3f4642;}\n  #our-process .op-step[aria-current=\"step\"]{\n    border-color:var(--hp-green);background:rgba(63,170,53,.08);\n  }\n  #our-process .op-step .n{\n    font-family:'Barlow Condensed','Arial Narrow',sans-serif;\n    font-weight:700;font-size:24px;line-height:1;color:var(--hp-muted);\n    min-width:26px;padding-top:2px;transition:color .3s;\n  }\n  #our-process .op-step[aria-current=\"step\"] .n{color:var(--hp-green);}\n  #our-process .op-step b{\n    display:block;font-family:'Barlow Condensed','Arial Narrow',sans-serif;\n    font-weight:600;font-size:19px;letter-spacing:.02em;text-transform:uppercase;\n  }\n  #our-process .op-step span{display:block;color:var(--hp-muted);font-size:13.5px;line-height:1.5;margin-top:2px;}\n\n  #our-process .op-ctrl{\n    margin-top:6px;display:flex;align-items:center;gap:12px;\n  }\n  #our-process .op-play{\n    font-family:'Barlow Condensed','Arial Narrow',sans-serif;\n    font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase;\n    background:var(--hp-green);color:#07100a;border:0;border-radius:8px;\n    padding:9px 22px;cursor:pointer;\n  }\n  #our-process .op-play:focus-visible,\n  #our-process .op-step:focus-visible{outline:2px solid var(--hp-green);outline-offset:2px;}\n  #our-process .op-hint{color:var(--hp-muted);font-size:12.5px;}\n\n  @media (max-width:860px){\n    #our-process .op-grid{flex-direction:column;}\n  }\n\n  /* ============ SVG ANIMATION STATES ============ */\n  /* hoses draw with pathLength=100 trick */\n  #our-process .draw{\n    stroke-dasharray:100;stroke-dashoffset:100;\n    transition:stroke-dashoffset 1.4s ease-in-out;\n  }\n  /* truck drives in */\n  #our-process .truck{transform:translateX(-360px);transition:transform 2.1s cubic-bezier(.25,.7,.35,1);}\n  #our-process .go-p1 .truck{transform:translateX(0);}\n  /* truck-to-KOP75 air line + KOP75 unit arrives */\n  #our-process .kop-grp{opacity:0;transform:translateY(14px);transition:opacity .9s,transform .9s;}\n  #our-process .go-p2 .kop-grp{opacity:1;transform:translateY(0);}\n  #our-process .go-p2 .hose-truck{stroke-dashoffset:0;transition-delay:.35s;}\n  /* collar seals to plenum + exhaust setup (step 3) */\n  #our-process .go-p3 .hose-collar{stroke-dashoffset:0;transition-delay:.3s;}\n  #our-process .go-p3 .hose-exhaust{stroke-dashoffset:0;transition-delay:.9s;}\n  #our-process .bag{transform:scale(.14);transform-origin:940px 545px;transition:transform 2.4s ease;}\n  #our-process .go-p3 .bag{transform:scale(.22);}\n  #our-process .go-p7 .bag{transform:scale(1);}\n  /* whip hose variants \u2014 visible only in their phase */\n  #our-process .hose-top,#our-process .hose-main,#our-process .hose-base{opacity:0;transition:opacity .4s;}\n  #our-process .at-p4 .hose-top,#our-process .at-p5a .hose-top{opacity:1;}\n  #our-process .at-p4 .hose-top{stroke-dashoffset:0;}\n  #our-process .at-p5a .hose-top{stroke-dasharray:none;}\n  #our-process .at-p5b .hose-main{opacity:1;stroke-dasharray:none;}\n  #our-process .at-p6 .hose-base{opacity:1;stroke-dasharray:none;}\n  /* particle groups */\n  #our-process .fx{opacity:0;transition:opacity .35s;}\n  #our-process .at-p5a .fx-top,\n  #our-process .at-p5b .fx-main,\n  #our-process .at-p6  .fx-base,\n  #our-process .at-p7  .fx-ex{opacity:1;}\n  /* KOP75 running light */\n  #our-process .kop-light{opacity:.25;}\n  #our-process .at-p5a .kop-light,#our-process .at-p5b .kop-light,\n  #our-process .at-p6 .kop-light,#our-process .at-p7 .kop-light{\n    opacity:1;animation:opPulse 1s ease-in-out infinite alternate;\n  }\n  @keyframes opPulse{from{opacity:.55}to{opacity:1}}\n\n  @media (prefers-reduced-motion:reduce){\n    #our-process .truck,#our-process .kop-grp,#our-process .bag{transition:none;transform:none;opacity:1;}\n    #our-process .draw{transition:none;stroke-dashoffset:0;}\n    #our-process .fx{display:none;}\n    #our-process .kop-light{animation:none;opacity:1;}\n    #our-process .hose-base{opacity:1;stroke-dasharray:none;}\n  }\n";
+  const HTML = "<section id=\"our-process\" aria-label=\"Our duct cleaning process\">\n  <div class=\"op-wrap\">\n    <p class=\"op-eyebrow\">Our Process</p>\n    <h2>How we clean your ducts, start to finish</h2>\n    <p class=\"op-sub\">Every job follows the same seven steps \u2014 powerful truck-mounted air, our KOP75 negative-air vacuum sealed to your furnace, and every last bit of debris captured outside your home. Nothing gets stirred up into your living space.</p>\n\n    <div class=\"op-grid\">\n\n      <!-- ================= SCENE ================= -->\n      <div class=\"op-scene\" id=\"opScene\">\n        <svg viewBox=\"0 0 1100 640\" xmlns=\"http://www.w3.org/2000/svg\" role=\"img\"\n             aria-label=\"Animated cutaway of a house showing the Home Pros duct cleaning process\">\n\n          <!-- sky / ground -->\n          <rect x=\"0\" y=\"0\" width=\"1100\" height=\"470\" fill=\"#121514\"/>\n          <rect x=\"0\" y=\"470\" width=\"1100\" height=\"170\" fill=\"#171a18\"/>\n          <line x1=\"0\" y1=\"470\" x2=\"1100\" y2=\"470\" stroke=\"#2f3532\" stroke-width=\"2\"/>\n\n          <!-- ===== HOUSE CUTAWAY ===== -->\n          <!-- basement pit -->\n          <rect x=\"380\" y=\"470\" width=\"520\" height=\"150\" fill=\"#101312\"/>\n          <!-- foundation -->\n          <rect x=\"380\" y=\"470\" width=\"18\" height=\"150\" fill=\"#3a403c\"/>\n          <rect x=\"882\" y=\"470\" width=\"18\" height=\"150\" fill=\"#3a403c\"/>\n          <rect x=\"380\" y=\"612\" width=\"520\" height=\"10\" fill=\"#3a403c\"/>\n          <!-- basement windows -->\n          <rect x=\"382\" y=\"476\" width=\"14\" height=\"26\" rx=\"2\" fill=\"#1d2320\" stroke=\"#556058\" stroke-width=\"1.5\"/>\n          <rect x=\"884\" y=\"476\" width=\"14\" height=\"26\" rx=\"2\" fill=\"#1d2320\" stroke=\"#556058\" stroke-width=\"1.5\"/>\n          <!-- main + upper walls -->\n          <rect x=\"380\" y=\"190\" width=\"10\" height=\"280\" fill=\"#454c48\"/>\n          <rect x=\"890\" y=\"190\" width=\"10\" height=\"280\" fill=\"#454c48\"/>\n          <!-- floor bands -->\n          <rect x=\"390\" y=\"460\" width=\"500\" height=\"10\" fill=\"#454c48\"/>\n          <rect x=\"390\" y=\"320\" width=\"500\" height=\"10\" fill=\"#454c48\"/>\n          <!-- roof -->\n          <path d=\"M366,192 L640,84 L914,192\" fill=\"none\" stroke=\"#454c48\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n          <path d=\"M390,190 L640,92 L890,190 Z\" fill=\"#151817\"/>\n          <!-- interior fills -->\n          <rect x=\"390\" y=\"330\" width=\"500\" height=\"130\" fill=\"#151817\"/>\n          <rect x=\"390\" y=\"190\" width=\"500\" height=\"130\" fill=\"#151817\"/>\n          <!-- simple interior hints -->\n          <rect x=\"770\" y=\"380\" width=\"70\" height=\"80\" rx=\"3\" fill=\"#1c211e\"/> <!-- main flr furniture -->\n          <rect x=\"560\" y=\"230\" width=\"90\" height=\"60\" rx=\"3\" fill=\"#1c211e\"/> <!-- bed upstairs -->\n          <!-- upstairs window / main window -->\n          <rect x=\"740\" y=\"220\" width=\"46\" height=\"52\" rx=\"3\" fill=\"#1d2320\" stroke=\"#556058\" stroke-width=\"1.5\"/>\n          <rect x=\"470\" y=\"370\" width=\"46\" height=\"52\" rx=\"3\" fill=\"#1d2320\" stroke=\"#556058\" stroke-width=\"1.5\"/>\n\n          <!-- floor labels -->\n          <g font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-size=\"15\" fill=\"#5c655f\" letter-spacing=\"2\">\n            <text x=\"860\" y=\"212\" text-anchor=\"end\">TOP FLOOR</text>\n            <text x=\"860\" y=\"352\" text-anchor=\"end\">MAIN FLOOR</text>\n            <text x=\"500\" y=\"600\">BASEMENT</text>\n          </g>\n\n          <!-- ===== DUCTWORK ===== -->\n          <!-- trunk along basement ceiling -->\n          <rect x=\"470\" y=\"488\" width=\"340\" height=\"24\" fill=\"#8f9995\" stroke=\"#6c7572\" stroke-width=\"1.5\"/>\n          <!-- riser up through floors -->\n          <rect x=\"470\" y=\"330\" width=\"24\" height=\"160\" fill=\"#8f9995\" stroke=\"#6c7572\" stroke-width=\"1.5\"/>\n          <!-- top-floor register (on floor band y=320..330) -->\n          <rect x=\"460\" y=\"318\" width=\"44\" height=\"12\" rx=\"2\" fill=\"#6c7572\" stroke=\"#556058\"/>\n          <g stroke=\"#39413d\" stroke-width=\"2\"><line x1=\"466\" y1=\"321\" x2=\"498\" y2=\"321\"/><line x1=\"466\" y1=\"325\" x2=\"498\" y2=\"325\"/></g>\n          <!-- branch to main-floor register -->\n          <rect x=\"494\" y=\"450\" width=\"50\" height=\"14\" fill=\"#8f9995\" stroke=\"#6c7572\" stroke-width=\"1.5\"/>\n          <rect x=\"534\" y=\"458\" width=\"44\" height=\"12\" rx=\"2\" fill=\"#6c7572\" stroke=\"#556058\"/>\n          <g stroke=\"#39413d\" stroke-width=\"2\"><line x1=\"540\" y1=\"461\" x2=\"572\" y2=\"461\"/><line x1=\"540\" y1=\"465\" x2=\"572\" y2=\"465\"/></g>\n          <!-- riser between main register branch and trunk -->\n          <rect x=\"470\" y=\"464\" width=\"24\" height=\"24\" fill=\"#8f9995\" stroke=\"#6c7572\" stroke-width=\"1.5\"/>\n\n          <!-- exhaust hose KOP -> right basement window (runs behind the furnace) -->\n          <path class=\"draw hose-exhaust\" d=\"M748,592 C790,602 838,602 862,594 C878,588 883,564 884,536 C885,516 886,503 887,492\" pathLength=\"100\"\n                fill=\"none\" stroke=\"#9aa39e\" stroke-width=\"10\" stroke-linecap=\"round\" stroke-dasharray=\"100\"/>\n          <!-- EXHAUST -> BAG particles (7) \u2014 behind furnace like the hose -->\n          <g class=\"fx fx-ex\">\n            <g fill=\"#a97b4f\">\n              <circle r=\"3.2\"><animateMotion dur=\"1.8s\" repeatCount=\"indefinite\" path=\"M748,592 C790,602 838,602 862,594 C878,588 883,564 884,536 C885,516 886,503 888,492 L940,514\"/></circle>\n              <circle r=\"2.5\" fill=\"#8a6a48\"><animateMotion dur=\"1.8s\" begin=\"-0.6s\" repeatCount=\"indefinite\" path=\"M749,593 C791,603 839,603 863,595 C879,589 884,565 885,537 C886,517 887,504 889,493 L946,526\"/></circle>\n              <circle r=\"2.2\"><animateMotion dur=\"1.8s\" begin=\"-1.2s\" repeatCount=\"indefinite\" path=\"M748,591 C790,601 838,601 862,593 C878,587 883,563 884,535 C885,515 886,502 888,491 L950,538\"/></circle>\n            </g>\n          </g>\n\n          <!-- ===== FURNACE ===== -->\n          <rect x=\"790\" y=\"540\" width=\"62\" height=\"72\" rx=\"4\" fill=\"#6c7572\" stroke=\"#556058\" stroke-width=\"2\"/>\n          <rect x=\"800\" y=\"556\" width=\"42\" height=\"22\" rx=\"2\" fill=\"#454c48\"/>\n          <rect x=\"806\" y=\"505\" width=\"30\" height=\"35\" fill=\"#8f9995\" stroke=\"#6c7572\" stroke-width=\"1.5\"/> <!-- plenum -->\n          <text x=\"821\" y=\"602\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-size=\"14\" fill=\"#e8ebe9\" letter-spacing=\"1\">FURNACE</text>\n\n          <!-- ===== KOP75 (arrives step 2, seals step 3) ===== -->\n          <g class=\"kop-grp\">\n            <rect x=\"660\" y=\"548\" width=\"96\" height=\"64\" rx=\"6\" fill=\"#0f1a0e\" stroke=\"#3faa35\" stroke-width=\"2.5\"/>\n            <circle class=\"kop-light\" cx=\"676\" cy=\"562\" r=\"4\" fill=\"#3faa35\"/>\n            <text x=\"708\" y=\"586\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-weight=\"700\" font-size=\"20\" fill=\"#3faa35\" letter-spacing=\"1\">KOP75</text>\n            <text x=\"708\" y=\"602\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-size=\"11\" fill=\"#9aa39e\" letter-spacing=\"2\">DUCT VACUUM</text>\n            <!-- wheels -->\n            <circle cx=\"676\" cy=\"614\" r=\"5\" fill=\"#454c48\"/><circle cx=\"740\" cy=\"614\" r=\"5\" fill=\"#454c48\"/>\n          </g>\n          <!-- flex collar KOP -> plenum, sealing right above the furnace -->\n          <path class=\"draw hose-collar\" d=\"M744,552 C772,547 792,536 804,524\" pathLength=\"100\"\n                fill=\"none\" stroke=\"#9aa39e\" stroke-width=\"14\" stroke-linecap=\"round\" stroke-dasharray=\"100\" />\n          <path class=\"draw hose-collar\" d=\"M744,552 C772,547 792,536 804,524\" pathLength=\"100\"\n                fill=\"none\" stroke=\"#39413d\" stroke-width=\"14\" stroke-linecap=\"round\" stroke-dasharray=\"4 6\" opacity=\".5\"/>\n\n          <!-- ===== COLLECTION BAG (outside, right) ===== -->\n          <g class=\"bag\">\n            <path d=\"M905,489 C925,478 985,478 1005,500 C1022,520 1018,560 995,572 C965,586 920,582 908,558 C898,538 898,505 905,489 Z\"\n                  fill=\"rgba(127,217,119,.14)\" stroke=\"#7fd977\" stroke-width=\"2.5\"/>\n            <text x=\"957\" y=\"536\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-size=\"14\" fill=\"#7fd977\" letter-spacing=\"2\">DEBRIS BAG</text>\n          </g>\n\n          <!-- ===== TRUCK (drives in step 1) ===== -->\n          <g class=\"truck\">\n            <rect x=\"60\" y=\"368\" width=\"188\" height=\"88\" rx=\"6\" fill=\"#151817\" stroke=\"#454c48\" stroke-width=\"2.5\"/>\n            <text x=\"154\" y=\"406\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-weight=\"700\" font-size=\"26\" fill=\"#3faa35\" letter-spacing=\"1\">HOME PROS</text>\n            <text x=\"154\" y=\"428\" text-anchor=\"middle\" font-family=\"'Barlow Condensed','Arial Narrow',sans-serif\" font-size=\"13\" fill=\"#9aa39e\" letter-spacing=\"3\">FURNACE &amp; DUCT CLEANING</text>\n            <!-- cab -->\n            <path d=\"M248,456 L248,392 L286,392 C300,392 310,404 314,420 L318,456 Z\" fill=\"#151817\" stroke=\"#454c48\" stroke-width=\"2.5\"/>\n            <path d=\"M256,400 L284,400 C292,400 298,408 300,418 L256,418 Z\" fill=\"#1d2320\" stroke=\"#556058\" stroke-width=\"1.5\"/>\n            <!-- wheels -->\n            <circle cx=\"112\" cy=\"458\" r=\"17\" fill=\"#0c0e0d\" stroke=\"#454c48\" stroke-width=\"4\"/>\n            <circle cx=\"286\" cy=\"458\" r=\"17\" fill=\"#0c0e0d\" stroke=\"#454c48\" stroke-width=\"4\"/>\n            <circle cx=\"112\" cy=\"458\" r=\"5\" fill=\"#454c48\"/><circle cx=\"286\" cy=\"458\" r=\"5\" fill=\"#454c48\"/>\n          </g>\n\n          <!-- truck air line -> through basement window -> KOP75 unit (step 2) -->\n          <path class=\"draw hose-truck\" d=\"M250,452 C280,470 320,474 352,474 L374,474 C384,474 390,480 390,492 C390,532 404,586 448,586 L610,586 L656,586\"\n                pathLength=\"100\" fill=\"none\" stroke=\"#3faa35\" stroke-width=\"7\" stroke-linecap=\"round\" stroke-dasharray=\"100\"/>\n\n          <!-- ===== WHIP HOSE VARIANTS (run from the KOP75) ===== -->\n          <!-- to top floor (draws step 4, blows step 5a) -->\n          <path class=\"draw hose-top\" d=\"M672,548 C672,530 660,524 636,524 L520,524 C470,524 452,472 452,420 L452,340 C452,306 462,298 476,300 C482,303 482,307 482,312\"\n                pathLength=\"100\" fill=\"none\" stroke=\"#7fd977\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-dasharray=\"100\"/>\n          <!-- to main floor (step 5b) -->\n          <path class=\"hose-main\" d=\"M672,548 C672,532 658,526 632,526 L544,526 C520,526 514,498 518,478 C522,464 534,459 545,459\"\n                fill=\"none\" stroke=\"#7fd977\" stroke-width=\"5\" stroke-linecap=\"round\"/>\n          <!-- to basement trunk (step 6) -->\n          <path class=\"hose-base\" d=\"M672,548 C672,534 660,528 640,528 L520,528 C498,528 480,518 466,504\"\n                fill=\"none\" stroke=\"#7fd977\" stroke-width=\"5\" stroke-linecap=\"round\"/>\n\n          <!-- ===== PARTICLE FX ===== -->\n          <!-- air puffs + debris: TOP FLOOR (5a) -->\n          <g class=\"fx fx-top\">\n            <g fill=\"rgba(232,235,233,.5)\">\n              <circle r=\"3\"><animateMotion dur=\"0.9s\" repeatCount=\"indefinite\" path=\"M480,314 L482,336\"/><animate attributeName=\"opacity\" values=\"0;.8;0\" dur=\"0.9s\" repeatCount=\"indefinite\"/></circle>\n              <circle r=\"2.4\"><animateMotion dur=\"0.9s\" begin=\"-0.45s\" repeatCount=\"indefinite\" path=\"M478,314 L480,340\"/><animate attributeName=\"opacity\" values=\"0;.8;0\" dur=\"0.9s\" begin=\"-0.45s\" repeatCount=\"indefinite\"/></circle>\n            </g>\n            <g fill=\"#a97b4f\">\n              <circle r=\"3.4\"><animateMotion dur=\"2.6s\" repeatCount=\"indefinite\" path=\"M482,336 L482,478 Q482,499 512,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551\"/></circle>\n              <circle r=\"2.6\" fill=\"#8a6a48\"><animateMotion dur=\"2.6s\" begin=\"-0.9s\" repeatCount=\"indefinite\" path=\"M482,340 L482,480 Q482,499 514,499 L790,499 Q805,503 805,517 C805,531 785,543 763,550\"/></circle>\n              <circle r=\"2.2\"><animateMotion dur=\"2.6s\" begin=\"-1.7s\" repeatCount=\"indefinite\" path=\"M481,338 L481,479 Q481,500 513,500 L791,500 Q807,505 807,519 C807,533 787,545 765,552\"/></circle>\n            </g>\n          </g>\n          <!-- MAIN FLOOR (5b) -->\n          <g class=\"fx fx-main\">\n            <g fill=\"rgba(232,235,233,.5)\">\n              <circle r=\"3\"><animateMotion dur=\"0.9s\" repeatCount=\"indefinite\" path=\"M552,458 L554,470\"/><animate attributeName=\"opacity\" values=\"0;.8;0\" dur=\"0.9s\" repeatCount=\"indefinite\"/></circle>\n            </g>\n            <g fill=\"#a97b4f\">\n              <circle r=\"3.2\"><animateMotion dur=\"2.4s\" repeatCount=\"indefinite\" path=\"M552,464 C540,470 500,468 486,478 Q478,486 482,494 Q490,500 520,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551\"/></circle>\n              <circle r=\"2.4\" fill=\"#8a6a48\"><animateMotion dur=\"2.4s\" begin=\"-1.2s\" repeatCount=\"indefinite\" path=\"M554,464 C542,472 502,470 488,480 Q480,488 486,495 Q494,500 522,500 L789,500 Q805,504 805,517 C805,531 785,543 763,550\"/></circle>\n            </g>\n          </g>\n          <!-- BASEMENT TRUNK (6) \u2014 agitate & blow toward furnace / KOP75 -->\n          <g class=\"fx fx-base\">\n            <g fill=\"rgba(232,235,233,.5)\">\n              <circle r=\"3\"><animateMotion dur=\"0.8s\" repeatCount=\"indefinite\" path=\"M468,503 L492,500\"/><animate attributeName=\"opacity\" values=\"0;.8;0\" dur=\"0.8s\" repeatCount=\"indefinite\"/></circle>\n              <circle r=\"2.4\"><animateMotion dur=\"0.8s\" begin=\"-0.4s\" repeatCount=\"indefinite\" path=\"M470,501 L496,499\"/><animate attributeName=\"opacity\" values=\"0;.8;0\" dur=\"0.8s\" begin=\"-0.4s\" repeatCount=\"indefinite\"/></circle>\n            </g>\n            <g fill=\"#a97b4f\">\n              <circle r=\"3.4\"><animateMotion dur=\"2s\" repeatCount=\"indefinite\" path=\"M476,500 L790,500 Q806,504 806,518 C806,532 786,544 764,551\"/></circle>\n              <circle r=\"2.6\" fill=\"#8a6a48\"><animateMotion dur=\"2s\" begin=\"-0.7s\" repeatCount=\"indefinite\" path=\"M480,499 L789,499 Q805,503 805,517 C805,531 785,543 763,550\"/></circle>\n              <circle r=\"2.2\"><animateMotion dur=\"2s\" begin=\"-1.35s\" repeatCount=\"indefinite\" path=\"M478,501 L791,501 Q807,505 807,519 C807,533 787,545 765,552\"/></circle>\n            </g>\n          </g>\n        </svg>\n      </div>\n\n      <!-- ================= STEP LIST ================= -->\n      <div class=\"op-steps\" role=\"list\">\n        <button class=\"op-step\" data-step=\"1\" role=\"listitem\"><span class=\"n\">1</span><span><b>We arrive at your home</b><span>Our fully equipped truck pulls up \u2014 everything we need is on board.</span></span></button>\n        <button class=\"op-step\" data-step=\"2\" role=\"listitem\"><span class=\"n\">2</span><span><b>Air line runs to the KOP75</b><span>We bring in the KOP75 and run a high-pressure air line from the truck to it in your basement.</span></span></button>\n        <button class=\"op-step\" data-step=\"3\" role=\"listitem\"><span class=\"n\">3</span><span><b>KOP75 seals above your furnace</b><span>The vacuum connects directly to your ductwork right above the furnace.</span></span></button>\n        <button class=\"op-step\" data-step=\"4\" role=\"listitem\"><span class=\"n\">4</span><span><b>Whip hose goes to the top floor</b><span>A small air line runs from the KOP75 up to the farthest vent from the furnace.</span></span></button>\n        <button class=\"op-step\" data-step=\"5\" role=\"listitem\"><span class=\"n\">5</span><span><b>Every vent gets blasted</b><span>Compressed air pushes dust and debris out of each vent \u2014 top floor first, then the main floor.</span></span></button>\n        <button class=\"op-step\" data-step=\"6\" role=\"listitem\"><span class=\"n\">6</span><span><b>Ductwork is agitated &amp; cleaned</b><span>We agitate and blow the trunk lines toward the furnace, where the KOP75 collects the debris.</span></span></button>\n        <button class=\"op-step\" data-step=\"7\" role=\"listitem\"><span class=\"n\">7</span><span><b>Debris is captured outside</b><span>The KOP75 exhausts through a basement window into a sealed collection bag \u2014 nothing ends up back in your home.</span></span></button>\n        <div class=\"op-ctrl\">\n          <button class=\"op-play\" id=\"opPlay\" aria-pressed=\"true\">Pause</button>\n          <span class=\"op-hint\">Tap any step to jump to it.</span>\n        </div>\n      </div>\n\n    </div>\n  </div>\n</section>";
+  let mounted = false;
+  root.HP_PROCESS = {
+    mount(el) {
+      if (mounted) return;
+      mounted = true;
+      const st = document.createElement('style');
+      st.textContent = CSS;
+      document.head.appendChild(st);
+      el.innerHTML = HTML;
+      // the website's script, unchanged
+      (function(){
+        var scene = document.getElementById('opScene');
+        var playBtn = document.getElementById('opPlay');
+        var stepBtns = Array.prototype.slice.call(document.querySelectorAll('#our-process .op-step'));
+        var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      
+        // internal phases (step 5 has two passes: top floor, main floor)
+        var phases = [
+          {id:'p1', step:1, dur:2600},
+          {id:'p2', step:2, dur:2100},
+          {id:'p3', step:3, dur:2600},
+          {id:'p4', step:4, dur:2000},
+          {id:'p5a',step:5, dur:2600},
+          {id:'p5b',step:5, dur:2600},
+          {id:'p6', step:6, dur:2900},
+          {id:'p7', step:7, dur:4400}
+        ];
+        var idx = 0, timer = null, playing = true;
+      
+        function applyPhase(i){
+          idx = i;
+          var cls = [];
+          for (var j=0;j<=i;j++) cls.push('go-'+phases[j].id);
+          cls.push('at-'+phases[i].id);
+          scene.className = 'op-scene ' + cls.join(' ');
+          var step = phases[i].step;
+          stepBtns.forEach(function(b){
+            if (+b.dataset.step === step) b.setAttribute('aria-current','step');
+            else b.removeAttribute('aria-current');
+          });
+        }
+      
+        function schedule(){
+          clearTimeout(timer);
+          if (!playing) return;
+          timer = setTimeout(function(){
+            if (idx < phases.length - 1){
+              applyPhase(idx + 1);
+              schedule();
+            } else {
+              // hold finished scene, then restart loop
+              timer = setTimeout(restart, 2200);
+            }
+          }, phases[idx].dur);
+        }
+      
+        function restart(){
+          scene.className = 'op-scene';
+          stepBtns.forEach(function(b){ b.removeAttribute('aria-current'); });
+          // force reflow so transitions replay
+          void scene.offsetWidth;
+          applyPhase(0);
+          schedule();
+        }
+      
+        stepBtns.forEach(function(b){
+          b.addEventListener('click', function(){
+            var s = +b.dataset.step;
+            var target = 0;
+            for (var k=0;k<phases.length;k++){ if (phases[k].step === s){ target = k; break; } }
+            // rebuild states cleanly when jumping backward
+            scene.className = 'op-scene';
+            void scene.offsetWidth;
+            applyPhase(target);
+            schedule();
+          });
+        });
+      
+        playBtn.addEventListener('click', function(){
+          playing = !playing;
+          playBtn.textContent = playing ? 'Pause' : 'Play';
+          playBtn.setAttribute('aria-pressed', String(playing));
+          if (playing) schedule(); else clearTimeout(timer);
+        });
+      
+        if (reduced){
+          // static final state, no timers
+          playing = false;
+          playBtn.style.display = 'none';
+          applyPhase(phases.length - 1);
+        } else {
+          applyPhase(0);
+          schedule();
+        }
+      })();
+    },
+  };
+})(window);
+
+</script>
+<script>
 /* Scenes. The street, the shop and Hank are pixel-art images generated with
    Higgsfield (img/). This file layers them and adds the moving parts on
    top: rain, the door opening and the camera pushing in, Hank talking and
@@ -1929,9 +2076,37 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     if (id !== run) return;
     choices([
       { label: 'Get my flat-rate price', amt: 'from ' + money(pr.base), kind: 'primary', onPick: () => ask('town') },
+      { label: 'How do you clean my ducts?', onPick: () => openHowTo() },
       { label: 'Just looking at prices', kind: 'ghost', onPick: browse },
     ]);
   }
+
+  /* "How we clean" brochure on the counter: the 7 steps from homeprosgroup.com */
+  let howtoBack = null;
+  function openHowTo() {
+    const m = $('howtoModal');
+    if (!m || !root.HP_PROCESS) return;
+    root.HP_PROCESS.mount($('howtoMount'));
+    howtoBack = document.activeElement;
+    m.hidden = false;
+    m.scrollTop = 0;
+    $('howtoClose').focus();
+    A.select();
+    if (S.mood) S.mood('talk');
+    say(cfg.lines.howTo || "Here's exactly how we do it, start to finish. Tap any step to jump to it.");
+  }
+  function closeHowTo() {
+    const m = $('howtoModal');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    A.back();
+    if (S.mood) S.mood('idle');
+    if (howtoBack && howtoBack.focus) howtoBack.focus();
+  }
+  if ($('howtoBtn')) $('howtoBtn').onclick = openHowTo;
+  if ($('howtoClose')) $('howtoClose').onclick = closeHowTo;
+  if ($('howtoModal')) $('howtoModal').addEventListener('click', e => { if (e.target === $('howtoModal')) closeHowTo(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('howtoModal') && !$('howtoModal').hidden) { e.stopPropagation(); closeHowTo(); } }, true);
 
   async function browse() {
     const id = clear();

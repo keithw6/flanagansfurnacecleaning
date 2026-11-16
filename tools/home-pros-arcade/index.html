@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#0c0a22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Press+Start+2P&family=Sora:wght@400;600&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/arcade.css">
 </head>
 <body class="street">
@@ -35,6 +35,11 @@
       <div class="register" id="register" aria-hidden="true">0.00</div>
       <div class="counter-text">HOME PROS &middot; FLAT RATE</div>
       <button type="button" class="staff-door" id="staffDoor" aria-label="Staff only door"></button>
+      <button type="button" class="howto" id="howtoBtn" aria-label="How we clean your ducts: see the seven steps">
+        <span class="howto-house" aria-hidden="true"><i></i></span>
+        <span class="howto-txt">HOW WE<br>CLEAN</span>
+        <span class="howto-go" aria-hidden="true">&#9654; 7 STEPS</span>
+      </button>
     </div>
 
     <div class="brand" aria-hidden="true"><img src="img/logo.webp" alt=""><div><b>HOME<span>PROS</span></b><small>QUALITY YOU CAN TRUST</small></div></div>
@@ -48,6 +53,13 @@
     </div>
     <div class="demo-tag" id="demoTag" hidden>DEMO MODE</div>
     <div class="fade" id="fade"></div>
+  </div>
+
+  <div class="howto-modal" id="howtoModal" role="dialog" aria-modal="true" aria-label="How we clean your ducts" hidden>
+    <div class="howto-box">
+      <button type="button" class="howto-close" id="howtoClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
+      <div id="howtoMount"></div>
+    </div>
   </div>
 
   <section class="dialog" id="dialog" aria-live="polite">
@@ -70,6 +82,7 @@
 <script src="js/audio.js"></script>
 <script src="js/api.js"></script>
 <script src="js/live.js"></script>
+<script src="js/process.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/app.js"></script>
 </body>
