@@ -4,7 +4,9 @@ Penny (Accounting in the Home Pros back office) runs every night at about 8 PM
 Alberta time as a scheduled Claude task, in the cloud environment that holds the
 ServiceMonster login. She only reads ServiceMonster; she never changes it.
 
-1. `node tools/penny/brief.mjs --commercial=accounts.json --out=penny` makes
+1. Each job counts on the day it was done on the calendar, even when the invoice
+   has another Date Completed. Jayman jobs always count as billed.
+   `node tools/penny/brief.mjs --commercial=accounts.json --out=penny` makes
    `penny/brief.json`: today's completed jobs (revenue, billed, paid, GST, km,
    paid or not paid for each non-Jayman job), month to date against the same days
    last month (jobs, revenue, average job, revenue per km), and the running list of
@@ -21,7 +23,7 @@ ServiceMonster login. She only reads ServiceMonster; she never changes it.
 
 | doc | what |
 |---|---|
-| `penny/brief` | the latest `brief.json`, plus `session` (her session link) |
+| `penny/brief` | the latest `brief.json` (with `notInvoiced`: non-Jayman jobs done but still work orders), plus `session` (her session link) |
 | `penny/accounts` | `{commercial: [{accountID, name}], notCommercial: [...]}` from Keith's answers |
 | `penny/expenses-YYYY-MM` | `{month, items: [{date, vendor, category, amount, gst, paidWith, note}]}`. `amount` includes GST |
 

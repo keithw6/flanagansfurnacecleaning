@@ -2,7 +2,11 @@
      NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node tools/penny/brief.mjs [--date=YYYY-MM-DD] [--commercial=FILE] [--out=DIR]
    Reads only. Writes DIR/brief.json (default: ./penny) and prints a summary.
 
-   Definitions (all from ServiceMonster orders, by Date Completed):
+   Which day a job counts on: the day it was done on the calendar (a completed
+   job on any route). An invoice whose Date Completed is a different day still
+   counts on the calendar day. Orders with no calendar job count on their Date
+   Completed. Jayman jobs always count as billed.
+   Definitions:
      revenue  = subtotal before GST
      billed   = invoice totals including GST
      paid     = billed minus balance due
@@ -57,22 +61,34 @@ const notCommercial = Array.isArray(accts) ? [] : accts.notCommercial || [];
 const isCommercial = id => commercial.some(c => c.accountID === id);
 
 const F = 'fields=orderNumber,orderID,accountID,accountName,subTotal,taxTotal,grandTotal,balanceDue,orderType,dateCompleted,refNumber';
-const done = (await all(`/orders?wField=dateCompleted&wOperator=gt&wValue=${us(addDays(lastMonthStart, -1))}&${F}`))
-  .filter(o => o.dateCompleted && o.dateCompleted.slice(0, 10) <= date);
-const day = iso => done.filter(o => o.dateCompleted.slice(0, 10) === iso);
+const num = v => Number(v) || 0;
+const norm = o => ({ ...o, orderNumber: num(o.orderNumber), subTotal: num(o.subTotal), taxTotal: num(o.taxTotal), grandTotal: num(o.grandTotal), balanceDue: num(o.balanceDue),
+  RefNumber: o.RefNumber || o.refNumber || '', dateCompleted: o.dateCompleted ? (/^\d{4}-/.test(o.dateCompleted) ? o.dateCompleted.slice(0, 10) : (([m, d, y]) => `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`)(o.dateCompleted.split(' ')[0].split('/'))) : '' });
+const byDate = (await all(`/orders?wField=dateCompleted&wOperator=gt&wValue=${us(addDays(lastMonthStart, -1))}&${F}`)).map(norm);
 
-// km per day from the completed jobs on the calendar
-const sched = (await sm(`/scheduling?startDate=${lastMonthStart}&endDate=${date}&getJobColor=false`));
-const jobs = (sched.items || sched).filter(i => i.itemType === 'Job' && /complete/i.test(i.status || '') && i.latitude);
+// completed calendar jobs decide the day
+// look a week past the date too, so an early invoice for a later job isn't counted early
+const sched = (await sm(`/scheduling?startDate=${addDays(lastMonthStart, -7)}&endDate=${addDays(date, 7)}&getJobColor=false`));
+const jobs = (sched.items || sched).filter(i => i.itemType === 'Job' && /complete/i.test(i.status || ''));
+const orders = new Map(byDate.map(o => [o.orderID, o]));
+for (const j of jobs) if (j.orderID && !orders.has(j.orderID)) {
+  try { const o = norm(await sm(`/orders/${j.orderID}`)); o.accountName = o.accountName || (await sm(`/accounts/${o.accountID}?fields=accountName`)).accountName; orders.set(j.orderID, o); } catch (e) { }
+}
+const onCal = new Map();
+for (const j of jobs) if (j.orderID && !onCal.has(j.orderID)) onCal.set(j.orderID, j.startDateTime.slice(0, 10));
+const done = [...orders.values()].map(o => ({ ...o, day: onCal.get(o.orderID) || o.dateCompleted }))
+  .filter(o => o.day && o.day >= lastMonthStart && o.day <= date && (onCal.has(o.orderID) || o.orderType === 'Invoice'));
+const day = iso => done.filter(o => o.day === iso);
 const kmFor = iso => {
-  const stops = jobs.filter(j => j.startDateTime.slice(0, 10) === iso).sort((a, b) => a.startDateTime.localeCompare(b.startDateTime)).map(j => ({ lat: j.latitude, lon: j.longitude }));
+  const stops = jobs.filter(j => j.latitude && j.startDateTime.slice(0, 10) === iso).sort((a, b) => a.startDateTime.localeCompare(b.startDateTime)).map(j => ({ lat: j.latitude, lon: j.longitude }));
   return stops.length ? D.routeKm(O.base, stops, O.roadFactor) : 0;
 };
 
-const kind = o => jayman.has(o.accountID) ? 'Jayman (billed)' : isCommercial(o.accountID) ? (o.balanceDue > 0 ? 'Commercial (billed)' : 'Paid') : (o.balanceDue > 0 ? 'Not paid' : 'Paid');
+const invoiced = o => o.orderType === 'Invoice' || jayman.has(o.accountID);
+const kind = o => jayman.has(o.accountID) ? 'Jayman (billed)' : !invoiced(o) ? 'Not invoiced yet' : isCommercial(o.accountID) ? (o.balanceDue > 0 ? 'Commercial (billed)' : 'Paid') : (o.balanceDue > 0 ? 'Not paid' : 'Paid');
 function totals(orders, from, to) {
   const s = { from, to, jobs: orders.length, revenue: 0, billed: 0, paid: 0, gst: 0, km: 0 };
-  for (const o of orders) { s.revenue += o.subTotal; s.billed += o.grandTotal; s.paid += o.grandTotal - o.balanceDue; s.gst += o.taxTotal; }
+  for (const o of orders) { s.revenue += o.subTotal; s.gst += o.taxTotal; if (invoiced(o)) s.billed += o.grandTotal; if (!jayman.has(o.accountID) && invoiced(o)) s.paid += o.grandTotal - o.balanceDue; else if (jayman.has(o.accountID)) s.paid += o.grandTotal - o.balanceDue; }
   for (let d = from; d <= to; d = addDays(d, 1)) s.km += kmFor(d);
   for (const k of ['revenue', 'billed', 'paid', 'gst']) s[k] = r2(s[k]);
   s.avgJob = s.jobs ? r2(s.revenue / s.jobs) : 0;
@@ -80,10 +96,10 @@ function totals(orders, from, to) {
   s.jayman = orders.filter(o => jayman.has(o.accountID)).length;
   return s;
 }
-const inRange = (a, b) => done.filter(o => { const d = o.dateCompleted.slice(0, 10); return d >= a && d <= b; });
+const inRange = (a, b) => done.filter(o => o.day >= a && o.day <= b);
 
 const today = totals(day(date), date, date);
-today.list = day(date).map(o => ({ wo: o.orderNumber, account: o.accountName, ref: o.RefNumber || '', revenue: o.subTotal, gst: o.taxTotal, total: o.grandTotal, paid: r2(o.grandTotal - o.balanceDue), balance: o.balanceDue, status: kind(o) }));
+today.list = day(date).map(o => ({ wo: o.orderNumber, invoicedOn: o.dateCompleted !== o.day ? o.dateCompleted : '', account: o.accountName, ref: o.RefNumber || '', revenue: o.subTotal, gst: o.taxTotal, total: o.grandTotal, paid: r2(o.grandTotal - o.balanceDue), balance: o.balanceDue, status: kind(o) }));
 const month = totals(inRange(monthStart, date), monthStart, date);
 month.days = [];
 for (let d = monthStart; d <= date; d = addDays(d, 1)) { const t = day(d); if (t.length) month.days.push({ date: d, jobs: t.length, revenue: r2(t.reduce((s, o) => s + o.subTotal, 0)), km: kmFor(d) }); }
@@ -91,9 +107,10 @@ const lastMonth = totals(inRange(lastMonthStart, lastMonthSameDay), lastMonthSta
 
 // running unpaid list: every non-Jayman invoice with a balance, any date
 const owing = (await all(`/orders?wField=balanceDue&wOperator=gt&wValue=0&${F}`))
-  .filter(o => o.orderType === 'Invoice' && !jayman.has(o.accountID));
+  .map(norm).filter(o => o.orderType === 'Invoice' && !jayman.has(o.accountID));
 const age = o => o.dateCompleted ? Math.round((Date.parse(date) - Date.parse(o.dateCompleted.slice(0, 10))) / 864e5) : null;
-const row = o => ({ wo: o.orderNumber, account: o.accountName, accountID: o.accountID, completed: o.dateCompleted ? o.dateCompleted.slice(0, 10) : '', days: age(o), balance: o.balanceDue });
+const row = o => ({ wo: o.orderNumber, account: o.accountName, accountID: o.accountID, completed: onCal.get(o.orderID) || o.dateCompleted, days: age({ dateCompleted: onCal.get(o.orderID) || o.dateCompleted }), balance: o.balanceDue });
+const notInvoiced = done.filter(o => !invoiced(o)).map(o => ({ wo: o.orderNumber, account: o.accountName, done: o.day, total: o.grandTotal }));
 const byOld = (a, b) => (b.days || 0) - (a.days || 0);
 const homeowners = owing.filter(o => !isCommercial(o.accountID)).map(row).sort(byOld);
 const comm = owing.filter(o => isCommercial(o.accountID)).map(row).sort(byOld);
@@ -104,8 +121,8 @@ const unpaid = { notPaid: homeowners, notPaidTotal: sum(homeowners), commercial:
 const companyWord = /\b(inc|ltd|homes?|builders?|construction|management|property|properties|modular|heating|real estate|corp|group|developments?|services)\b/i;
 const askCommercial = [...new Map(homeowners.filter(o => companyWord.test(o.account || '') && !notCommercial.some(n => n.accountID === o.accountID)).map(o => [o.accountID, { accountID: o.accountID, name: o.account }])).values()];
 
-const brief = { date, generatedAt: now, today, month, lastMonth, unpaid, askCommercial, commercialAccounts: commercial,
-  notes: ['Revenue is before GST. Billed and paid include GST. Km are estimates from job locations (straight line x 1.3), shop to shop.'] };
+const brief = { date, generatedAt: now, today, month, lastMonth, unpaid, notInvoiced, askCommercial, commercialAccounts: commercial,
+  notes: ['Each job counts on the day it was done on the calendar. Jayman jobs always count as billed. Revenue is before GST. Billed and paid include GST. Km are estimates from job locations (straight line x 1.3), shop to shop.'] };
 const out = arg('out') || 'penny';
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'brief.json'), JSON.stringify(brief));
@@ -116,5 +133,6 @@ for (const j of today.list) console.log(`  WO ${j.wo}  ${j.account}  ${$(j.total
 console.log(line('MONTH ' + monthStart + '..' + date, month));
 console.log(line('LAST MONTH ' + lastMonthStart + '..' + lastMonthSameDay, lastMonth));
 console.log(`UNPAID (not Jayman): ${homeowners.length} not paid ${$(unpaid.notPaidTotal)} (over 30 days ${$(unpaid.over30)}, over 60 ${$(unpaid.over60)}); ${comm.length} commercial billed ${$(unpaid.commercialTotal)}`);
+if (notInvoiced.length) console.log('DONE BUT NOT INVOICED (not Jayman): ' + notInvoiced.map(o => `WO ${o.wo} ${o.account} ${o.done} ${$(o.total)}`).join('; '));
 if (askCommercial.length) console.log('ASK KEITH, commercial and billed? ' + askCommercial.map(a => a.name).join('; '));
 console.log('wrote', join(out, 'brief.json'));
