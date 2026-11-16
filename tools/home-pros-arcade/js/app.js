@@ -1027,6 +1027,43 @@
       <div>Avg job<br><span class="big">${$$(s.avgJob)}</span>${prev ? cmp(s.avgJob, prev.avgJob) : ''}</div>
       <div>Revenue per km<br><span class="big">${$$(s.revPerKm)}</span></div></div>`;
   }
+  // The rest of Penny's nightly report, under the day's jobs.
+  function fullBrief(B, E, expDay, expMonth, tot) {
+    const M = B.month, P = B.lastMonth, U = B.unpaid;
+    const ch = (a, b) => { const p = pct(a, b); return p == null ? '' : `<span class="${p < 0 ? 'down' : 'up'}">${p >= 0 ? '+' : ''}${p}%</span>`; };
+    const mrow = (label, a, b, f) => `<tr><td>${label}</td><td>${f(a)}</td><td>${f(b)}</td><td>${ch(a, b)}</td></tr>`;
+    const money = v => $$(v), km = v => '~' + v, n = v => String(v);
+    const gstPaid = expMonth.reduce((t, x) => t + Number(x.gst || 0), 0);
+    const cats = {}; for (const x of expMonth) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+    const oldest = (U.notPaid || []).slice(0, 5);
+    const big = (U.notPaid || []).filter(o => o.days > 60).sort((x, y) => y.balance - x.balance)[0];
+    const looks = [
+      big ? `WO ${esc(big.wo)} (${esc(big.account)}, ${$$(big.balance)}) is the biggest old balance, ${big.days} days.` : '',
+      (B.notInvoiced || []).length ? `${B.notInvoiced.map(o => 'WO ' + esc(o.wo)).join(', ')} still need${B.notInvoiced.length === 1 ? 's' : ''} invoicing.` : '',
+      (U.toRecord || []).length ? `${U.toRecord.length} paid-on-site job${U.toRecord.length === 1 ? '' : 's'} to enter in ServiceMonster.` : '',
+      M.jobs > P.jobs && M.avgJob < P.avgJob ? 'More jobs than last month, but smaller ones (average job down).' : '',
+    ].filter(Boolean);
+    const Q = pennyQs().length;
+    return `
+      <h3>THIS MONTH · ${esc(fmtDate(M.from))} TO ${esc(fmtDate(M.to))} VS ${esc(fmtDate(P.from))} TO ${esc(fmtDate(P.to))}</h3>
+      <table class="cmp"><tr><th></th><th>This month</th><th>Last month</th><th>Change</th></tr>
+        ${mrow('Jobs', M.jobs, P.jobs, n)}${mrow('Revenue', M.revenue, P.revenue, money)}${mrow('Billed', M.billed, P.billed, money)}${mrow('Paid', M.paid, P.paid, money)}
+        ${mrow('GST collected', M.gst, P.gst, money)}${mrow('Km', M.km, P.km, km)}${mrow('Average job', M.avgJob, P.avgJob, money)}${mrow('Revenue per km', M.revPerKm, P.revPerKm, money)}</table>
+      <h3>NOT PAID YET · ${$$(U.notPaidTotal)} · ${U.notPaid.length} JOBS</h3>
+      <p>Over 30 days: <b>${$$(U.over30)}</b>. Over 60 days: <b>${$$(U.over60)}</b>. Commercial, billed (waiting for payment): <b>${$$(U.commercialTotal)}</b>, ${U.commercial.length} jobs.</p>
+      ${oldest.length ? `<table><tr><th>Oldest</th><th>Customer</th><th>Done</th><th>Owes</th></tr>${oldest.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')} <small>(${o.days} days)</small></td><td>${$$(o.balance)}</td></tr>`).join('')}</table>` : ''}
+      ${(U.toRecord || []).length ? `<p><b>Paid on site, enter in ServiceMonster:</b> ${U.toRecord.map(o => `WO ${esc(o.wo)} ${esc(o.account)} ${$$(o.balance)}`).join('; ')}.</p>` : ''}
+      ${(B.notInvoiced || []).length ? `<p><b>Done but not invoiced:</b> ${B.notInvoiced.map(o => `WO ${esc(o.wo)}, ${esc(o.account)}, ${esc(fmtDate(o.done))}, ${$$(o.total)}`).join('; ')}.</p>` : ''}
+      <h3>QUESTIONS</h3>
+      <p>${Q ? `${Q} waiting for you: tap <b>Penny's questions</b>.` : 'None tonight. Everything is answered.'}</p>
+      <h3>RECEIPTS AND EXPENSES</h3>
+      ${expDay.length ? `<table><tr><th>Filed for ${esc(fmtDate(B.date))}</th><th>Category</th><th>Amount</th><th>GST</th></tr>${expDay.map(x => `<tr><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('')}</table>` : `<p>No receipts filed for ${esc(fmtDate(B.date))} yet. Tap <b>Add a receipt</b> to add one.</p>`}
+      <p>That day: <b>${$$(tot(expDay))}</b>, revenue less expenses <b>${$$(B.today.revenue - tot(expDay))}</b>.<br>
+        This month: <b>${$$(tot(expMonth))}</b>${Object.keys(cats).length ? ' (' + Object.entries(cats).sort((x, y) => y[1] - x[1]).map(([c, v]) => `${esc(c)} ${$$(v)}`).join(', ') + ')' : ''}, revenue less expenses <b>${$$(M.revenue - tot(expMonth))}</b>.<br>
+        GST to set aside: ${$$(M.gst)} collected less ${$$(gstPaid)} paid on receipts = <b>${$$(M.gst - gstPaid)}</b>.</p>
+      ${looks.length ? `<h3>WORTH A LOOK</h3><ul>${looks.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}`;
+  }
+
   async function acctReport(kind) {
     const id = clear();
     S.office.select('penny');
@@ -1046,7 +1083,7 @@
       const rows = T.list.map(j => `<tr><td>WO ${esc(j.wo)}</td><td>${esc(j.account)}</td><td>${$$(j.total)}</td><td><span class="tag ${j.status === 'Paid' || j.status === 'Paid on site' ? 'ok' : j.status === 'Not paid' || j.status === 'Not invoiced yet' ? '' : 'wo'}">${esc(j.status.toUpperCase())}</span>${j.status === 'Not paid' || j.status === 'Billed, waiting' ? ' owes ' + $$(j.balance) : ''}${j.method ? ' (' + esc(j.method) + ')' : ''}${j.invoicedOn ? ` <small>(invoiced ${esc(fmtDate(j.invoicedOn))})</small>` : ''}</td></tr>`).join('');
       html = `<div class="report"><h3>DAILY BRIEF · ${esc(fmtDate(B.date).toUpperCase())}</h3>${kpis(T)}
         <table><tr><th>Job</th><th>Customer</th><th>Total</th><th>Paid?</th></tr>${rows || '<tr><td colspan="4">No jobs completed.</td></tr>'}</table>
-        <p>Expenses today: <b>${$$(tot(expDay))}</b>${expDay.length ? ` (${expDay.length} receipt${expDay.length === 1 ? '' : 's'})` : ' (none recorded yet)'}. Revenue less expenses: <b>${$$(T.revenue - tot(expDay))}</b>.</p>${foot}</div>`;
+        ${fullBrief(B, E, expDay, expMonth, tot)}${foot}</div>`;
       const np = T.list.filter(j => j.status === 'Not paid'), bw = T.list.filter(j => /^(Billed, waiting|Commercial)/.test(j.status)), ps = T.list.filter(j => j.status === 'Paid on site');
       const words = [np.length ? `${np.length} not paid yet` : '', bw.length ? `${bw.map(j => 'WO ' + j.wo).join(', ')} billed, waiting for payment` : '', ps.length ? `${ps.map(j => 'WO ' + j.wo).join(', ')} paid on site` : ''].filter(Boolean);
       line = T.jobs ? `${T.jobs} job${T.jobs === 1 ? '' : 's'} done on ${fmtDate(B.date)}: ${$$(T.revenue)} revenue, ${$$(T.paid)} paid, about ${T.km} km.` + (words.length ? ' ' + words.join('; ') + '.' : ' Everything that should be paid is paid.') : `No completed jobs on ${fmtDate(B.date)}, boss.`;

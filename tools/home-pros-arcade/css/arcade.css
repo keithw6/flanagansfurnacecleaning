@@ -311,3 +311,8 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .questions .q.info p { color: #f4f7f4; }
 .questions .q.info p.small { color: var(--dim); }
 .questions .q h4 { line-height: 1.5; }
+
+.report h3 + table, .report table + h3, .report p + h3, .report ul + h3 { margin-top: 14px; }
+.report table.cmp td:nth-child(4) span.up { color: var(--edge); }
+.report table.cmp td:nth-child(4) span.down { color: #ff8a8a; }
+.report ul { font-size: 19px; padding-left: 22px; white-space: normal; }
