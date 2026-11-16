@@ -140,7 +140,7 @@ const HP_CONFIG = {
     { key: 'airConditioner', name: 'Air Conditioner',  plus: true, note: 'each' },
     { key: 'zone',           name: 'Zone System',      plus: true },
     { key: 'extraFurnace',   name: 'Extra Furnace',    plus: true, note: 'each, with its ducts & registers' },
-    { key: 'dryerVent',      name: 'Dryer Vent',       plus: true, note: 'with a duct cleaning, side wall only ($150 on its own)' },
+    { key: 'dryerVent',      name: 'Dryer Vent',       plus: true, note: 'side wall only · $150 on its own' },
   ],
 
   /* ------------------------------ Host lines ------------------------------- */
