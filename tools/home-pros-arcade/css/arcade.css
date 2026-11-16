@@ -366,3 +366,22 @@ body.street .cash, body.office .cash { visibility: hidden; }
 
 .receipt .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
 .expmonths .qa.oth { font-size: 14px; padding: 3px 8px; margin: 2px 4px 2px 0; }
+
+/* Penny: card statements */
+.stmts label.qa.photo { display: inline-block; font-size: 18px; padding: 8px 14px; border: 2px solid var(--edge); color: var(--edge); cursor: pointer; }
+.stmts .q.tx { padding: 8px 10px; }
+.stmts .q.tx.done { opacity: .72; }
+.stmts .txh { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; font-size: 19px; margin-bottom: 4px; }
+.stmts .txh b { overflow-wrap: anywhere; }
+.stmts .txh .amt { font-weight: bold; color: #f4f7f4; }
+.stmts .pq { color: #f4f7f4; margin: 4px 0; }
+.stmts .qbtns.cats button.qa { font-size: 14px; padding: 4px 8px; }
+.stmts label.rf { display: block; margin: 6px 0 0; }
+.stmts label.rf span { display: block; font-size: 15px; color: var(--dim); }
+.stmts label.rf input { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 5px 8px; background: #0c0f0d; color: #e9efe9; border: 2px solid #4a544f; }
+.stmts label.gstc { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 16px; }
+.stmts label.gstc input { width: 90px; }
+.stmts button.qa[disabled] { opacity: .45; cursor: default; }
+.stmts td { white-space: normal !important; }
+
+.stmts button.qa.tiny { font-size: 13px; padding: 1px 6px; margin-left: 6px; }

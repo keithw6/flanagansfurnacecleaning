@@ -1030,6 +1030,7 @@
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
       { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
+      { label: 'Card statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }
@@ -1259,6 +1260,200 @@
     'Advertising and marketing', 'Phone and internet', 'Office and software', 'Meals (50% deductible)', 'Subcontractors', 'Insurance', 'Bank and card fees', 'Other'];
   const PAID = ['Company card', 'Cash', 'Personal card', 'E-transfer'];
   let rc = null, rcBack = null;   // the receipt being entered; the month to go back to
+
+  /* ------------------------------------------------ Card statements */
+  // Keith uploads a Visa (or bank) statement; Penny reads it, asks about each
+  // transaction, and only the ones he says are business go into the expenses.
+  let stmt = null, stmtSaveT = null;
+  // whose card: business cards are business unless Keith says otherwise; the personal Mastercard is personal unless he says it was for the business
+  const OWNERS = {
+    'biz-keith': { label: "Business Visa (Keith's)", who: 'Keith', business: true },
+    'biz-hannah': { label: "Business Visa (Hannah's)", who: 'Hannah', business: true },
+    'personal-keith': { label: "Keith's personal Mastercard", who: 'Keith', business: false },
+    other: { label: 'Another card or account', who: 'Keith', business: null },
+  };
+  const guessOwner = st => /master/i.test((st && st.card) || '') ? 'personal-keith' : '';
+  function applyOwner(o) {
+    stmt.owner = o;
+    const O = OWNERS[o];
+    for (const t of stmt.transactions) {
+      if (t.decision === 'filed' || t.added) continue;
+      if (O.business === true) {
+        // business card: business unless it looks personal, then ask
+        if (t.business === 'personal') { t.decision = ''; t.question = `This is on the business card but looks personal${t.question ? ': ' + t.question : '.'} Was it for the business?`; }
+        else { t.decision = 'business'; if (!CATS.includes(t.category)) t.category = 'Other'; }
+      } else if (O.business === false) {
+        // personal card: ask about anything that might be business; the rest is personal
+        if (t.business === 'personal') t.decision = 'personal';
+        else { t.decision = ''; t.question = t.question || 'Was this for the business? If so, the business owes you this back.'; }
+      }
+    }
+  }
+  const gstOf = (amt, how) => how === 'none' ? 0 : how === 'custom' ? null : Math.round(Number(amt) * 5 / 105 * 100) / 100;
+  async function stmtHome() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const L = root.HP_LIVE;
+    const [idx, can] = L ? await Promise.all([L.statements(), L.receiptAbilities()]) : [undefined, { canRead: false, canSave: false }];
+    if (id !== run) return;
+    const list = (idx && idx.list) || [];
+    const owedDoc = L ? await L.owed() : null;
+    if (id !== run) return;
+    const ow = ((owedDoc && owedDoc.items) || []).filter(x => !x.repaidAt);
+    const toK = ow.filter(x => x.direction === 'toKeith'), toB = ow.filter(x => x.direction === 'toBusiness');
+    const osum = l => l.reduce((a, x) => a + Number(x.amount || 0), 0);
+    const owedBox = ow.length ? `<div class="q"><h4>MONEY OWED</h4>
+      ${toK.length ? `<p><b>The business owes Keith ${$$(osum(toK))}</b> for ${toK.length} business purchase${toK.length === 1 ? '' : 's'} on his personal Mastercard.</p><table>${toK.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)}</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repK">Mark as paid back to Keith</button></div>` : ''}
+      ${toB.length ? `<p><b>Owed to the business ${$$(osum(toB))}</b> for personal purchases on the business Visas.</p><table>${toB.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)} (${esc(x.who)})</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repB">Mark as paid back to the business</button></div>` : ''}</div>` : '';
+    $('panel').innerHTML = `<div class="report questions stmts"><h3>CARD STATEMENTS</h3>${owedBox}
+      <div class="q"><h4>UPLOAD A STATEMENT</h4>
+        <p>A Visa, Mastercard or bank statement as a PDF, or photos of its pages. I'll read every transaction, then go through them with you: business or personal, which category, and the GST. Only the business ones go into your expenses.</p>
+        ${can.canRead && can.canSave ? `<label class="qa photo">Choose the statement (PDF or photos)<input id="stFile" type="file" accept="application/pdf,image/*" multiple hidden></label>` : '<p><b>Reading statements needs the arcade open in claude.ai.</b></p>'}
+        <p id="stStatus" class="small"></p></div>
+      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b><br><small>${esc(x.period || '')} · uploaded ${esc(String(x.uploadedAt || '').slice(0, 10))}</small></td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button></td></tr>`).join('')}</table></div>` : ''}
+      <p class="soon">The statement file is kept with your records. Card statements show the total but usually not the GST: I'll assume 5% GST is included unless you tell me otherwise. Keep the receipts for anything over $30, since the CRA wants a receipt to claim the GST back.</p></div>`;
+    $('panel').querySelectorAll('button[data-st]').forEach(b => b.onclick = () => stmtInterview(b.dataset.st));
+    if ($('repK')) $('repK').onclick = async () => { await L.markOwedRepaid('toKeith'); A.select(); say('Marked as paid back to you.'); stmtHome(); };
+    if ($('repB')) $('repB').onclick = async () => { await L.markOwedRepaid('toBusiness'); A.select(); say('Marked as paid back to the business.'); stmtHome(); };
+    const f = $('stFile');
+    if (f) f.onchange = async () => {
+      const files = Array.from(f.files || []);
+      if (!files.length) return;
+      const st = $('stStatus');
+      try {
+        st.textContent = 'Opening the statement...';
+        const blobs = await HP_STATEMENT.pages(files);
+        if (!blobs.length) { st.textContent = "I couldn't open that file. Try a PDF or photos of the pages."; return; }
+        const kept = [];
+        for (const file of files) { const r = await L.storeFile(file); if (r) kept.push({ id: r.id, name: file.name || 'statement' }); }
+        const got = await HP_STATEMENT.read(blobs, { categories: CATS, onProgress: (a, b, n) => { st.textContent = `Reading page${b > a ? 's' : ''} ${a}${b > a ? '-' + b : ''} of ${n}...`; } });
+        if (!got.transactions.length) { st.textContent = "I couldn't find any transactions on it. Is it a statement page with a list of purchases?"; return; }
+        // anything already filed from a receipt (same amount, within 3 days) is marked so it isn't counted twice
+        const months = [...new Set(got.transactions.map(t => t.date.slice(0, 7)))];
+        const filed = await L.expenseMonths(months) || {};
+        const have = Object.values(filed).flatMap(d => (d && d.items) || []);
+        for (const t of got.transactions) {
+          const m = have.find(x => Math.abs(Number(x.amount) - Number(t.amount)) < 0.01 && Math.abs(Date.parse(x.date) - Date.parse(t.date)) <= 3 * 864e5);
+          if (m) { t.decision = 'filed'; t.match = `${m.vendor}, ${m.date}`; }
+          if (Number(t.amount) < 0) t.business = t.business || 'maybe';
+          t.gstHow = 'inc5'; t.gst = gstOf(t.amount, 'inc5');
+        }
+        const doc = { id: Date.now().toString(36), name: files[0].name || 'statement', files: kept, uploadedAt: new Date().toISOString(), statement: got.statement, transactions: got.transactions, owner: '' };
+        await L.saveStatement(doc);
+        A.select();
+        stmtInterview(doc.id, doc);
+      } catch (e) {
+        st.textContent = e && e.code === 'not_granted' ? 'Reading files was turned off. Allow it in the arcade\'s permissions and try again.' : "Something went wrong reading that statement. Try again, or send photos of the pages.";
+      }
+    };
+    await say(list.length ? 'Upload a new statement, or pick up where we left off.' : "Send me a card statement and we'll go through it together. I'll only file what you tell me is business.");
+    if (id !== run) return;
+    acctChoices('stmt');
+  }
+
+  function stmtSave() {
+    clearTimeout(stmtSaveT);
+    const doc = stmt;
+    stmtSaveT = setTimeout(() => root.HP_LIVE.saveStatement(doc).catch(() => {}), 600);
+  }
+
+  async function stmtInterview(sid, doc) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    stmt = doc || await root.HP_LIVE.statement(sid);
+    if (id !== run) return;
+    if (!stmt) { $('panel').innerHTML = ''; await say("I can't find that statement."); acctChoices('stmt'); return; }
+    drawStmt();
+    const T = stmt.transactions, open = T.filter(t => !t.decision).length, filed = T.filter(t => t.decision === 'filed').length;
+    await say(!stmt.owner ? `I read ${T.length} transactions${filed ? `, ${filed} already filed from receipts` : ''}. First, whose card is this?` : open ? `${open} left to go through on this ${stmt.statement && stmt.statement.card || 'statement'}. Tap Business or Personal for each one.` : 'All of these are gone through. Add the business ones to your expenses when you\'re ready.');
+    if (id !== run) return;
+    acctChoices('stmt');
+  }
+
+  function drawStmt() {
+    const T = stmt.transactions, st = stmt.statement || {};
+    if (!stmt.owner) {
+      const g = guessOwner(st);
+      $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
+        <div class="q"><h4>WHOSE CARD IS THIS?</h4><p>I found ${T.length} transactions. Which card is it?</p>
+        <div class="qbtns">${Object.entries(OWNERS).map(([k, o]) => `<button class="qa ${g === k ? 'on' : ''}" data-owner="${k}">${esc(o.label)}</button>`).join('')}</div>
+        <p class="small">Business Visas: everything is business unless you tell me otherwise. Your personal Mastercard: I'll ask about each item, and anything for the business goes into your expenses and on the list of what the business owes you.</p></div></div>`;
+      $('panel').querySelectorAll('button[data-owner]').forEach(b => b.onclick = () => { A.select(); applyOwner(b.dataset.owner); stmtSave(); drawStmt();
+        const O = OWNERS[b.dataset.owner], n = stmt.transactions.filter(t => !t.decision).length;
+        say(O.business === true ? `Got it, business card. I've marked everything as business except ${n} that look${n === 1 ? 's' : ''} personal. Check those, and pick categories.` : O.business === false ? `Got it, your personal card. ${n} might be for the business. Tell me which, and I'll track what the business owes you.` : `Okay. Let's go through all ${n} together.`); });
+      return;
+    }
+    const O = OWNERS[stmt.owner] || OWNERS.other;
+    const left = T.filter(t => !t.decision).length, biz = T.filter(t => t.decision === 'business'), toAdd = biz.filter(t => !t.added);
+    const persOnBiz = O.business === true ? T.filter(t => t.decision === 'personal' && Number(t.amount) > 0) : [];
+    const sum = l => l.reduce((a, t) => a + Number(t.amount || 0), 0);
+    const card = (t, i) => {
+      const flag = t.decision ? '' : t.business === 'personal' ? '<span class="tag">LOOKS PERSONAL</span>' : t.business === 'maybe' ? '<span class="tag wo">ASK</span>' : '<span class="tag ok">LOOKS LIKE BUSINESS</span>';
+      const decided = t.decision === 'business' ? `<span class="tag ok">BUSINESS${t.added ? ' · ADDED' : ''}</span>` : t.decision === 'personal' ? '<span class="tag">PERSONAL</span>' : t.decision === 'filed' ? `<span class="tag ok">ALREADY FILED</span> <small>${esc(t.match || '')}</small>` : t.decision === 'skip' ? '<span class="tag">SKIPPED</span>' : '';
+      const body = t.decision === 'business' && !t.added ? `
+        <div class="qbtns cats">${CATS.map(c => `<button class="qa ${t.category === c ? 'on' : ''}" data-i="${i}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        <p class="small">GST on it:</p><div class="qbtns">
+          <button class="qa ${t.gstHow === 'inc5' ? 'on' : ''}" data-i="${i}" data-gst="inc5">5% included (${$$(gstOf(t.amount, 'inc5'))})</button>
+          <button class="qa ${t.gstHow === 'none' ? 'on' : ''}" data-i="${i}" data-gst="none">No GST</button>
+          <label class="rf gstc">Other <input type="number" step="0.01" inputmode="decimal" data-i="${i}" data-gstv value="${t.gstHow === 'custom' ? esc(t.gst) : ''}"></label></div>
+        <label class="rf"><span>What it was for (optional)</span><input type="text" data-i="${i}" data-note value="${esc(t.note || '')}"></label>` : '';
+      const ask = !t.decision && t.question ? `<p class="pq">${esc(t.question)}</p>` : '';
+      const buttons = t.added ? '' : `<div class="qbtns">${['business', 'personal', 'skip'].map(d => `<button class="qa ${t.decision === d ? 'on' + (d === 'personal' ? ' no' : '') : ''}" data-i="${i}" data-d="${d}">${d === 'business' ? 'Business' : d === 'personal' ? 'Personal' : 'Skip'}</button>`).join('')}${t.decision === 'filed' ? `<button class="qa" data-i="${i}" data-d="business">Not the same, it's business too</button>` : ''}</div>`;
+      return `<div class="q tx ${t.decision ? 'done' : ''}"><div class="txh"><span>${esc(fmtDate(t.date))}</span><b>${esc(t.description || '')}</b><span class="amt">${$$(t.amount)}</span></div>${flag}${decided}${ask}${buttons}${body}</div>`;
+    };
+    const firstOpen = T.findIndex(t => !t.decision);
+    $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
+      <p class="small">${esc(O.label)} <button class="qa tiny" id="stOwner">change</button></p>
+      <div class="kpis"><div>Transactions<br><span class="big">${T.length}</span></div><div>Left to go through<br><span class="big">${left}</span></div><div>Business<br><span class="big">${$$(sum(biz))}</span>${biz.length} items</div><div>Personal<br><span class="big">${$$(sum(T.filter(t => t.decision === 'personal')))}</span></div>
+        ${O.business === false ? `<div>Business owes ${esc(O.who)}<br><span class="big">${$$(sum(biz))}</span></div>` : ''}${persOnBiz.length ? `<div>Personal on the business card (owed to the business)<br><span class="big">${$$(sum(persOnBiz))}</span></div>` : ''}</div>
+      ${T.map(card).join('')}
+      <div class="q send"><p class="small">${toAdd.length ? `${toAdd.length} business item${toAdd.length === 1 ? '' : 's'} (${$$(sum(toAdd))}) ready to add. Each goes into the month of its date.` : biz.length ? 'All business items are in your expenses.' : 'Mark the business ones, then add them here.'}</p>
+        <button class="qa send" id="stAdd" ${toAdd.length && !toAdd.some(t => !t.category) ? '' : 'disabled'}>Add ${toAdd.length || ''} business item${toAdd.length === 1 ? '' : 's'} to my expenses</button>
+        ${toAdd.some(t => !t.category) ? '<span class="small"> Pick a category for each business item first.</span>' : ''}
+        <span id="stMsg" class="small"></span></div>
+      ${(stmt.files || []).length ? `<p class="soon">Statement on file: ${stmt.files.map(f => `<a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(', ')}</p>` : ''}</div>`;
+    const P = $('panel');
+    if ($('stOwner')) $('stOwner').onclick = () => { stmt.owner = ''; drawStmt(); };
+    P.querySelectorAll('button[data-d]').forEach(b => b.onclick = () => {
+      const t = T[+b.dataset.i]; t.decision = b.dataset.d;
+      if (t.decision === 'business' && !CATS.includes(t.category)) t.category = '';
+      A.select(); stmtSave(); drawStmt();
+      const next = P.querySelector('.q.tx:not(.done)');
+      if (t.decision !== 'business' && next) next.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; A.select(); stmtSave(); drawStmt(); });
+    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(); });
+    P.querySelectorAll('input[data-gstv]').forEach(inp => inp.onchange = () => { const t = T[+inp.dataset.i]; t.gstHow = 'custom'; t.gst = Math.round(Number(inp.value || 0) * 100) / 100; stmtSave(); drawStmt(); });
+    P.querySelectorAll('input[data-note]').forEach(inp => inp.onchange = () => { T[+inp.dataset.i].note = inp.value; stmtSave(); });
+    $('stAdd').onclick = async () => {
+      const add = T.filter(t => t.decision === 'business' && !t.added && t.category);
+      if (!add.length) return;
+      $('stAdd').disabled = true; $('stMsg').textContent = ' Filing...';
+      const byMonth = {};
+      for (const t of add) (byMonth[t.date.slice(0, 7)] = byMonth[t.date.slice(0, 7)] || []).push(t);
+      try {
+        const personalCard = O.business === false;
+        for (const [m, l] of Object.entries(byMonth)) {
+          await root.HP_LIVE.addExpenses(m, l.map(t => ({ date: t.date, vendor: t.description, category: t.category, amount: Math.round(Number(t.amount) * 100) / 100, gst: Number(t.gst || 0),
+            paidWith: O.label + (st.last4 ? ' ' + st.last4 : ''), reimburse: personalCard ? O.who : '',
+            note: [t.note, personalCard ? `Paid personally by ${O.who}: owed back to ${O.who}` : '', 'From ' + (st.card || 'card') + ' statement' + (st.period ? ' ' + st.period : '')].filter(Boolean).join('. '),
+            photoId: '', statementId: stmt.id, enteredIn: 'statement', enteredAt: new Date().toISOString() })));
+          l.forEach(t => { t.added = true; });
+        }
+        const owed = [];
+        if (personalCard) add.forEach((t, k) => owed.push({ id: stmt.id + '-' + T.indexOf(t), date: t.date, vendor: t.description, amount: Math.round(Number(t.amount) * 100) / 100, who: O.who, direction: 'toKeith', statementId: stmt.id }));
+        persOnBiz.filter(t => !t.owedLogged).forEach(t => { t.owedLogged = true; owed.push({ id: stmt.id + '-' + T.indexOf(t), date: t.date, vendor: t.description, amount: Math.round(Number(t.amount) * 100) / 100, who: O.who, direction: 'toBusiness', statementId: stmt.id }); });
+        if (owed.length) await root.HP_LIVE.addOwed(owed);
+        await root.HP_LIVE.saveStatement(stmt);
+        A.select();
+        drawStmt();
+        say(`Filed ${add.length} business item${add.length === 1 ? '' : 's'}, ${$$(sum(add))}, into ${Object.keys(byMonth).map(monthName).join(', ')}.` + (personalCard ? ` The business now owes you ${$$(sum(add))} for these. It's on the "owed" list on the Card statements page.` : '') + (persOnBiz.length ? ` ${$$(sum(persOnBiz))} of personal purchases on the business card is listed as owed to the business.` : ''));
+      } catch (e) { $('stAdd').disabled = false; $('stMsg').textContent = " Couldn't save just now. Try again in a minute."; }
+    };
+    if (firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
+  }
 
   /* ------------------------------------------------ Expenses by month */
   const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };

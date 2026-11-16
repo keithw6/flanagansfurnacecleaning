@@ -59,3 +59,19 @@ builds a PDF in the browser (`js/expense-pdf.js`: summary, categories, every rec
 one page per two receipt photos) and sends it to keith@homeprosgroup.com through
 Keith's Gmail connector; it can be sent again after more receipts are added.
 `penny/reports` records when each month was last sent. **Download PDF** saves the same file.
+
+## Card statements
+
+**Card statements** on Penny's desk takes a statement PDF (pages drawn with pdf.js from
+cdnjs) or photos. Claude reads every transaction (`js/statement.js`), anything already
+filed from a receipt (same amount within 3 days) is marked, and Keith says whose card it is:
+
+- Business Visa (Keith) / Business Visa (Hannah): everything is business; Penny asks only
+  about what looks personal. Personal items on a business card go on `penny/owed` as owed
+  to the business.
+- Keith's personal Mastercard: personal unless Keith says business; business items go into
+  the expenses with `reimburse: "Keith"` and on `penny/owed` as owed to Keith (marked * in
+  the PDF report). "Mark as paid back" clears them.
+
+Statements are kept in `penny/statements` and `penny/stmt-<id>` (answers saved as you go),
+the files in the asset store. GST defaults to 5% included; Keith can change it per item.

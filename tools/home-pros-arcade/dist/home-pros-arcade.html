@@ -380,6 +380,25 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .receipt .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
 .expmonths .qa.oth { font-size: 14px; padding: 3px 8px; margin: 2px 4px 2px 0; }
 
+/* Penny: card statements */
+.stmts label.qa.photo { display: inline-block; font-size: 18px; padding: 8px 14px; border: 2px solid var(--edge); color: var(--edge); cursor: pointer; }
+.stmts .q.tx { padding: 8px 10px; }
+.stmts .q.tx.done { opacity: .72; }
+.stmts .txh { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; font-size: 19px; margin-bottom: 4px; }
+.stmts .txh b { overflow-wrap: anywhere; }
+.stmts .txh .amt { font-weight: bold; color: #f4f7f4; }
+.stmts .pq { color: #f4f7f4; margin: 4px 0; }
+.stmts .qbtns.cats button.qa { font-size: 14px; padding: 4px 8px; }
+.stmts label.rf { display: block; margin: 6px 0 0; }
+.stmts label.rf span { display: block; font-size: 15px; color: var(--dim); }
+.stmts label.rf input { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 5px 8px; background: #0c0f0d; color: #e9efe9; border: 2px solid #4a544f; }
+.stmts label.gstc { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 16px; }
+.stmts label.gstc input { width: 90px; }
+.stmts button.qa[disabled] { opacity: .45; cursor: default; }
+.stmts td { white-space: normal !important; }
+
+.stmts button.qa.tiny { font-size: 13px; padding: 1px 6px; margin-left: 6px; }
+
 </style>
 </head>
 <body class="street">
@@ -1319,6 +1338,53 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         }).filter(m => m.count).sort((a, b) => b.month.localeCompare(a.month));
       } catch (e) { return undefined; }
     },
+    /* Statements: penny/statements = {list:[{id,name,card,period,uploadedAt,count,decided,added}]}, penny/stmt-<id> = the statement */
+    async statements() { return read('statements', 'penny'); },
+    async statement(id) { return read('stmt-' + id, 'penny'); },
+    async saveStatement(doc) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      await db.collection('penny').doc('stmt-' + doc.id).set(doc);
+      const ref = db.collection('penny').doc('statements'), cur = await ref.get();
+      const list = ((cur.exists && cur.data().list) || []).filter(x => x.id !== doc.id);
+      const t = doc.transactions || [];
+      list.unshift({ id: doc.id, name: doc.name, card: (doc.statement || {}).card || '', period: (doc.statement || {}).period || '', uploadedAt: doc.uploadedAt,
+        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length });
+      await ref.set({ list: list.slice(0, 60) });
+    },
+    /* Money between Keith/Hannah and the business: penny/owed = {items:[{id, date, vendor, amount, who, direction:'toKeith'|'toBusiness', statementId, repaidAt}]} */
+    async owed() { return read('owed', 'penny'); },
+    async addOwed(items) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('owed'), cur = await ref.get();
+      const have = (cur.exists && cur.data().items) || [];
+      const ids = new Set(have.map(x => x.id));
+      await ref.set({ items: have.concat(items.filter(x => !ids.has(x.id))) });
+    },
+    async markOwedRepaid(direction, who) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('owed'), cur = await ref.get();
+      const at = new Date().toISOString();
+      const items = ((cur.exists && cur.data().items) || []).map(x => (!x.repaidAt && x.direction === direction && (!who || x.who === who)) ? Object.assign({}, x, { repaidAt: at }) : x);
+      await ref.set({ items });
+      return { items };
+    },
+    /* Add several expenses to one month at once. */
+    async addExpenses(month, items) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('expenses-' + month), cur = await ref.get();
+      const doc = cur.exists ? cur.data() : { month, items: [] };
+      await ref.set({ month, items: (doc.items || []).concat(items) });
+    },
+    /* Keep an uploaded file (statement PDF or photo). Resolves {id, url} or null. */
+    async storeFile(file) {
+      const assets = await timeout(assetsP, 6000);
+      if (!assets) return null;
+      try { const r = await assets.upload(file); return { id: r.id, url: r.url }; } catch (e) { return null; }
+    },
     /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
@@ -1598,6 +1664,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     p.text(cx[0], yy, 'Total', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
     p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
     if (meals) { yy += 16; p.text(M, yy, `Meals are 50% deductible: ${money(meals)} spent, ${money(meals / 2)} deductible.`, { size: 8, color: DIM }); }
+    const reimb = items.filter(x => x.reimburse);
+    if (reimb.length) { yy += 16; p.text(M, yy, `Paid personally and owed back: ${reimb.map(x => x.reimburse).filter((v, i, a) => a.indexOf(v) === i).join(', ')} ${money(reimb.reduce((s, x) => s + Number(x.amount || 0), 0))} (${reimb.length} item${reimb.length === 1 ? '' : 's'}, marked * below).`, { size: 8, bold: true }); }
     yy += 26;
 
     // every receipt
@@ -1622,7 +1690,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       p.text(col[2], yy, fit(x.category, 8.5, 116), { size: 8.5 });
       p.text(col[3], yy, fit(x.paidWith, 8.5, 78), { size: 8.5 });
       p.text(col[5], yy, money(x.gst), { size: 8.5, align: 'right' });
-      p.text(col[6], yy, money(x.amount), { size: 8.5, align: 'right' });
+      p.text(col[6], yy, money(x.amount) + (x.reimburse ? '*' : ''), { size: 8.5, align: 'right' });
       if (x.note) { yy += 11; p.text(col[1], yy, fit(x.note, 7.5, W - M - col[1] - 70), { size: 7.5, color: DIM }); }
       yy += 3; p.line(M, yy, W - M, yy, [0.92, 0.93, 0.92], 0.4);
     });
@@ -1692,6 +1760,105 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   }
 
   root.HP_EXPENSE_PDF = { build, jpeg, MONTHS };
+})(window);
+
+</script>
+<script>
+/* Card and bank statements for Penny: turn an uploaded PDF (or photos) into page
+   images, have Claude read the transactions, and hand them to Penny's interview.
+   HP_STATEMENT.pages(files)      -> Promise<Blob[]>  one JPEG per page (max 12)
+   HP_STATEMENT.read(pages, opts) -> Promise<{statement, transactions}>
+   PDF pages are drawn with pdf.js (loaded from cdnjs the first time it's needed). */
+(function (root) {
+  'use strict';
+  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  const MAX_PAGES = 12;
+  let pdfjsP = null;
+
+  function script(src) {
+    return new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => bad(new Error('load ' + src)); document.head.appendChild(s); });
+  }
+  function pdfjs() {
+    if (!pdfjsP) pdfjsP = (async () => {
+      // the worker script as a plain script gives pdf.js a "fake worker": no Worker or blob: URLs needed
+      await script(PDFJS + 'pdf.min.js');
+      await script(PDFJS + 'pdf.worker.min.js');
+      root.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+      return root.pdfjsLib;
+    })().catch(e => { pdfjsP = null; throw e; });
+    return pdfjsP;
+  }
+  const toJpeg = c => new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+
+  async function imageToJpeg(file) {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    return toJpeg(c);
+  }
+
+  async function pages(files) {
+    const out = [];
+    for (const f of files) {
+      if (out.length >= MAX_PAGES) break;
+      if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name || '')) {
+        const lib = await pdfjs();
+        const doc = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false }).promise;
+        for (let i = 1; i <= doc.numPages && out.length < MAX_PAGES; i++) {
+          const pg = await doc.getPage(i);
+          const v0 = pg.getViewport({ scale: 1 }), scale = Math.min(2, 1600 / Math.max(v0.width, v0.height));
+          const v = pg.getViewport({ scale });
+          const c = document.createElement('canvas'); c.width = Math.ceil(v.width); c.height = Math.ceil(v.height);
+          const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+          await pg.render({ canvasContext: g, viewport: v }).promise;
+          out.push(await toJpeg(c));
+        }
+      } else if (/^image\//.test(f.type)) out.push(await imageToJpeg(f));
+    }
+    return out;
+  }
+
+  function prompt(categories, from, to) {
+    const today = new Date().toISOString().slice(0, 10);
+    return 'These images are pages ' + from + ' to ' + to + ' of a credit card or bank statement belonging to Keith Wick, owner of Home Pros Group, '
+      + 'a furnace, duct and dryer vent cleaning company in Stony Plain, Alberta, with one service van (a 2012 Chevrolet Express) and a truck-mounted compressor. Today is ' + today + '. '
+      + 'Read every transaction on these pages and answer with JSON only, no other text: '
+      + '{"statement":{"card":"card name, e.g. Visa or Mastercard or bank account","last4":"last 4 digits if shown","period":"statement period as printed","year":number},'
+      + '"transactions":[{"date":"YYYY-MM-DD (the transaction date, use the statement period to get the year right)","description":"merchant as printed",'
+      + '"amount":number (positive for purchases and charges, negative for refunds and credits),"kind":"purchase|refund|fee|interest|payment",'
+      + '"category":"one of: ' + categories.join('; ') + '",'
+      + '"business":"likely|maybe|personal",'
+      + '"question":"one short, friendly question to ask Keith when it is not clearly business, else empty"}]}. '
+      + 'Include purchases, refunds, card fees and interest; leave out payments made to the card. '
+      + 'Likely business: fuel, auto parts and repairs, tires, tools, hardware and building supply, HVAC and compressor suppliers, phone and internet, software, advertising, vehicle insurance and registration. '
+      + 'Maybe (ask): restaurants and coffee (client or crew meal?), Costco, Walmart, Amazon, Canadian Tire, Home Depot when the item is unclear, hotels, travel, subscriptions. '
+      + 'Likely personal (still list them, ask to confirm): groceries, clothing, entertainment, streaming, pharmacy, liquor, personal care. '
+      + 'Never guess an amount you cannot read: skip that line instead of inventing it.';
+  }
+
+  async function read(pageBlobs, { categories, onProgress } = {}) {
+    const sample = root.claude && root.claude.use ? await root.claude.use('sample') : null;
+    if (!sample) throw { code: 'unavailable' };
+    let per = 4;
+    try { const l = await sample.limits(); if (!l.images) throw { code: 'images_unavailable' }; per = Math.max(1, Math.min(6, l.images.maxCount || 4)); } catch (e) { if (e && e.code) throw e; }
+    const all = { statement: {}, transactions: [] };
+    for (let i = 0; i < pageBlobs.length; i += per) {
+      const batch = pageBlobs.slice(i, i + per);
+      if (onProgress) onProgress(i + 1, Math.min(i + per, pageBlobs.length), pageBlobs.length);
+      const got = await sample.json(prompt(categories, i + 1, i + batch.length), { images: batch, modelTier: 'default', cache: false });
+      if (got && got.statement) for (const [k, v] of Object.entries(got.statement)) if (v && !all.statement[k]) all.statement[k] = v;
+      for (const t of (got && got.transactions) || []) if (t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment') all.transactions.push(t);
+    }
+    // the same line read twice (page overlap) counts once
+    const seen = new Set();
+    all.transactions = all.transactions.filter(t => { const k = t.date + '|' + Number(t.amount).toFixed(2) + '|' + String(t.description || '').toLowerCase().slice(0, 18); if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return all;
+  }
+
+  root.HP_STATEMENT = { pages, read };
 })(window);
 
 </script>
@@ -3156,6 +3323,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
       { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
+      { label: 'Card statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }
@@ -3385,6 +3553,200 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     'Advertising and marketing', 'Phone and internet', 'Office and software', 'Meals (50% deductible)', 'Subcontractors', 'Insurance', 'Bank and card fees', 'Other'];
   const PAID = ['Company card', 'Cash', 'Personal card', 'E-transfer'];
   let rc = null, rcBack = null;   // the receipt being entered; the month to go back to
+
+  /* ------------------------------------------------ Card statements */
+  // Keith uploads a Visa (or bank) statement; Penny reads it, asks about each
+  // transaction, and only the ones he says are business go into the expenses.
+  let stmt = null, stmtSaveT = null;
+  // whose card: business cards are business unless Keith says otherwise; the personal Mastercard is personal unless he says it was for the business
+  const OWNERS = {
+    'biz-keith': { label: "Business Visa (Keith's)", who: 'Keith', business: true },
+    'biz-hannah': { label: "Business Visa (Hannah's)", who: 'Hannah', business: true },
+    'personal-keith': { label: "Keith's personal Mastercard", who: 'Keith', business: false },
+    other: { label: 'Another card or account', who: 'Keith', business: null },
+  };
+  const guessOwner = st => /master/i.test((st && st.card) || '') ? 'personal-keith' : '';
+  function applyOwner(o) {
+    stmt.owner = o;
+    const O = OWNERS[o];
+    for (const t of stmt.transactions) {
+      if (t.decision === 'filed' || t.added) continue;
+      if (O.business === true) {
+        // business card: business unless it looks personal, then ask
+        if (t.business === 'personal') { t.decision = ''; t.question = `This is on the business card but looks personal${t.question ? ': ' + t.question : '.'} Was it for the business?`; }
+        else { t.decision = 'business'; if (!CATS.includes(t.category)) t.category = 'Other'; }
+      } else if (O.business === false) {
+        // personal card: ask about anything that might be business; the rest is personal
+        if (t.business === 'personal') t.decision = 'personal';
+        else { t.decision = ''; t.question = t.question || 'Was this for the business? If so, the business owes you this back.'; }
+      }
+    }
+  }
+  const gstOf = (amt, how) => how === 'none' ? 0 : how === 'custom' ? null : Math.round(Number(amt) * 5 / 105 * 100) / 100;
+  async function stmtHome() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const L = root.HP_LIVE;
+    const [idx, can] = L ? await Promise.all([L.statements(), L.receiptAbilities()]) : [undefined, { canRead: false, canSave: false }];
+    if (id !== run) return;
+    const list = (idx && idx.list) || [];
+    const owedDoc = L ? await L.owed() : null;
+    if (id !== run) return;
+    const ow = ((owedDoc && owedDoc.items) || []).filter(x => !x.repaidAt);
+    const toK = ow.filter(x => x.direction === 'toKeith'), toB = ow.filter(x => x.direction === 'toBusiness');
+    const osum = l => l.reduce((a, x) => a + Number(x.amount || 0), 0);
+    const owedBox = ow.length ? `<div class="q"><h4>MONEY OWED</h4>
+      ${toK.length ? `<p><b>The business owes Keith ${$$(osum(toK))}</b> for ${toK.length} business purchase${toK.length === 1 ? '' : 's'} on his personal Mastercard.</p><table>${toK.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)}</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repK">Mark as paid back to Keith</button></div>` : ''}
+      ${toB.length ? `<p><b>Owed to the business ${$$(osum(toB))}</b> for personal purchases on the business Visas.</p><table>${toB.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)} (${esc(x.who)})</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repB">Mark as paid back to the business</button></div>` : ''}</div>` : '';
+    $('panel').innerHTML = `<div class="report questions stmts"><h3>CARD STATEMENTS</h3>${owedBox}
+      <div class="q"><h4>UPLOAD A STATEMENT</h4>
+        <p>A Visa, Mastercard or bank statement as a PDF, or photos of its pages. I'll read every transaction, then go through them with you: business or personal, which category, and the GST. Only the business ones go into your expenses.</p>
+        ${can.canRead && can.canSave ? `<label class="qa photo">Choose the statement (PDF or photos)<input id="stFile" type="file" accept="application/pdf,image/*" multiple hidden></label>` : '<p><b>Reading statements needs the arcade open in claude.ai.</b></p>'}
+        <p id="stStatus" class="small"></p></div>
+      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b><br><small>${esc(x.period || '')} · uploaded ${esc(String(x.uploadedAt || '').slice(0, 10))}</small></td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button></td></tr>`).join('')}</table></div>` : ''}
+      <p class="soon">The statement file is kept with your records. Card statements show the total but usually not the GST: I'll assume 5% GST is included unless you tell me otherwise. Keep the receipts for anything over $30, since the CRA wants a receipt to claim the GST back.</p></div>`;
+    $('panel').querySelectorAll('button[data-st]').forEach(b => b.onclick = () => stmtInterview(b.dataset.st));
+    if ($('repK')) $('repK').onclick = async () => { await L.markOwedRepaid('toKeith'); A.select(); say('Marked as paid back to you.'); stmtHome(); };
+    if ($('repB')) $('repB').onclick = async () => { await L.markOwedRepaid('toBusiness'); A.select(); say('Marked as paid back to the business.'); stmtHome(); };
+    const f = $('stFile');
+    if (f) f.onchange = async () => {
+      const files = Array.from(f.files || []);
+      if (!files.length) return;
+      const st = $('stStatus');
+      try {
+        st.textContent = 'Opening the statement...';
+        const blobs = await HP_STATEMENT.pages(files);
+        if (!blobs.length) { st.textContent = "I couldn't open that file. Try a PDF or photos of the pages."; return; }
+        const kept = [];
+        for (const file of files) { const r = await L.storeFile(file); if (r) kept.push({ id: r.id, name: file.name || 'statement' }); }
+        const got = await HP_STATEMENT.read(blobs, { categories: CATS, onProgress: (a, b, n) => { st.textContent = `Reading page${b > a ? 's' : ''} ${a}${b > a ? '-' + b : ''} of ${n}...`; } });
+        if (!got.transactions.length) { st.textContent = "I couldn't find any transactions on it. Is it a statement page with a list of purchases?"; return; }
+        // anything already filed from a receipt (same amount, within 3 days) is marked so it isn't counted twice
+        const months = [...new Set(got.transactions.map(t => t.date.slice(0, 7)))];
+        const filed = await L.expenseMonths(months) || {};
+        const have = Object.values(filed).flatMap(d => (d && d.items) || []);
+        for (const t of got.transactions) {
+          const m = have.find(x => Math.abs(Number(x.amount) - Number(t.amount)) < 0.01 && Math.abs(Date.parse(x.date) - Date.parse(t.date)) <= 3 * 864e5);
+          if (m) { t.decision = 'filed'; t.match = `${m.vendor}, ${m.date}`; }
+          if (Number(t.amount) < 0) t.business = t.business || 'maybe';
+          t.gstHow = 'inc5'; t.gst = gstOf(t.amount, 'inc5');
+        }
+        const doc = { id: Date.now().toString(36), name: files[0].name || 'statement', files: kept, uploadedAt: new Date().toISOString(), statement: got.statement, transactions: got.transactions, owner: '' };
+        await L.saveStatement(doc);
+        A.select();
+        stmtInterview(doc.id, doc);
+      } catch (e) {
+        st.textContent = e && e.code === 'not_granted' ? 'Reading files was turned off. Allow it in the arcade\'s permissions and try again.' : "Something went wrong reading that statement. Try again, or send photos of the pages.";
+      }
+    };
+    await say(list.length ? 'Upload a new statement, or pick up where we left off.' : "Send me a card statement and we'll go through it together. I'll only file what you tell me is business.");
+    if (id !== run) return;
+    acctChoices('stmt');
+  }
+
+  function stmtSave() {
+    clearTimeout(stmtSaveT);
+    const doc = stmt;
+    stmtSaveT = setTimeout(() => root.HP_LIVE.saveStatement(doc).catch(() => {}), 600);
+  }
+
+  async function stmtInterview(sid, doc) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    stmt = doc || await root.HP_LIVE.statement(sid);
+    if (id !== run) return;
+    if (!stmt) { $('panel').innerHTML = ''; await say("I can't find that statement."); acctChoices('stmt'); return; }
+    drawStmt();
+    const T = stmt.transactions, open = T.filter(t => !t.decision).length, filed = T.filter(t => t.decision === 'filed').length;
+    await say(!stmt.owner ? `I read ${T.length} transactions${filed ? `, ${filed} already filed from receipts` : ''}. First, whose card is this?` : open ? `${open} left to go through on this ${stmt.statement && stmt.statement.card || 'statement'}. Tap Business or Personal for each one.` : 'All of these are gone through. Add the business ones to your expenses when you\'re ready.');
+    if (id !== run) return;
+    acctChoices('stmt');
+  }
+
+  function drawStmt() {
+    const T = stmt.transactions, st = stmt.statement || {};
+    if (!stmt.owner) {
+      const g = guessOwner(st);
+      $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
+        <div class="q"><h4>WHOSE CARD IS THIS?</h4><p>I found ${T.length} transactions. Which card is it?</p>
+        <div class="qbtns">${Object.entries(OWNERS).map(([k, o]) => `<button class="qa ${g === k ? 'on' : ''}" data-owner="${k}">${esc(o.label)}</button>`).join('')}</div>
+        <p class="small">Business Visas: everything is business unless you tell me otherwise. Your personal Mastercard: I'll ask about each item, and anything for the business goes into your expenses and on the list of what the business owes you.</p></div></div>`;
+      $('panel').querySelectorAll('button[data-owner]').forEach(b => b.onclick = () => { A.select(); applyOwner(b.dataset.owner); stmtSave(); drawStmt();
+        const O = OWNERS[b.dataset.owner], n = stmt.transactions.filter(t => !t.decision).length;
+        say(O.business === true ? `Got it, business card. I've marked everything as business except ${n} that look${n === 1 ? 's' : ''} personal. Check those, and pick categories.` : O.business === false ? `Got it, your personal card. ${n} might be for the business. Tell me which, and I'll track what the business owes you.` : `Okay. Let's go through all ${n} together.`); });
+      return;
+    }
+    const O = OWNERS[stmt.owner] || OWNERS.other;
+    const left = T.filter(t => !t.decision).length, biz = T.filter(t => t.decision === 'business'), toAdd = biz.filter(t => !t.added);
+    const persOnBiz = O.business === true ? T.filter(t => t.decision === 'personal' && Number(t.amount) > 0) : [];
+    const sum = l => l.reduce((a, t) => a + Number(t.amount || 0), 0);
+    const card = (t, i) => {
+      const flag = t.decision ? '' : t.business === 'personal' ? '<span class="tag">LOOKS PERSONAL</span>' : t.business === 'maybe' ? '<span class="tag wo">ASK</span>' : '<span class="tag ok">LOOKS LIKE BUSINESS</span>';
+      const decided = t.decision === 'business' ? `<span class="tag ok">BUSINESS${t.added ? ' · ADDED' : ''}</span>` : t.decision === 'personal' ? '<span class="tag">PERSONAL</span>' : t.decision === 'filed' ? `<span class="tag ok">ALREADY FILED</span> <small>${esc(t.match || '')}</small>` : t.decision === 'skip' ? '<span class="tag">SKIPPED</span>' : '';
+      const body = t.decision === 'business' && !t.added ? `
+        <div class="qbtns cats">${CATS.map(c => `<button class="qa ${t.category === c ? 'on' : ''}" data-i="${i}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        <p class="small">GST on it:</p><div class="qbtns">
+          <button class="qa ${t.gstHow === 'inc5' ? 'on' : ''}" data-i="${i}" data-gst="inc5">5% included (${$$(gstOf(t.amount, 'inc5'))})</button>
+          <button class="qa ${t.gstHow === 'none' ? 'on' : ''}" data-i="${i}" data-gst="none">No GST</button>
+          <label class="rf gstc">Other <input type="number" step="0.01" inputmode="decimal" data-i="${i}" data-gstv value="${t.gstHow === 'custom' ? esc(t.gst) : ''}"></label></div>
+        <label class="rf"><span>What it was for (optional)</span><input type="text" data-i="${i}" data-note value="${esc(t.note || '')}"></label>` : '';
+      const ask = !t.decision && t.question ? `<p class="pq">${esc(t.question)}</p>` : '';
+      const buttons = t.added ? '' : `<div class="qbtns">${['business', 'personal', 'skip'].map(d => `<button class="qa ${t.decision === d ? 'on' + (d === 'personal' ? ' no' : '') : ''}" data-i="${i}" data-d="${d}">${d === 'business' ? 'Business' : d === 'personal' ? 'Personal' : 'Skip'}</button>`).join('')}${t.decision === 'filed' ? `<button class="qa" data-i="${i}" data-d="business">Not the same, it's business too</button>` : ''}</div>`;
+      return `<div class="q tx ${t.decision ? 'done' : ''}"><div class="txh"><span>${esc(fmtDate(t.date))}</span><b>${esc(t.description || '')}</b><span class="amt">${$$(t.amount)}</span></div>${flag}${decided}${ask}${buttons}${body}</div>`;
+    };
+    const firstOpen = T.findIndex(t => !t.decision);
+    $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
+      <p class="small">${esc(O.label)} <button class="qa tiny" id="stOwner">change</button></p>
+      <div class="kpis"><div>Transactions<br><span class="big">${T.length}</span></div><div>Left to go through<br><span class="big">${left}</span></div><div>Business<br><span class="big">${$$(sum(biz))}</span>${biz.length} items</div><div>Personal<br><span class="big">${$$(sum(T.filter(t => t.decision === 'personal')))}</span></div>
+        ${O.business === false ? `<div>Business owes ${esc(O.who)}<br><span class="big">${$$(sum(biz))}</span></div>` : ''}${persOnBiz.length ? `<div>Personal on the business card (owed to the business)<br><span class="big">${$$(sum(persOnBiz))}</span></div>` : ''}</div>
+      ${T.map(card).join('')}
+      <div class="q send"><p class="small">${toAdd.length ? `${toAdd.length} business item${toAdd.length === 1 ? '' : 's'} (${$$(sum(toAdd))}) ready to add. Each goes into the month of its date.` : biz.length ? 'All business items are in your expenses.' : 'Mark the business ones, then add them here.'}</p>
+        <button class="qa send" id="stAdd" ${toAdd.length && !toAdd.some(t => !t.category) ? '' : 'disabled'}>Add ${toAdd.length || ''} business item${toAdd.length === 1 ? '' : 's'} to my expenses</button>
+        ${toAdd.some(t => !t.category) ? '<span class="small"> Pick a category for each business item first.</span>' : ''}
+        <span id="stMsg" class="small"></span></div>
+      ${(stmt.files || []).length ? `<p class="soon">Statement on file: ${stmt.files.map(f => `<a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.name)}</a>`).join(', ')}</p>` : ''}</div>`;
+    const P = $('panel');
+    if ($('stOwner')) $('stOwner').onclick = () => { stmt.owner = ''; drawStmt(); };
+    P.querySelectorAll('button[data-d]').forEach(b => b.onclick = () => {
+      const t = T[+b.dataset.i]; t.decision = b.dataset.d;
+      if (t.decision === 'business' && !CATS.includes(t.category)) t.category = '';
+      A.select(); stmtSave(); drawStmt();
+      const next = P.querySelector('.q.tx:not(.done)');
+      if (t.decision !== 'business' && next) next.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    P.querySelectorAll('button[data-cat]').forEach(b => b.onclick = () => { T[+b.dataset.i].category = b.dataset.cat; A.select(); stmtSave(); drawStmt(); });
+    P.querySelectorAll('button[data-gst]').forEach(b => b.onclick = () => { const t = T[+b.dataset.i]; t.gstHow = b.dataset.gst; t.gst = gstOf(t.amount, t.gstHow); stmtSave(); drawStmt(); });
+    P.querySelectorAll('input[data-gstv]').forEach(inp => inp.onchange = () => { const t = T[+inp.dataset.i]; t.gstHow = 'custom'; t.gst = Math.round(Number(inp.value || 0) * 100) / 100; stmtSave(); drawStmt(); });
+    P.querySelectorAll('input[data-note]').forEach(inp => inp.onchange = () => { T[+inp.dataset.i].note = inp.value; stmtSave(); });
+    $('stAdd').onclick = async () => {
+      const add = T.filter(t => t.decision === 'business' && !t.added && t.category);
+      if (!add.length) return;
+      $('stAdd').disabled = true; $('stMsg').textContent = ' Filing...';
+      const byMonth = {};
+      for (const t of add) (byMonth[t.date.slice(0, 7)] = byMonth[t.date.slice(0, 7)] || []).push(t);
+      try {
+        const personalCard = O.business === false;
+        for (const [m, l] of Object.entries(byMonth)) {
+          await root.HP_LIVE.addExpenses(m, l.map(t => ({ date: t.date, vendor: t.description, category: t.category, amount: Math.round(Number(t.amount) * 100) / 100, gst: Number(t.gst || 0),
+            paidWith: O.label + (st.last4 ? ' ' + st.last4 : ''), reimburse: personalCard ? O.who : '',
+            note: [t.note, personalCard ? `Paid personally by ${O.who}: owed back to ${O.who}` : '', 'From ' + (st.card || 'card') + ' statement' + (st.period ? ' ' + st.period : '')].filter(Boolean).join('. '),
+            photoId: '', statementId: stmt.id, enteredIn: 'statement', enteredAt: new Date().toISOString() })));
+          l.forEach(t => { t.added = true; });
+        }
+        const owed = [];
+        if (personalCard) add.forEach((t, k) => owed.push({ id: stmt.id + '-' + T.indexOf(t), date: t.date, vendor: t.description, amount: Math.round(Number(t.amount) * 100) / 100, who: O.who, direction: 'toKeith', statementId: stmt.id }));
+        persOnBiz.filter(t => !t.owedLogged).forEach(t => { t.owedLogged = true; owed.push({ id: stmt.id + '-' + T.indexOf(t), date: t.date, vendor: t.description, amount: Math.round(Number(t.amount) * 100) / 100, who: O.who, direction: 'toBusiness', statementId: stmt.id }); });
+        if (owed.length) await root.HP_LIVE.addOwed(owed);
+        await root.HP_LIVE.saveStatement(stmt);
+        A.select();
+        drawStmt();
+        say(`Filed ${add.length} business item${add.length === 1 ? '' : 's'}, ${$$(sum(add))}, into ${Object.keys(byMonth).map(monthName).join(', ')}.` + (personalCard ? ` The business now owes you ${$$(sum(add))} for these. It's on the "owed" list on the Card statements page.` : '') + (persOnBiz.length ? ` ${$$(sum(persOnBiz))} of personal purchases on the business card is listed as owed to the business.` : ''));
+      } catch (e) { $('stAdd').disabled = false; $('stMsg').textContent = " Couldn't save just now. Try again in a minute."; }
+    };
+    if (firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
+  }
 
   /* ------------------------------------------------ Expenses by month */
   const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };

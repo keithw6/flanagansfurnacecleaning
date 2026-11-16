@@ -74,6 +74,8 @@
     p.text(cx[0], yy, 'Total', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
     p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
     if (meals) { yy += 16; p.text(M, yy, `Meals are 50% deductible: ${money(meals)} spent, ${money(meals / 2)} deductible.`, { size: 8, color: DIM }); }
+    const reimb = items.filter(x => x.reimburse);
+    if (reimb.length) { yy += 16; p.text(M, yy, `Paid personally and owed back: ${reimb.map(x => x.reimburse).filter((v, i, a) => a.indexOf(v) === i).join(', ')} ${money(reimb.reduce((s, x) => s + Number(x.amount || 0), 0))} (${reimb.length} item${reimb.length === 1 ? '' : 's'}, marked * below).`, { size: 8, bold: true }); }
     yy += 26;
 
     // every receipt
@@ -98,7 +100,7 @@
       p.text(col[2], yy, fit(x.category, 8.5, 116), { size: 8.5 });
       p.text(col[3], yy, fit(x.paidWith, 8.5, 78), { size: 8.5 });
       p.text(col[5], yy, money(x.gst), { size: 8.5, align: 'right' });
-      p.text(col[6], yy, money(x.amount), { size: 8.5, align: 'right' });
+      p.text(col[6], yy, money(x.amount) + (x.reimburse ? '*' : ''), { size: 8.5, align: 'right' });
       if (x.note) { yy += 11; p.text(col[1], yy, fit(x.note, 7.5, W - M - col[1] - 70), { size: 7.5, color: DIM }); }
       yy += 3; p.line(M, yy, W - M, yy, [0.92, 0.93, 0.92], 0.4);
     });

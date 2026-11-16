@@ -93,6 +93,53 @@
         }).filter(m => m.count).sort((a, b) => b.month.localeCompare(a.month));
       } catch (e) { return undefined; }
     },
+    /* Statements: penny/statements = {list:[{id,name,card,period,uploadedAt,count,decided,added}]}, penny/stmt-<id> = the statement */
+    async statements() { return read('statements', 'penny'); },
+    async statement(id) { return read('stmt-' + id, 'penny'); },
+    async saveStatement(doc) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      await db.collection('penny').doc('stmt-' + doc.id).set(doc);
+      const ref = db.collection('penny').doc('statements'), cur = await ref.get();
+      const list = ((cur.exists && cur.data().list) || []).filter(x => x.id !== doc.id);
+      const t = doc.transactions || [];
+      list.unshift({ id: doc.id, name: doc.name, card: (doc.statement || {}).card || '', period: (doc.statement || {}).period || '', uploadedAt: doc.uploadedAt,
+        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length });
+      await ref.set({ list: list.slice(0, 60) });
+    },
+    /* Money between Keith/Hannah and the business: penny/owed = {items:[{id, date, vendor, amount, who, direction:'toKeith'|'toBusiness', statementId, repaidAt}]} */
+    async owed() { return read('owed', 'penny'); },
+    async addOwed(items) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('owed'), cur = await ref.get();
+      const have = (cur.exists && cur.data().items) || [];
+      const ids = new Set(have.map(x => x.id));
+      await ref.set({ items: have.concat(items.filter(x => !ids.has(x.id))) });
+    },
+    async markOwedRepaid(direction, who) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('owed'), cur = await ref.get();
+      const at = new Date().toISOString();
+      const items = ((cur.exists && cur.data().items) || []).map(x => (!x.repaidAt && x.direction === direction && (!who || x.who === who)) ? Object.assign({}, x, { repaidAt: at }) : x);
+      await ref.set({ items });
+      return { items };
+    },
+    /* Add several expenses to one month at once. */
+    async addExpenses(month, items) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('penny').doc('expenses-' + month), cur = await ref.get();
+      const doc = cur.exists ? cur.data() : { month, items: [] };
+      await ref.set({ month, items: (doc.items || []).concat(items) });
+    },
+    /* Keep an uploaded file (statement PDF or photo). Resolves {id, url} or null. */
+    async storeFile(file) {
+      const assets = await timeout(assetsP, 6000);
+      if (!assets) return null;
+      try { const r = await assets.upload(file); return { id: r.id, url: r.url }; } catch (e) { return null; }
+    },
     /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
