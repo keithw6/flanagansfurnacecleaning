@@ -61,7 +61,7 @@
     run++;
     if (typing) { typing = null; }
     $('panel').innerHTML = ''; $('choices').innerHTML = ''; $('hint').innerHTML = '';
-    current = [];
+    current = []; onQuestions = false;
     return run;
   }
 
@@ -770,8 +770,26 @@
   async function loadReport() {
     if (report) return report;
     try { report = await api.officeReport(store.get()); } catch (e) { report = null; }
+    // In claude.ai, Rosa's runs keep a fresher copy in the arcade's database.
+    const L = root.HP_LIVE ? await root.HP_LIVE.load() : undefined;
+    if (L) {
+      report = Object.assign({}, report || {});
+      if (L.report && L.report.capacity && !report.live) Object.assign(report, L.report, { fromRosa: true });
+      report.inbox = L.inbox || null;
+      if (!liveHooked) {
+        liveHooked = true;
+        root.HP_LIVE.onInbox(ib => {
+          if (!report) return;
+          const was = report.inbox && report.inbox.status;
+          report.inbox = ib;
+          if (onQuestions) drawQuestions(report);
+          if (onQuestions && was === 'sent' && ib && ib.status !== 'sent') rosaSays(resultLine(ib));
+        });
+      }
+    }
     return report;
   }
+  var liveHooked = false, onQuestions = false, root = window;
 
   // Once per visit: if days are overbooked, Rosa walks the report to Grace.
   async function maybeHandOff() {
@@ -800,7 +818,11 @@
   /* Rosa's open questions from her morning run. Answers go back to her
      booking-desk session (the arcade can't change ServiceMonster itself). */
   const answers = {};
-  const inboxCount = r => r && r.inbox ? r.inbox.warranty.length + r.inbox.drive.length + r.inbox.ready.length : 0;
+  let sending = false;
+  const inboxCount = r => r && r.inbox && (r.inbox.status || 'open') === 'open' ? (r.inbox.warranty || []).length + (r.inbox.drive || []).length + (r.inbox.ready || []).length : 0;
+  const resultLine = ib => ib && ib.results && ib.results.length ? 'Done, boss. ' + ib.results.join(' ') : (ib && ib.status === 'problem' ? 'I hit a problem and changed nothing: ' + (ib.note || 'see my session.') : 'All done.');
+  async function rosaSays(line) { await say(line); }
+  let answersFor = null;
   const cash = n => "$" + Number(n).toFixed(2);
   const t12 = s => { const [h, m] = s.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
 
@@ -818,6 +840,18 @@
 
   function drawQuestions(r) {
     const I = r.inbox;
+    if (!I) { $('panel').innerHTML = ''; return; }
+    if (answersFor !== I.runId) { for (const k of Object.keys(answers)) delete answers[k]; answersFor = I.runId; }
+    const when = s => s ? new Date(s).toLocaleString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    if (I.status && I.status !== 'open') {
+      const head = I.status === 'sent' ? `<p>Your answers went to Rosa${I.sentAt ? ' at ' + esc(when(I.sentAt)) : ''}. She is re-checking ServiceMonster and making the changes. This updates by itself when she's done.</p><div class="loading">Rosa is on it</div>`
+        : I.status === 'problem' ? `<p><b>Rosa stopped and changed nothing:</b> ${esc(I.note || '')}</p>` : '<p>Nothing waiting for you. Everything from this run is handled.</p>';
+      const res = (I.results || []).length ? `<div class="q"><h4>WHAT ROSA DID</h4><ul>${I.results.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+      const held = (I.held || []).length ? `<div class="q info"><h4>HELD, NOTHING TO DO</h4><ul>${I.held.map(h => `<li><b>${esc(h.address)}</b> (${esc((h.pos || []).join(', '))}, ${esc(fmtDate(h.date))}): ${esc(h.why)}</li>`).join('')}</ul></div>` : '';
+      $('panel').innerHTML = `<div class="report questions"><h3>ROSA'S QUESTIONS · ${esc(I.status === 'sent' ? 'SENT' : I.status === 'problem' ? 'STOPPED' : 'ALL ANSWERED')}</h3><div class="q">${head}</div>${res}${held}<p class="soon">From Rosa's run, ${esc((I.generatedAt || '').replace('T', ' ').slice(0, 16))}.</p></div>`;
+      return;
+    }
+    I.warranty = I.warranty || []; I.ready = I.ready || []; I.drive = I.drive || []; I.held = I.held || [];
     const btns = (key, yes, no) => `<div class="qbtns"><button class="qa ${answers[key] === 'yes' ? 'on' : ''}" data-k="${esc(key)}" data-v="yes">${esc(yes)}</button><button class="qa ${answers[key] === 'no' ? 'on no' : ''}" data-k="${esc(key)}" data-v="no">${esc(no)}</button></div>`;
     let q = 0;
     const cards = [
@@ -832,26 +866,37 @@
     const text = replyText(I), all = cards.length && Object.keys(answers).length >= cards.length;
     const send = `<div class="q send"><p class="small">The arcade can't change ServiceMonster itself. Your answers go to Rosa's booking desk, and she makes the changes there.</p>
       ${text ? `<pre class="reply">${esc(text)}</pre>` : ''}
-      <button class="qa send ${text ? '' : 'dim'}" id="qsend">${all ? 'Copy my answers for Rosa' : 'Copy the answers I\'ve picked'}</button>${I.session && text ? ` <a class="qa link" href="${esc(I.session)}" target="_blank" rel="noopener noreferrer">Open Rosa's booking desk &#8599;</a>` : ''}<span id="qsent" class="small"></span></div>`;
+      <button class="qa send ${text ? '' : 'dim'}" id="qsend">${all ? 'Send my answers to Rosa' : 'Send the answers I\'ve picked'}</button>${I.session && text ? ` <a class="qa link" href="${esc(I.session)}" target="_blank" rel="noopener noreferrer">Open Rosa's booking desk &#8599;</a>` : ''}<span id="qsent" class="small"></span></div>`;
     $('panel').innerHTML = `<div class="report questions"><h3>ROSA'S QUESTIONS · MORNING RUN</h3>${cards.join('')}${held}${send}<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p></div>`;
     $('panel').querySelectorAll('button.qa[data-k]').forEach(b => b.onclick = () => { answers[b.dataset.k] = b.dataset.v; A.select(); drawQuestions(r); });
     $('qsend').onclick = async () => {
-      if (!text) return;
+      if (!text || sending) return;
+      sending = true;
+      $('qsent').textContent = ' Sending to Rosa...';
+      const res = root.HP_LIVE ? await root.HP_LIVE.send(I.runId, Object.assign({}, answers), text) : { ok: false, how: 'none' };
+      sending = false;
+      if (res.ok) { A.select(); I.status = 'sent'; I.sentAt = new Date().toISOString(); drawQuestions(r); rosaSays("Got it, boss. I'm on it. I'll check ServiceMonster again before I change anything."); return; }
       let ok = false;
       try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { }
-      if (!ok) { const r = document.createRange(); r.selectNodeContents($('panel').querySelector('pre.reply')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); try { ok = document.execCommand('copy'); } catch (e) { } }
-      $('qsent').textContent = ok ? ' Copied. Open Rosa\'s booking desk and paste it there.' : ' Select the answer text above, copy it, and paste it into Rosa\'s booking desk.';
+      if (!ok) { const rg = document.createRange(); rg.selectNodeContents($('panel').querySelector('pre.reply')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg); try { ok = document.execCommand('copy'); } catch (e) { } }
+      const why = res.how === 'task' ? (res.error === 'server_not_connected' || res.error === 'not_in_manifest' ? "I couldn't start Rosa's task: allow the Claude Code Remote connector for this page. " : "I couldn't start Rosa's task just now. ") : res.how === 'db' ? "I couldn't save your answers just now. " : '';
+      $('qsent').textContent = ' ' + why + (ok ? 'Your answers are copied: open Rosa\'s booking desk and paste them there.' : 'Copy the answer text above and paste it into Rosa\'s booking desk.');
     };
   }
 
   async function csQuestions() {
     const id = clear();
+    onQuestions = true;
     S.office.select('rosa');
     nameplate('ROSA · CUSTOMER SERVICE');
     const r = await loadReport();
     if (id !== run) return;
     const n = inboxCount(r);
-    if (!n) { $('panel').innerHTML = ''; await say("No questions for you today, boss. Everything from this morning is handled."); if (id === run) csChoices(); return; }
+    if (!n) {
+      if (r && r.inbox) drawQuestions(r); else $('panel').innerHTML = '';
+      await say(r && r.inbox && r.inbox.status === 'sent' ? "I'm working on your answers now, boss." : r && r.inbox && r.inbox.status === 'problem' ? "I stopped without changing anything. Have a look." : "No questions for you right now, boss. Everything is handled.");
+      if (id === run) csChoices('q'); return;
+    }
     drawQuestions(r);
     const I = r.inbox;
     await say(`Morning, boss. I've got ${n} question${n === 1 ? '' : 's'} for you from this morning's run.`
@@ -864,7 +909,7 @@
   function csChoices(current) {
     const n = inboxCount(report);
     const list = [
-      ...(n ? [{ label: `My questions (${n})`, kind: current === 'q' ? 'primary' : '', onPick: () => csQuestions() }] : []),
+      ...(n || (report && report.inbox) ? [{ label: n ? `My questions (${n})` : 'My questions', kind: current === 'q' ? 'primary' : '', onPick: () => csQuestions() }] : []),
       { label: 'Jayman bookings', kind: current === 'jay' ? 'primary' : '', onPick: () => csReport('jay') },
       { label: 'Booking % by route', kind: current === 'route' ? 'primary' : '', onPick: () => csReport('route') },
       { label: 'Total booking %', kind: current === 'total' ? 'primary' : '', onPick: () => csReport('total') },
@@ -887,7 +932,7 @@
     }
     const cap = r.capacity, sumr = cap.summary, routes = Object.keys(cfg.office.routes);
     const days = cap.days.filter(d => d.work || d.total.hours);
-    const foot = r.live ? `<p class="soon">Live from ServiceMonster, ${esc(r.generatedAt.replace('T', ' ').slice(0, 16))}.</p>`
+    const foot = r.live || r.fromRosa ? `<p class="soon">${r.fromRosa ? 'From Rosa\'s last run' : 'Live from ServiceMonster'}, ${esc(r.generatedAt.replace('T', ' ').slice(0, 16))}.</p>`
       : `<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p>`;
     const head = `Next ${cfg.office.daysAhead} days · a full day is ${cfg.office.dayHours} h (4 calls x 2 h)`;
     let html = '', line = '';

@@ -49,3 +49,28 @@ and stops if its control search (PO 02210518 -> WO 45769) fails.
 Run by hand in a Claude cloud session with the ServiceMonster login saved:
 
     NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node tools/rosa/jayman-sm.mjs check plan.json
+
+## Answers from the arcade
+
+The arcade (claude.ai artifact https://claude.ai/artifact/UzjFfo9KUmPYRwdU25ieFS)
+has a small database that only Keith (and editors) can read or write:
+
+| doc | written by | what |
+|---|---|---|
+| `rosa/report` | Rosa's runs | the Customer Service reports (`office-snapshot.mjs --out=arcade` → `arcade/report.json`) |
+| `rosa/inbox` | Rosa's runs | today's questions: `runId`, `status` (`open`, `sent`, `done`, `problem`), `warranty[]`, `ready[]`, `drive[]`, `held[]`, `plan[]`, `results[]` (`arcade/inbox.json`) |
+| `rosa/answers` | the arcade | what Keith tapped: `runId`, `answers` (`w:<ref>`, `b:<POs>`, `d:<date>` = `yes`/`no`), `text` |
+
+1. The morning booking desk writes `rosa/report` and `rosa/inbox` (status `open`) after
+   its report, with the ArtifactData tool (`set`, `file_path`, pin `if_version`).
+2. Keith taps his answers on Rosa's desk and presses Send. The arcade saves
+   `rosa/answers`, starts the task **Rosa - apply Keith's arcade answers**
+   (`trig_01RRWw3aAMFKPC6pWz4qKiGX`) through the Claude Code Remote connector, and sets
+   the inbox to `sent`.
+3. That task checks the run ids match and the inbox isn't already `done`, re-checks
+   ServiceMonster for each approved item, applies it, refreshes `rosa/report`, sets
+   the inbox to `done` with `results`, and sends Keith a push notification. The arcade
+   shows the results as soon as the inbox changes.
+
+If Keith answers in the booking-desk session instead, the desk applies the answers and
+sets the inbox to `done` itself, so the arcade never asks twice.
