@@ -17,11 +17,11 @@
   const listeners = [];
   let inboxSub = null, lastInbox;
 
-  async function read(id) {
+  async function read(id, col) {
     const db = await timeout(dbP, 10000);
     if (!db) return undefined;
     try {
-      const s = await timeout(db.collection('rosa').doc(id).get(), 8000);
+      const s = await timeout(db.collection(col || 'rosa').doc(id).get(), 8000);
       return s && s.exists ? s.data() : null;
     } catch (e) { return undefined; }
   }
@@ -33,6 +33,12 @@
       if (report === undefined && inbox === undefined) return undefined;
       watchInbox();
       return { report: report || null, inbox: inbox || null };
+    },
+    /* Penny's brief and this month's expenses: {brief, expenses} or undefined. */
+    async penny(month) {
+      const [brief, expenses] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny')]);
+      if (brief === undefined && expenses === undefined) return undefined;
+      return { brief: brief || null, expenses: expenses || null };
     },
     /* Called with the new inbox whenever Rosa changes it. */
     onInbox(fn) { listeners.push(fn); if (lastInbox !== undefined) fn(lastInbox); },

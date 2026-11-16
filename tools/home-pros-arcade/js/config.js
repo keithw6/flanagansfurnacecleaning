@@ -56,7 +56,7 @@ const HP_CONFIG = {
     {
       id: 'penny', home: 'acct', seat: 'seat-t2', name: 'Penny', title: 'Accounting',
       intro: "Numbers are my happy place. If money moves, I know about it.",
-      duties: ['Revenue by day, week and month', 'Invoices, unpaid balances and GST', 'Average job value and travel fees collected'],
+      duties: ['Nightly brief at 8 PM: jobs done, revenue, billed, paid, GST and km', 'Running list of jobs not paid yet (not Jayman), plus commercial accounts on billing', 'Month to date compared with last month', 'Sorts your receipts into expense categories with you each night'],
     },
     {
       id: 'max', home: 'mkt', seat: 'seat-t3', name: 'Max', title: 'Marketing',

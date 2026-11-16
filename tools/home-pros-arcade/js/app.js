@@ -689,6 +689,7 @@
     const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
     if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
     if (except !== 'rosa') list.push({ label: 'Customer Service desk', onPick: csDesk });
+    if (except !== 'penny') list.push({ label: 'Accounting desk', onPick: () => acctDesk() });
     list.push(inMeeting
       ? { label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn }
       : { label: 'Call a board meeting', kind: 'primary', onPick: callMeeting });
@@ -750,6 +751,7 @@
       return choices(boardChoices());
     }
     if (dirId === 'rosa') return csDesk();
+    if (dirId === 'penny') return acctDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
@@ -971,6 +973,107 @@
     await say(line);
     if (id !== run) return;
     csChoices(kind);
+  }
+
+  /* ------------------------------------------------ Accounting desk (Penny) */
+  let ledger = null;
+  const $$ = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
+  async function loadLedger() {
+    if (ledger) return ledger;
+    const snap = (window.HP_OFFICE_DATA || {}).penny || null;
+    ledger = { brief: snap, expenses: null, fromSnapshot: !!snap };
+    const month = (snap ? snap.date : new Date().toISOString()).slice(0, 7);
+    const L = root.HP_LIVE ? await root.HP_LIVE.penny(month) : undefined;
+    if (L && L.brief) ledger = { brief: L.brief, expenses: L.expenses, fromSnapshot: false };
+    if (L && !L.brief && L.expenses) ledger.expenses = L.expenses;
+    return ledger;
+  }
+  function acctChoices(current) {
+    choices([
+      { label: 'Daily brief', kind: current === 'day' ? 'primary' : '', onPick: () => acctReport('day') },
+      { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
+      { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
+      { label: 'Expenses', kind: current === 'exp' ? 'primary' : '', onPick: () => acctReport('exp') },
+      { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
+    ]);
+  }
+  async function acctDesk() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    await loadLedger();
+    if (id !== run) return;
+    if (ledger.brief) return acctReport('day');
+    $('panel').innerHTML = '';
+    await say("My first brief comes in tonight at 8, boss. Check back after that.");
+    if (id === run) acctChoices();
+  }
+  function kpis(s, prev) {
+    const cmp = (a, b) => { const p = pct(a, b); return p == null ? '' : `<small class="${p < 0 ? 'down' : 'up'}">${p >= 0 ? '+' : ''}${p}% vs last month</small>`; };
+    return `<div class="kpis">
+      <div>Jobs done<br><span class="big">${s.jobs}</span>${prev ? cmp(s.jobs, prev.jobs) : ''}</div>
+      <div>Revenue<br><span class="big">${$$(s.revenue)}</span>${prev ? cmp(s.revenue, prev.revenue) : ''}</div>
+      <div>Billed<br><span class="big">${$$(s.billed)}</span></div>
+      <div>Paid<br><span class="big">${$$(s.paid)}</span></div>
+      <div>GST collected<br><span class="big">${$$(s.gst)}</span></div>
+      <div>Km driven<br><span class="big">~${s.km}</span></div>
+      <div>Avg job<br><span class="big">${$$(s.avgJob)}</span>${prev ? cmp(s.avgJob, prev.avgJob) : ''}</div>
+      <div>Revenue per km<br><span class="big">${$$(s.revPerKm)}</span></div></div>`;
+  }
+  async function acctReport(kind) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    $('panel').innerHTML = '<div class="loading">Pulling the books</div>';
+    await loadLedger();
+    if (id !== run) return;
+    const B = ledger.brief, E = ledger.expenses;
+    if (!B) { $('panel').innerHTML = ''; await say("Nothing from me yet, boss. My first brief is tonight at 8."); if (id === run) acctChoices(kind); return; }
+    const foot = `<p class="soon">${ledger.fromSnapshot ? 'Snapshot of' : 'From'} Penny's brief for ${esc(fmtDate(B.date))}, made ${esc(String(B.generatedAt).replace('T', ' ').slice(0, 16))}. ${esc((B.notes || []).join(' '))}</p>${B.session ? `<p class="soon"><a class="qa link" href="${esc(B.session)}" target="_blank" rel="noopener noreferrer">Open Penny's session (receipts, questions) &#8599;</a></p>` : ''}`;
+    const expItems = E && E.items ? E.items : [];
+    const expDay = expItems.filter(x => x.date === B.date), expMonth = expItems;
+    const tot = l => l.reduce((s, x) => s + Number(x.amount || 0), 0);
+    let html = '', line = '';
+    if (kind === 'day') {
+      const T = B.today;
+      const rows = T.list.map(j => `<tr><td>WO ${esc(j.wo)}</td><td>${esc(j.account)}</td><td>${$$(j.total)}</td><td><span class="tag ${j.status === 'Paid' ? 'ok' : j.status === 'Not paid' ? '' : 'wo'}">${esc(j.status.toUpperCase())}</span>${j.status === 'Not paid' ? ' owes ' + $$(j.balance) : ''}</td></tr>`).join('');
+      html = `<div class="report"><h3>DAILY BRIEF · ${esc(fmtDate(B.date).toUpperCase())}</h3>${kpis(T)}
+        <table><tr><th>Job</th><th>Customer</th><th>Total</th><th>Paid?</th></tr>${rows || '<tr><td colspan="4">No jobs completed.</td></tr>'}</table>
+        <p>Expenses today: <b>${$$(tot(expDay))}</b>${expDay.length ? ` (${expDay.length} receipt${expDay.length === 1 ? '' : 's'})` : ' (none recorded yet)'}. Revenue less expenses: <b>${$$(T.revenue - tot(expDay))}</b>.</p>${foot}</div>`;
+      const np = T.list.filter(j => j.status === 'Not paid');
+      line = T.jobs ? `${T.jobs} job${T.jobs === 1 ? '' : 's'} done on ${fmtDate(B.date)}: ${$$(T.revenue)} revenue, ${$$(T.paid)} paid, about ${T.km} km.` + (np.length ? ` ${np.length} not paid yet.` : ' Everything that should be paid is paid.') : `No completed jobs on ${fmtDate(B.date)}, boss.`;
+    } else if (kind === 'month') {
+      const M = B.month, P = B.lastMonth;
+      const rows = (M.days || []).map(d => `<tr><td>${esc(fmtDate(d.date))}</td><td>${d.jobs}</td><td>${$$(d.revenue)}</td><td>~${d.km}</td></tr>`).join('');
+      html = `<div class="report"><h3>THIS MONTH · ${esc(fmtDate(M.from))} TO ${esc(fmtDate(M.to))}</h3>${kpis(M, P)}
+        <p>Same days last month (${esc(fmtDate(P.from))} to ${esc(fmtDate(P.to))}): ${P.jobs} jobs, ${$$(P.revenue)} revenue, ${$$(P.paid)} paid, ~${P.km} km.</p>
+        <p>Expenses this month: <b>${$$(tot(expMonth))}</b>. Revenue less expenses: <b>${$$(M.revenue - tot(expMonth))}</b>. GST to set aside: <b>${$$(M.gst)}</b>${expMonth.length ? `, less GST paid on receipts ${$$(expMonth.reduce((s, x) => s + Number(x.gst || 0), 0))}` : ''}.</p>
+        <table><tr><th>Day</th><th>Jobs</th><th>Revenue</th><th>Km</th></tr>${rows}</table>${foot}</div>`;
+      const p = pct(M.revenue, P.revenue);
+      line = `Month to date: ${M.jobs} jobs and ${$$(M.revenue)} revenue` + (p == null ? '.' : `, ${p >= 0 ? 'up' : 'down'} ${Math.abs(p)}% on the same days last month.`);
+    } else if (kind === 'unpaid') {
+      const U = B.unpaid;
+      const tbl = l => l.map(o => `<tr><td>WO ${esc(o.wo)}</td><td>${esc(o.account)}</td><td>${esc(o.completed ? fmtDate(o.completed) : '')}</td><td>${o.days != null ? o.days + ' days' : ''}</td><td>${$$(o.balance)}</td></tr>`).join('');
+      html = `<div class="report"><h3>NOT PAID YET · RUNNING TOTAL</h3>
+        <div class="kpis"><div>Not paid<br><span class="big">${$$(U.notPaidTotal)}</span>${U.notPaid.length} jobs</div><div>Over 30 days<br><span class="big">${$$(U.over30)}</span></div><div>Over 60 days<br><span class="big">${$$(U.over60)}</span></div><div>Commercial, billed<br><span class="big">${$$(U.commercialTotal)}</span>${U.commercial.length} jobs</div></div>
+        <table><tr><th>Job</th><th>Customer</th><th>Done</th><th>Age</th><th>Owes</th></tr>${tbl(U.notPaid)}</table>
+        ${U.commercial.length ? `<h3>COMMERCIAL, BILLED</h3><table>${tbl(U.commercial)}</table>` : ''}
+        ${(B.askCommercial || []).length ? `<p class="soon">Penny will ask you whether these are commercial accounts on billing: ${esc(B.askCommercial.map(a => a.name).join(', '))}.</p>` : ''}
+        <p class="soon">Every non-Jayman invoice in ServiceMonster with a balance, oldest first. Jayman jobs are billed through Supply Pro and are not listed.</p>${foot}</div>`;
+      line = `${U.notPaid.length} jobs not paid yet, ${$$(U.notPaidTotal)} in all. ${$$(U.over60)} of it is over 60 days old.`;
+    } else {
+      const cats = {}; for (const x of expMonth) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+      html = `<div class="report"><h3>EXPENSES · ${esc((E && E.month) || B.date.slice(0, 7))}</h3>
+        <div class="kpis"><div>Today<br><span class="big">${$$(tot(expDay))}</span></div><div>This month<br><span class="big">${$$(tot(expMonth))}</span></div><div>GST paid (ITCs)<br><span class="big">${$$(expMonth.reduce((s, x) => s + Number(x.gst || 0), 0))}</span></div></div>
+        ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>This month</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>
+        <table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${expMonth.slice().reverse().map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('')}</table>` : '<p>No receipts recorded yet. Each night Penny asks you for the day\'s receipts and sorts them into categories with you.</p>'}${foot}</div>`;
+      line = expMonth.length ? `${$$(tot(expMonth))} in expenses this month so far.` : "No receipts yet this month. I'll ask you for them each night after the brief.";
+    }
+    $('panel').innerHTML = html;
+    await say(line);
+    if (id !== run) return;
+    acctChoices(kind);
   }
 
   async function backToShop() {

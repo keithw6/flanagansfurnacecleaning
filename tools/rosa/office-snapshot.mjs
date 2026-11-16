@@ -51,6 +51,7 @@ if (dir) {
 }
 if (inbox && !inbox.warranty.length && !inbox.drive.length && !inbox.ready.length) inbox.status = 'done';
 const data = { generatedAt: now, capacity: cap, jayman, inbox };
+if (arg('penny') && existsSync(arg('penny'))) data.penny = JSON.parse(readFileSync(arg('penny'), 'utf8'));
 if (out) {
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'report.json'), JSON.stringify({ generatedAt: now, capacity: cap, jayman }));

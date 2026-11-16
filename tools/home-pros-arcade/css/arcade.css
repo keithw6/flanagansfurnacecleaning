@@ -295,3 +295,7 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .questions pre.reply { white-space: pre-wrap; background: #0c0f0d; border: 1px solid #39413d; padding: 8px; font-size: 17px; margin: 6px 0 8px; font-family: inherit; }
 .questions a.qa.link { display: inline-block; font-size: 18px; padding: 6px 12px; margin-left: 8px; border: 2px solid var(--edge); color: var(--edge); text-decoration: none; }
 .questions a.qa.link:hover { background: var(--edge); color: #0c0f0d; }
+.report .kpis small { display: block; font-size: 15px; }
+.report .kpis small.up { color: var(--edge); }
+.report .kpis small.down { color: #ff8a8a; }
+.report p { white-space: normal; font-size: 19px; }
