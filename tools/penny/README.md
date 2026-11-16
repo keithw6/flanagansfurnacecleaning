@@ -39,3 +39,12 @@ Supplies and materials; Tools and equipment; Advertising and marketing;
 Phone and internet; Office and software; Meals (50% deductible); Subcontractors;
 Insurance; Bank and card fees; Other. These follow the usual CRA business expense
 lines; Keith's accountant has the final say.
+
+## Write-offs (Nov 16, 2026)
+
+On Keith's instruction Penny marked 19 old invoices paid, $8,438.83, with
+`tools/penny/payoff.mjs`: every invoice completed before Jan 1, 2026 with a balance,
+and residential invoices (not Jayman, not commercial) completed Jan 1 to Jun 30, 2026.
+Each is a ServiceMonster credit with method `Write-off`, ref `PENNY-<WO>` and a memo.
+The list is in the arcade database at `penny/writeoffs`. The API cannot delete a
+credit; undo one in ServiceMonster itself.
