@@ -1272,7 +1272,7 @@
     'personal-keith': { label: "Keith's personal Mastercard", who: 'Keith', business: false },
     other: { label: 'Another card or account', who: 'Keith', business: null },
   };
-  const guessOwner = st => /master/i.test((st && st.card) || '') ? 'personal-keith' : '';
+  const guessOwner = st => { const c = (st && st.card) || '', h = (st && st.holder) || ''; if (/master/i.test(c)) return 'personal-keith'; if (/visa/i.test(c) && /hannah/i.test(h)) return 'biz-hannah'; if (/visa/i.test(c) && /keith/i.test(h)) return 'biz-keith'; return ''; };
   function applyOwner(o) {
     stmt.owner = o;
     const O = OWNERS[o];
@@ -1311,7 +1311,7 @@
         <p>A Visa, Mastercard or bank statement as a PDF, or photos of its pages. I'll read every transaction, then go through them with you: business or personal, which category, and the GST. Only the business ones go into your expenses.</p>
         ${can.canRead && can.canSave ? `<label class="qa photo">Choose the statement (PDF or photos)<input id="stFile" type="file" accept="application/pdf,image/*" multiple hidden></label>` : '<p><b>Reading statements needs the arcade open in claude.ai.</b></p>'}
         <p id="stStatus" class="small"></p></div>
-      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b><br><small>${esc(x.period || '')} · uploaded ${esc(String(x.uploadedAt || '').slice(0, 10))}</small></td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button></td></tr>`).join('')}</table></div>` : ''}
+      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b>${x.last4 ? ' ···' + esc(x.last4) : ''}${x.holder ? ` <small>(${esc(x.holder)})</small>` : ''}<br><small>${esc(x.period || '')} · ${esc(x.name || '')}</small>${x.check && x.check.ok === false ? `<br><small class="warnc">Found ${$$(x.check.foundPurchases)} of ${$$(x.check.printed)} printed: some lines may be missing</small>` : x.check && x.check.ok ? '<br><small class="okc">Matches the statement total</small>' : ''}</td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button>${x.files > 1 ? `<br><button class="qa" data-reread="${esc(x.id)}">Read the ${x.files} files separately</button>` : ''}</td></tr>`).join('')}</table></div>` : ''}
       <p class="soon">The statement file is kept with your records. Card statements show the total but usually not the GST: I'll assume 5% GST is included unless you tell me otherwise. Keep the receipts for anything over $30, since the CRA wants a receipt to claim the GST back.</p></div>`;
     $('panel').querySelectorAll('button[data-st]').forEach(b => b.onclick = () => stmtInterview(b.dataset.st));
     if ($('repK')) $('repK').onclick = async () => { await L.markOwedRepaid('toKeith'); A.select(); say('Marked as paid back to you.'); stmtHome(); };
@@ -1319,37 +1319,57 @@
     const f = $('stFile');
     if (f) f.onchange = async () => {
       const files = Array.from(f.files || []);
-      if (!files.length) return;
-      const st = $('stStatus');
-      try {
-        st.textContent = 'Opening the statement...';
-        const blobs = await HP_STATEMENT.pages(files);
-        if (!blobs.length) { st.textContent = "I couldn't open that file. Try a PDF or photos of the pages."; return; }
-        const kept = [];
-        for (const file of files) { const r = await L.storeFile(file); if (r) kept.push({ id: r.id, name: file.name || 'statement' }); }
-        const got = await HP_STATEMENT.read(blobs, { categories: CATS, onProgress: (a, b, n) => { st.textContent = `Reading page${b > a ? 's' : ''} ${a}${b > a ? '-' + b : ''} of ${n}...`; } });
-        if (!got.transactions.length) { st.textContent = "I couldn't find any transactions on it. Is it a statement page with a list of purchases?"; return; }
-        // anything already filed from a receipt (same amount, within 3 days) is marked so it isn't counted twice
-        const months = [...new Set(got.transactions.map(t => t.date.slice(0, 7)))];
-        const filed = await L.expenseMonths(months) || {};
-        const have = Object.values(filed).flatMap(d => (d && d.items) || []);
-        for (const t of got.transactions) {
-          const m = have.find(x => Math.abs(Number(x.amount) - Number(t.amount)) < 0.01 && Math.abs(Date.parse(x.date) - Date.parse(t.date)) <= 3 * 864e5);
-          if (m) { t.decision = 'filed'; t.match = `${m.vendor}, ${m.date}`; }
-          if (Number(t.amount) < 0) t.business = t.business || 'maybe';
-          t.gstHow = 'inc5'; t.gst = gstOf(t.amount, 'inc5');
-        }
-        const doc = { id: Date.now().toString(36), name: files[0].name || 'statement', files: kept, uploadedAt: new Date().toISOString(), statement: got.statement, transactions: got.transactions, owner: '' };
-        await L.saveStatement(doc);
-        A.select();
-        stmtInterview(doc.id, doc);
-      } catch (e) {
-        st.textContent = e && e.code === 'not_granted' ? 'Reading files was turned off. Allow it in the arcade\'s permissions and try again.' : "Something went wrong reading that statement. Try again, or send photos of the pages.";
-      }
+      if (files.length) await readStatements(files.map(file => ({ file })), $('stStatus'));
     };
+    $('panel').querySelectorAll('button[data-reread]').forEach(b => b.onclick = async () => {
+      const old = await L.statement(b.dataset.reread);
+      if (!old || !(old.files || []).length) return;
+      b.disabled = true;
+      await readStatements(old.files.map(x => ({ assetId: x.id, name: x.name })), $('stStatus'), old.id);
+    });
     await say(list.length ? 'Upload a new statement, or pick up where we left off.' : "Send me a card statement and we'll go through it together. I'll only file what you tell me is business.");
     if (id !== run) return;
     acctChoices('stmt');
+  }
+
+  // Read each statement file on its own; anything already in the expenses (receipts or an
+  // earlier statement) is marked "already filed" so it can't be counted twice.
+  async function readStatements(sources, st, replaces) {
+    const L = root.HP_LIVE, docs = [];
+    try {
+      for (let k = 0; k < sources.length; k++) {
+        const src = sources[k], label = `Statement ${k + 1} of ${sources.length}`;
+        let file = src.file, kept = null;
+        if (!file) { st.textContent = `${label}: opening ${src.name}...`; const r = await fetch('/_blob/' + src.assetId); file = new File([await r.blob()], src.name || 'statement.pdf', { type: r.headers.get('content-type') || 'application/pdf' }); kept = { id: src.assetId, name: src.name }; }
+        st.textContent = `${label}: opening ${file.name || 'the file'}...`;
+        const part = await HP_STATEMENT.prepare(file);
+        if (!part.text && !(part.images || []).length) { st.textContent = `${label}: I couldn't open ${file.name}. Skipping it.`; continue; }
+        if (!kept) { const r = await L.storeFile(file); if (r) kept = { id: r.id, name: file.name || 'statement' }; }
+        const got = await HP_STATEMENT.read(part, { categories: CATS, onProgress: (a, b2, n) => { st.textContent = part.text ? `${label}: reading ${file.name || 'the statement'}...` : `${label}: reading page${b2 > a ? 's' : ''} ${a}${b2 > a ? '-' + b2 : ''} of ${n}...`; } });
+        docs.push({ id: Date.now().toString(36) + k, name: file.name || 'statement', files: kept ? [kept] : [], readAs: part.text ? 'text' : 'images', uploadedAt: new Date().toISOString(), statement: got.statement, check: got.check, transactions: got.transactions, owner: '' });
+      }
+      if (!docs.length) { st.textContent = "I couldn't read any transactions from that."; return; }
+      // already filed? (receipts and earlier statements), and the same line in two overlapping statements
+      const months = [...new Set(docs.flatMap(d => d.transactions.map(t => t.date.slice(0, 7))))];
+      const filed = await L.expenseMonths(months) || {};
+      const have = Object.values(filed).flatMap(d => (d && d.items) || []);
+      const used = new Set(), seenHere = new Set();
+      for (const d of docs) for (const t of d.transactions) {
+        const key = t.date + '|' + Number(t.amount).toFixed(2) + '|' + String(t.description || '').toLowerCase().slice(0, 14);
+        if (seenHere.has(key)) { t.decision = 'filed'; t.match = 'also on another statement'; continue; }
+        seenHere.add(key);
+        const i = have.findIndex((x, j) => !used.has(j) && Math.abs(Number(x.amount) - Number(t.amount)) < 0.01 && Math.abs(Date.parse(x.date) - Date.parse(t.date)) <= 3 * 864e5);
+        if (i >= 0) { used.add(i); t.decision = 'filed'; t.match = `${have[i].vendor}, ${have[i].date}`; }
+        t.gstHow = 'inc5'; t.gst = gstOf(t.amount, 'inc5');
+      }
+      for (const d of docs) await L.saveStatement(d);
+      if (replaces) await L.removeStatement(replaces);
+      A.select();
+      st.textContent = `Read ${docs.length} statement${docs.length === 1 ? '' : 's'}: ${docs.reduce((a, d) => a + d.transactions.length, 0)} transactions.`;
+      if (docs.length === 1) stmtInterview(docs[0].id, docs[0]); else stmtHome();
+    } catch (e) {
+      st.textContent = e && e.code === 'not_granted' ? "Reading files was turned off. Allow it in the arcade's permissions and try again." : 'Something went wrong reading the statements. Try again, or send photos of the pages.';
+    }
   }
 
   function stmtSave() {
@@ -1365,6 +1385,13 @@
     stmt = doc || await root.HP_LIVE.statement(sid);
     if (id !== run) return;
     if (!stmt) { $('panel').innerHTML = ''; await say("I can't find that statement."); acctChoices('stmt'); return; }
+    if (!stmt.owner) {
+      // same card as one Keith already told us about? use that answer
+      const idx = await root.HP_LIVE.statements(), st0 = stmt.statement || {};
+      const same = ((idx && idx.list) || []).find(x => x.id !== stmt.id && x.owner && x.card === (st0.card || '') && (x.last4 || '') === (st0.last4 || ''));
+      if (same) { applyOwner(same.owner); stmtSave(); }
+      if (id !== run) return;
+    }
     drawStmt();
     const T = stmt.transactions, open = T.filter(t => !t.decision).length, filed = T.filter(t => t.decision === 'filed').length;
     await say(!stmt.owner ? `I read ${T.length} transactions${filed ? `, ${filed} already filed from receipts` : ''}. First, whose card is this?` : open ? `${open} left to go through on this ${stmt.statement && stmt.statement.card || 'statement'}. Tap Business or Personal for each one.` : 'All of these are gone through. Add the business ones to your expenses when you\'re ready.');
@@ -1406,6 +1433,7 @@
     const firstOpen = T.findIndex(t => !t.decision);
     $('panel').innerHTML = `<div class="report questions stmts"><h3>${esc((st.card || 'STATEMENT').toUpperCase())}${st.last4 ? ' ···' + esc(st.last4) : ''} · ${esc(st.period || '')}</h3>
       <p class="small">${esc(O.label)} <button class="qa tiny" id="stOwner">change</button></p>
+      ${stmt.check && stmt.check.ok === false ? `<p class="warnline">The statement's printed purchases total is ${$$(stmt.check.printed)}, but I found ${$$(stmt.check.foundPurchases)}. Some lines may be missing: compare with the statement${(stmt.files || []).length ? ' (link at the bottom)' : ''}, and tell me what I missed.</p>` : stmt.check && stmt.check.ok ? `<p class="small okc">All ${stmt.check.found} lines found: purchases add up to the statement's ${$$(stmt.check.printed)}.</p>` : ''}
       <div class="kpis"><div>Transactions<br><span class="big">${T.length}</span></div><div>Left to go through<br><span class="big">${left}</span></div><div>Business<br><span class="big">${$$(sum(biz))}</span>${biz.length} items</div><div>Personal<br><span class="big">${$$(sum(T.filter(t => t.decision === 'personal')))}</span></div>
         ${O.business === false ? `<div>Business owes ${esc(O.who)}<br><span class="big">${$$(sum(biz))}</span></div>` : ''}${persOnBiz.length ? `<div>Personal on the business card (owed to the business)<br><span class="big">${$$(sum(persOnBiz))}</span></div>` : ''}</div>
       ${T.map(card).join('')}

@@ -6,7 +6,7 @@
 (function (root) {
   'use strict';
   const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
-  const MAX_PAGES = 12;
+  const MAX_PAGES = 20;          // per statement file
   let pdfjsP = null;
 
   function script(src) {
@@ -31,6 +31,36 @@
     c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
     const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
     return toJpeg(c);
+  }
+
+  // The text of a PDF, page by page, rebuilt into lines (most bank statements are real text).
+  async function pdfText(file) {
+    const lib = await pdfjs();
+    const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+    const out = [];
+    for (let i = 1; i <= Math.min(doc.numPages, 30); i++) {
+      const tc = await (await doc.getPage(i)).getTextContent();
+      const rows = [];
+      for (const it of tc.items) {
+        if (!it.str || !it.str.trim()) continue;
+        const y = it.transform[5], x = it.transform[4];
+        let r = rows.find(r => Math.abs(r.y - y) < 3);
+        if (!r) { r = { y, parts: [] }; rows.push(r); }
+        r.parts.push({ x, s: it.str, w: it.width || 0 });
+      }
+      rows.sort((a, b) => b.y - a.y);
+      const lines = rows.map(r => { r.parts.sort((a, b) => a.x - b.x); let line = '', end = null; for (const q of r.parts) { if (end != null) line += (q.x - end > 12 ? '   ' : q.x - end > 1.5 ? ' ' : ''); line += q.s; end = q.x + q.w; } return line; });
+      out.push(`--- page ${i} ---\n` + lines.join('\n'));
+    }
+    return out.join('\n');
+  }
+
+  // What to send for reading: the PDF's own text when it has some, else page images.
+  async function prepare(file) {
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
+      try { const text = await pdfText(file); if (text.replace(/\s/g, '').length > 400) return { text }; } catch (e) { }
+    }
+    return { images: await pages([file]) };
   }
 
   async function pages(files) {
@@ -59,12 +89,14 @@
     return 'These images are pages ' + from + ' to ' + to + ' of a credit card or bank statement belonging to Keith Wick, owner of Home Pros Group, '
       + 'a furnace, duct and dryer vent cleaning company in Stony Plain, Alberta, with one service van (a 2012 Chevrolet Express) and a truck-mounted compressor. Today is ' + today + '. '
       + 'Read every transaction on these pages and answer with JSON only, no other text: '
-      + '{"statement":{"card":"card name, e.g. Visa or Mastercard or bank account","last4":"last 4 digits if shown","period":"statement period as printed","year":number},'
+      + '{"statement":{"card":"card name, e.g. Visa or Mastercard or bank account","last4":"last 4 digits if shown","holder":"cardholder name as printed","period":"statement period as printed","from":"YYYY-MM-DD","to":"YYYY-MM-DD","year":number,'
+      + '"purchasesTotal":number or null (add up the statement\'s own printed summary totals for the period: purchases and other charges, PLUS fees, PLUS interest, PLUS cash advances; null if not shown),"creditsTotal":number or null},'
       + '"transactions":[{"date":"YYYY-MM-DD (the transaction date, use the statement period to get the year right)","description":"merchant as printed",'
       + '"amount":number (positive for purchases and charges, negative for refunds and credits),"kind":"purchase|refund|fee|interest|payment",'
       + '"category":"one of: ' + categories.join('; ') + '",'
       + '"business":"likely|maybe|personal",'
       + '"question":"one short, friendly question to ask Keith when it is not clearly business, else empty"}]}. '
+      + 'List EVERY transaction line printed on these pages, one entry per line, even if there are many; never summarize, merge or skip lines. '
       + 'Include purchases, refunds, card fees and interest; leave out payments made to the card. '
       + 'Likely business: fuel, auto parts and repairs, tires, tools, hardware and building supply, HVAC and compressor suppliers, phone and internet, software, advertising, vehicle insurance and registration. '
       + 'Maybe (ask): restaurants and coffee (client or crew meal?), Costco, Walmart, Amazon, Canadian Tire, Home Depot when the item is unclear, hotels, travel, subscriptions. '
@@ -72,25 +104,38 @@
       + 'Never guess an amount you cannot read: skip that line instead of inventing it.';
   }
 
-  async function read(pageBlobs, { categories, onProgress } = {}) {
+  function finish(all) {
+    all.transactions = all.transactions.filter(t => t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment' && !/payment\s*-?\s*thank you/i.test(t.description || ''));
+    all.transactions.sort((a, b) => a.date.localeCompare(b.date));
+    const pur = all.transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
+    all.check = { found: all.transactions.length, foundPurchases: Math.round(pur * 100) / 100, printed: all.statement.purchasesTotal != null ? Number(all.statement.purchasesTotal) : null };
+    all.check.ok = all.check.printed == null ? null : Math.abs(all.check.printed - all.check.foundPurchases) < 1;
+    return all;
+  }
+
+  // part = {text} or {images}; text is read in one go (exact), images two pages at a time
+  async function read(part, { categories, onProgress } = {}) {
     const sample = root.claude && root.claude.use ? await root.claude.use('sample') : null;
     if (!sample) throw { code: 'unavailable' };
-    let per = 4;
-    try { const l = await sample.limits(); if (!l.images) throw { code: 'images_unavailable' }; per = Math.max(1, Math.min(6, l.images.maxCount || 4)); } catch (e) { if (e && e.code) throw e; }
+    if (part.text) {
+      if (onProgress) onProgress(1, 1, 1);
+      const got = await sample.json(prompt(categories, 1, 'the last').replace('These images are pages 1 to the last of', 'Below is the full text of') + '\n\nSTATEMENT TEXT:\n' + part.text, { modelTier: 'default', cache: false });
+      return finish({ statement: (got && got.statement) || {}, transactions: (got && got.transactions) || [] });
+    }
+    const pageBlobs = part.images || [];
+    let per = 2;   // two pages per read keeps every line legible
+    try { const l = await sample.limits(); if (!l.images) throw { code: 'images_unavailable' }; per = Math.max(1, Math.min(2, l.images.maxCount || 2)); } catch (e) { if (e && e.code) throw e; }
     const all = { statement: {}, transactions: [] };
     for (let i = 0; i < pageBlobs.length; i += per) {
       const batch = pageBlobs.slice(i, i + per);
       if (onProgress) onProgress(i + 1, Math.min(i + per, pageBlobs.length), pageBlobs.length);
       const got = await sample.json(prompt(categories, i + 1, i + batch.length), { images: batch, modelTier: 'default', cache: false });
-      if (got && got.statement) for (const [k, v] of Object.entries(got.statement)) if (v && !all.statement[k]) all.statement[k] = v;
+      if (got && got.statement) for (const [k, v] of Object.entries(got.statement)) if (v != null && v !== '' && (all.statement[k] == null || all.statement[k] === '')) all.statement[k] = v;
       for (const t of (got && got.transactions) || []) if (t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment') all.transactions.push(t);
     }
     // the same line read twice (page overlap) counts once
-    const seen = new Set();
-    all.transactions = all.transactions.filter(t => { const k = t.date + '|' + Number(t.amount).toFixed(2) + '|' + String(t.description || '').toLowerCase().slice(0, 18); if (seen.has(k)) return false; seen.add(k); return true; })
-      .sort((a, b) => a.date.localeCompare(b.date));
-    return all;
+    return finish(all);
   }
 
-  root.HP_STATEMENT = { pages, read };
+  root.HP_STATEMENT = { pages, prepare, read, pdfText };
 })(window);

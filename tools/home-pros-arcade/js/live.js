@@ -103,8 +103,8 @@
       const ref = db.collection('penny').doc('statements'), cur = await ref.get();
       const list = ((cur.exists && cur.data().list) || []).filter(x => x.id !== doc.id);
       const t = doc.transactions || [];
-      list.unshift({ id: doc.id, name: doc.name, card: (doc.statement || {}).card || '', period: (doc.statement || {}).period || '', uploadedAt: doc.uploadedAt,
-        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length });
+      list.unshift({ id: doc.id, name: doc.name, card: (doc.statement || {}).card || '', holder: (doc.statement || {}).holder || '', period: (doc.statement || {}).period || '', uploadedAt: doc.uploadedAt,
+        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length, files: (doc.files || []).length, check: doc.check || null, owner: doc.owner || '', last4: (doc.statement || {}).last4 || '' });
       await ref.set({ list: list.slice(0, 60) });
     },
     /* Money between Keith/Hannah and the business: penny/owed = {items:[{id, date, vendor, amount, who, direction:'toKeith'|'toBusiness', statementId, repaidAt}]} */
@@ -125,6 +125,13 @@
       const items = ((cur.exists && cur.data().items) || []).map(x => (!x.repaidAt && x.direction === direction && (!who || x.who === who)) ? Object.assign({}, x, { repaidAt: at }) : x);
       await ref.set({ items });
       return { items };
+    },
+    /* Take a statement off the list (its expenses stay filed). */
+    async removeStatement(id) {
+      const db = await timeout(dbP, 6000);
+      if (!db) return;
+      const ref = db.collection('penny').doc('statements'), cur = await ref.get();
+      await ref.set({ list: ((cur.exists && cur.data().list) || []).filter(x => x.id !== id) });
     },
     /* Add several expenses to one month at once. */
     async addExpenses(month, items) {

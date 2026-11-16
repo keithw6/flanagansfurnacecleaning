@@ -385,3 +385,6 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .stmts td { white-space: normal !important; }
 
 .stmts button.qa.tiny { font-size: 13px; padding: 1px 6px; margin-left: 6px; }
+
+.stmts .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
+.stmts .warnc { color: #ffcf73; } .stmts .okc { color: var(--edge); }
