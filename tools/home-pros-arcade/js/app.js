@@ -832,14 +832,15 @@
     const text = replyText(I), all = cards.length && Object.keys(answers).length >= cards.length;
     const send = `<div class="q send"><p class="small">The arcade can't change ServiceMonster itself. Your answers go to Rosa's booking desk, and she makes the changes there.</p>
       ${text ? `<pre class="reply">${esc(text)}</pre>` : ''}
-      <button class="qa send ${text ? '' : 'dim'}" id="qsend">${all ? 'Send my answers to Rosa' : 'Send the answers I\'ve picked'}</button><span id="qsent" class="small"></span></div>`;
+      <button class="qa send ${text ? '' : 'dim'}" id="qsend">${all ? 'Copy my answers for Rosa' : 'Copy the answers I\'ve picked'}</button>${I.session && text ? ` <a class="qa link" href="${esc(I.session)}" target="_blank" rel="noopener noreferrer">Open Rosa's booking desk &#8599;</a>` : ''}<span id="qsent" class="small"></span></div>`;
     $('panel').innerHTML = `<div class="report questions"><h3>ROSA'S QUESTIONS · MORNING RUN</h3>${cards.join('')}${held}${send}<p class="soon">${esc(cfg.lines.snapshotNote.replace('{when}', fmtDate(r.generatedAt.slice(0, 10)) + ' ' + r.generatedAt.slice(11, 16)))}</p></div>`;
     $('panel').querySelectorAll('button.qa[data-k]').forEach(b => b.onclick = () => { answers[b.dataset.k] = b.dataset.v; A.select(); drawQuestions(r); });
     $('qsend').onclick = async () => {
       if (!text) return;
-      try { await navigator.clipboard.writeText(text); } catch (e) { }
-      $('qsent').textContent = I.session ? ' Copied. Paste it into Rosa\'s booking desk, which just opened.' : ' Copied. Paste it into Rosa\'s booking desk session.';
-      if (I.session) window.open(I.session, '_blank', 'noopener');
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { }
+      if (!ok) { const r = document.createRange(); r.selectNodeContents($('panel').querySelector('pre.reply')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); try { ok = document.execCommand('copy'); } catch (e) { } }
+      $('qsent').textContent = ok ? ' Copied. Open Rosa\'s booking desk and paste it there.' : ' Select the answer text above, copy it, and paste it into Rosa\'s booking desk.';
     };
   }
 
