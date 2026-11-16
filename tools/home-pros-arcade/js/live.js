@@ -80,6 +80,19 @@
       if (docs.every(d => d === undefined)) return undefined;
       const out = {}; months.forEach((m, i) => { out[m] = docs[i] || null; }); return out;
     },
+    /* Every month that has receipts, any year: [{month, count, total}] newest first; undefined without a database. */
+    async allExpenseMonths() {
+      const db = await timeout(dbP, 6000);
+      if (!db) return undefined;
+      try {
+        const snap = await timeout(db.collection('penny').get(), 8000);
+        if (!snap) return undefined;
+        return snap.docs.filter(d => d.exists && /^expenses-\d{4}-\d{2}$/.test(d.id)).map(d => {
+          const items = (d.data().items || []);
+          return { month: d.id.slice(9), count: items.length, total: items.reduce((t, x) => t + Number(x.amount || 0), 0) };
+        }).filter(m => m.count).sort((a, b) => b.month.localeCompare(a.month));
+      } catch (e) { return undefined; }
+    },
     /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
@@ -116,7 +129,9 @@
     async readReceipt(blob, categories) {
       const sample = await timeout(sampleP, 6000);
       if (!sample) throw { code: 'unavailable' };
-      const prompt = 'The image is a photo of a business receipt for Home Pros Group, a furnace and duct cleaning company in Alberta, Canada. '
+      const today = new Date().toISOString().slice(0, 10);
+      const prompt = 'The image is a photo of a business receipt for Home Pros Group, a furnace and duct cleaning company in Alberta, Canada. Today is ' + today + '. '
+        + 'DATES: receipts are almost always from the last 12 months and never in the future. Many Canadian shop systems print dates year-first with a 2-digit year, e.g. Tirecraft prints "26 Sep 23" meaning 2026 Sep 23 and "26 Oct 24" meaning 2026 Oct 24; others print DD/MM/YY or MM/DD/YY. Use any other date on the receipt (inquiry date, service notes, card slip) to decide. Pick the reading that falls within the last 12 months; if more than one reading is possible and nothing settles it, set sure to false and ask about the date in "question". '
         + 'Read it and answer with JSON only, no other text: {"date":"YYYY-MM-DD or empty","vendor":"store name","total":number (the amount paid, including GST),'
         + '"gst":number (GST amount shown, 0 if none shown),"items":"short description of what was bought","paidWith":"cash|card|debit|e-transfer|unknown",'
         + '"category":"one of: ' + categories.join('; ') + '","sure":true or false (false if any number is hard to read),'

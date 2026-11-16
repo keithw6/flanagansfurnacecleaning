@@ -1274,7 +1274,7 @@
     $('panel').innerHTML = '<div class="loading">Opening the files</div>';
     const L = root.HP_LIVE;
     const months = Array.from({ length: 12 }, (_, i) => `${expYear}-${String(i + 1).padStart(2, '0')}`).filter(m => m <= cur);
-    const [docs, sent] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent()]) : [undefined, undefined];
+    const [docs, sent, allMonths] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent(), L.allExpenseMonths()]) : [undefined, undefined, undefined];
     if (id !== run) return;
     const live = docs !== undefined;
     const items = ((docs && docs[expSel]) || { items: [] }).items || [];
@@ -1290,6 +1290,7 @@
     $('panel').innerHTML = `<div class="report expmonths">
       <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
       <div class="mchips">${chips}</div>
+      ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).length ? `<p class="small">Receipts on file in other years: ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).map(m => `<button class="qa oth" data-m="${m.month}">${esc(monthName(m.month))} · ${m.count} · ${$$(m.total)}</button>`).join(' ')}</p>` : ''}
       <h3>${esc(monthName(expSel).toUpperCase())}</h3>
       <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
       ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
@@ -1301,7 +1302,7 @@
         <span id="mStatus" class="small"></span></div>
       ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
       <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
-    $('panel').querySelectorAll('.mchip[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    $('panel').querySelectorAll('.mchip[data-m], .qa.oth[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
     if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
     if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
     $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
@@ -1373,6 +1374,8 @@
     const R = rc, field = (k, label, type, extra) => `<label class="rf"><span>${esc(label)}</span><input data-k="${k}" type="${type}" value="${esc(R[k])}" ${extra || ''}></label>`;
     const pick = (k, list) => `<div class="qbtns">${list.map(v => `<button class="qa ${R[k] === v ? 'on' : ''}" data-pick="${k}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
     const missing = [];
+    const fileMonth = (R.date || '').slice(0, 7), expect = rcBack || nowMonth();
+    const odd = R.date && fileMonth !== expect && !R.dateOk;
     if (!R.date) missing.push('date'); if (!R.vendor) missing.push('where'); if (!(Number(R.total) > 0)) missing.push('total');
     if (R.gst === '') missing.push('GST (0 if none)'); if (!R.category) missing.push('category'); if (!R.paidWith) missing.push('how you paid');
     $('panel').innerHTML = `<div class="report questions receipt"><h3>ADD A RECEIPT</h3>
@@ -1389,9 +1392,10 @@
       <div class="q"><h4>${can.canRead ? '3' : '2'}. CATEGORY</h4>${pick('category', CATS)}</div>
       <div class="q"><h4>${can.canRead ? '4' : '3'}. HOW DID YOU PAY?</h4>${pick('paidWith', PAID)}</div>
       <div class="q send">${missing.length ? `<p class="small">Still needed: ${esc(missing.join(', '))}.</p>` : ''}
-        <button class="qa send ${missing.length || !can.canSave ? 'dim' : ''}" id="rsave">Save receipt</button><span id="rsaved" class="small"></span></div></div>`;
+        ${odd && !missing.length ? `<p class="warnline">This receipt is dated <b>${esc(fmtDate(R.date))}${R.date.slice(0, 4) !== new Date().getFullYear().toString() ? ', ' + esc(R.date.slice(0, 4)) : ''}</b>, so it will be filed under <b>${esc(monthName(fileMonth))}</b>, not ${esc(monthName(expect))}. Is that date right? If not, fix the date above.</p>` : ''}
+        <button class="qa send ${missing.length || !can.canSave ? 'dim' : ''}" id="rsave">${odd && !missing.length ? 'Yes, file it under ' + esc(monthName(fileMonth)) : 'Save receipt'}</button><span id="rsaved" class="small"></span></div></div>`;
     const panel = $('panel');
-    panel.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => { R[i.dataset.k] = i.value; });
+    panel.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => { R[i.dataset.k] = i.value; if (i.dataset.k === 'date') R.dateOk = false; });
     panel.querySelectorAll('input[data-k]').forEach(i => i.onchange = () => drawReceipt(can));
     panel.querySelectorAll('button[data-pick]').forEach(b => b.onclick = () => { R[b.dataset.pick] = b.dataset.v; A.select(); drawReceipt(can); });
     const ph = $('rphoto');
@@ -1407,6 +1411,8 @@
         const got = await root.HP_LIVE.readReceipt(R.photo, CATS);
         if (got && typeof got === 'object') {
           if (/^\d{4}-\d\d-\d\d$/.test(got.date || '')) R.date = got.date;
+          const ageDays = R.date ? (Date.now() - Date.parse(R.date + 'T12:00:00Z')) / 864e5 : 0;
+          if (ageDays > 400 || ageDays < -2) got.question = ((got.question || '') + ` I read the date as ${fmtDate(R.date)}, ${R.date.slice(0, 4)}. That's ${ageDays < 0 ? 'in the future' : 'more than a year ago'}. Please check the date.`).trim();
           if (got.vendor) R.vendor = String(got.vendor).slice(0, 80);
           if (Number(got.total) > 0) R.total = String(Number(got.total).toFixed(2));
           if (got.gst !== undefined && got.gst !== null && !isNaN(Number(got.gst))) R.gst = String(Number(got.gst).toFixed(2));
@@ -1427,6 +1433,7 @@
     };
     $('rsave').onclick = async () => {
       if (missing.length || !can.canSave) return;
+      if (odd) { R.dateOk = true; }
       $('rsaved').textContent = ' Saving...';
       let photo = null;
       if (R.photo && can.canStore) photo = await root.HP_LIVE.storeReceipt(R.photo);
@@ -1437,7 +1444,7 @@
         if (ledger && (!ledger.expenses || ledger.expenses.month === doc.month)) ledger.expenses = doc;
         A.select();
         const monthTotal = doc.items.reduce((s2, x) => s2 + Number(x.amount || 0), 0);
-        await say(`Filed: ${item.vendor}, ${$$(item.amount)} under ${item.category}. That's ${$$(monthTotal)} in expenses for ${doc.month} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
+        await say(`Filed under ${monthName(doc.month)}: ${item.vendor}, ${$$(item.amount)}, ${item.category}. That's ${$$(monthTotal)} in expenses for ${monthName(doc.month)} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
         rc = null;
         receiptAgain(item.date.slice(0, 7));
       } catch (e) { $('rsaved').textContent = " Couldn't save just now. Try again in a minute."; }

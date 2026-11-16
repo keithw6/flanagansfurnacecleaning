@@ -377,6 +377,9 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .expmonths td, .expmonths th { white-space: normal !important; }
 @media (max-width: 600px) { .expmonths table td:nth-child(5), .expmonths table th:nth-child(5) { display: none; } .expmonths table { font-size: 16px; } }
 
+.receipt .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }
+.expmonths .qa.oth { font-size: 14px; padding: 3px 8px; margin: 2px 4px 2px 0; }
+
 </style>
 </head>
 <body class="street">
@@ -1303,6 +1306,19 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       if (docs.every(d => d === undefined)) return undefined;
       const out = {}; months.forEach((m, i) => { out[m] = docs[i] || null; }); return out;
     },
+    /* Every month that has receipts, any year: [{month, count, total}] newest first; undefined without a database. */
+    async allExpenseMonths() {
+      const db = await timeout(dbP, 6000);
+      if (!db) return undefined;
+      try {
+        const snap = await timeout(db.collection('penny').get(), 8000);
+        if (!snap) return undefined;
+        return snap.docs.filter(d => d.exists && /^expenses-\d{4}-\d{2}$/.test(d.id)).map(d => {
+          const items = (d.data().items || []);
+          return { month: d.id.slice(9), count: items.length, total: items.reduce((t, x) => t + Number(x.amount || 0), 0) };
+        }).filter(m => m.count).sort((a, b) => b.month.localeCompare(a.month));
+      } catch (e) { return undefined; }
+    },
     /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
@@ -1339,7 +1355,9 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     async readReceipt(blob, categories) {
       const sample = await timeout(sampleP, 6000);
       if (!sample) throw { code: 'unavailable' };
-      const prompt = 'The image is a photo of a business receipt for Home Pros Group, a furnace and duct cleaning company in Alberta, Canada. '
+      const today = new Date().toISOString().slice(0, 10);
+      const prompt = 'The image is a photo of a business receipt for Home Pros Group, a furnace and duct cleaning company in Alberta, Canada. Today is ' + today + '. '
+        + 'DATES: receipts are almost always from the last 12 months and never in the future. Many Canadian shop systems print dates year-first with a 2-digit year, e.g. Tirecraft prints "26 Sep 23" meaning 2026 Sep 23 and "26 Oct 24" meaning 2026 Oct 24; others print DD/MM/YY or MM/DD/YY. Use any other date on the receipt (inquiry date, service notes, card slip) to decide. Pick the reading that falls within the last 12 months; if more than one reading is possible and nothing settles it, set sure to false and ask about the date in "question". '
         + 'Read it and answer with JSON only, no other text: {"date":"YYYY-MM-DD or empty","vendor":"store name","total":number (the amount paid, including GST),'
         + '"gst":number (GST amount shown, 0 if none shown),"items":"short description of what was bought","paidWith":"cash|card|debit|e-transfer|unknown",'
         + '"category":"one of: ' + categories.join('; ') + '","sure":true or false (false if any number is hard to read),'
@@ -3382,7 +3400,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     $('panel').innerHTML = '<div class="loading">Opening the files</div>';
     const L = root.HP_LIVE;
     const months = Array.from({ length: 12 }, (_, i) => `${expYear}-${String(i + 1).padStart(2, '0')}`).filter(m => m <= cur);
-    const [docs, sent] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent()]) : [undefined, undefined];
+    const [docs, sent, allMonths] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent(), L.allExpenseMonths()]) : [undefined, undefined, undefined];
     if (id !== run) return;
     const live = docs !== undefined;
     const items = ((docs && docs[expSel]) || { items: [] }).items || [];
@@ -3398,6 +3416,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     $('panel').innerHTML = `<div class="report expmonths">
       <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
       <div class="mchips">${chips}</div>
+      ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).length ? `<p class="small">Receipts on file in other years: ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).map(m => `<button class="qa oth" data-m="${m.month}">${esc(monthName(m.month))} · ${m.count} · ${$$(m.total)}</button>`).join(' ')}</p>` : ''}
       <h3>${esc(monthName(expSel).toUpperCase())}</h3>
       <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
       ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
@@ -3409,7 +3428,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         <span id="mStatus" class="small"></span></div>
       ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
       <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
-    $('panel').querySelectorAll('.mchip[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    $('panel').querySelectorAll('.mchip[data-m], .qa.oth[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
     if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
     if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
     $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
@@ -3481,6 +3500,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     const R = rc, field = (k, label, type, extra) => `<label class="rf"><span>${esc(label)}</span><input data-k="${k}" type="${type}" value="${esc(R[k])}" ${extra || ''}></label>`;
     const pick = (k, list) => `<div class="qbtns">${list.map(v => `<button class="qa ${R[k] === v ? 'on' : ''}" data-pick="${k}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
     const missing = [];
+    const fileMonth = (R.date || '').slice(0, 7), expect = rcBack || nowMonth();
+    const odd = R.date && fileMonth !== expect && !R.dateOk;
     if (!R.date) missing.push('date'); if (!R.vendor) missing.push('where'); if (!(Number(R.total) > 0)) missing.push('total');
     if (R.gst === '') missing.push('GST (0 if none)'); if (!R.category) missing.push('category'); if (!R.paidWith) missing.push('how you paid');
     $('panel').innerHTML = `<div class="report questions receipt"><h3>ADD A RECEIPT</h3>
@@ -3497,9 +3518,10 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       <div class="q"><h4>${can.canRead ? '3' : '2'}. CATEGORY</h4>${pick('category', CATS)}</div>
       <div class="q"><h4>${can.canRead ? '4' : '3'}. HOW DID YOU PAY?</h4>${pick('paidWith', PAID)}</div>
       <div class="q send">${missing.length ? `<p class="small">Still needed: ${esc(missing.join(', '))}.</p>` : ''}
-        <button class="qa send ${missing.length || !can.canSave ? 'dim' : ''}" id="rsave">Save receipt</button><span id="rsaved" class="small"></span></div></div>`;
+        ${odd && !missing.length ? `<p class="warnline">This receipt is dated <b>${esc(fmtDate(R.date))}${R.date.slice(0, 4) !== new Date().getFullYear().toString() ? ', ' + esc(R.date.slice(0, 4)) : ''}</b>, so it will be filed under <b>${esc(monthName(fileMonth))}</b>, not ${esc(monthName(expect))}. Is that date right? If not, fix the date above.</p>` : ''}
+        <button class="qa send ${missing.length || !can.canSave ? 'dim' : ''}" id="rsave">${odd && !missing.length ? 'Yes, file it under ' + esc(monthName(fileMonth)) : 'Save receipt'}</button><span id="rsaved" class="small"></span></div></div>`;
     const panel = $('panel');
-    panel.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => { R[i.dataset.k] = i.value; });
+    panel.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => { R[i.dataset.k] = i.value; if (i.dataset.k === 'date') R.dateOk = false; });
     panel.querySelectorAll('input[data-k]').forEach(i => i.onchange = () => drawReceipt(can));
     panel.querySelectorAll('button[data-pick]').forEach(b => b.onclick = () => { R[b.dataset.pick] = b.dataset.v; A.select(); drawReceipt(can); });
     const ph = $('rphoto');
@@ -3515,6 +3537,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         const got = await root.HP_LIVE.readReceipt(R.photo, CATS);
         if (got && typeof got === 'object') {
           if (/^\d{4}-\d\d-\d\d$/.test(got.date || '')) R.date = got.date;
+          const ageDays = R.date ? (Date.now() - Date.parse(R.date + 'T12:00:00Z')) / 864e5 : 0;
+          if (ageDays > 400 || ageDays < -2) got.question = ((got.question || '') + ` I read the date as ${fmtDate(R.date)}, ${R.date.slice(0, 4)}. That's ${ageDays < 0 ? 'in the future' : 'more than a year ago'}. Please check the date.`).trim();
           if (got.vendor) R.vendor = String(got.vendor).slice(0, 80);
           if (Number(got.total) > 0) R.total = String(Number(got.total).toFixed(2));
           if (got.gst !== undefined && got.gst !== null && !isNaN(Number(got.gst))) R.gst = String(Number(got.gst).toFixed(2));
@@ -3535,6 +3559,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     };
     $('rsave').onclick = async () => {
       if (missing.length || !can.canSave) return;
+      if (odd) { R.dateOk = true; }
       $('rsaved').textContent = ' Saving...';
       let photo = null;
       if (R.photo && can.canStore) photo = await root.HP_LIVE.storeReceipt(R.photo);
@@ -3545,7 +3570,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
         if (ledger && (!ledger.expenses || ledger.expenses.month === doc.month)) ledger.expenses = doc;
         A.select();
         const monthTotal = doc.items.reduce((s2, x) => s2 + Number(x.amount || 0), 0);
-        await say(`Filed: ${item.vendor}, ${$$(item.amount)} under ${item.category}. That's ${$$(monthTotal)} in expenses for ${doc.month} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
+        await say(`Filed under ${monthName(doc.month)}: ${item.vendor}, ${$$(item.amount)}, ${item.category}. That's ${$$(monthTotal)} in expenses for ${monthName(doc.month)} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
         rc = null;
         receiptAgain(item.date.slice(0, 7));
       } catch (e) { $('rsaved').textContent = " Couldn't save just now. Try again in a minute."; }
