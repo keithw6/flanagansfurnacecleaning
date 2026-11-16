@@ -515,7 +515,7 @@ const HP_CONFIG = {
     extraFurnace: 150,  // each additional furnace, with its ducting and registers
     airConditioner: 60, // per air conditioner
     zone: 60,           // zone system (one furnace, more than one thermostat)
-    dryerVent: 60,      // dryer vent, side wall only, with a furnace cleaning
+    dryerVent: 60,      // dryer vent, side wall only, with a furnace cleaning ($150 + GST on its own; the arcade only quotes it with a furnace cleaning)
   },
   maxFurnaces: 5,       // more than this: "give us a call"
 
@@ -565,7 +565,7 @@ const HP_CONFIG = {
     { key: 'airConditioner', name: 'Air Conditioner',  plus: true, note: 'each' },
     { key: 'zone',           name: 'Zone System',      plus: true },
     { key: 'extraFurnace',   name: 'Extra Furnace',    plus: true, note: 'each, with its ducts & registers' },
-    { key: 'dryerVent',      name: 'Dryer Vent',       plus: true, note: 'side wall only' },
+    { key: 'dryerVent',      name: 'Dryer Vent',       plus: true, note: 'with a duct cleaning, side wall only ($150 on its own)' },
   ],
 
   /* ------------------------------ Host lines ------------------------------- */
@@ -588,7 +588,7 @@ const HP_CONFIG = {
     zoneExplain: 'Easy way to tell: do you have just one furnace, but more than one thermostat in the house?',
     dryer: 'Want me to add a dryer vent cleaning while we are there?',
     dryerWhere: 'Where does the dryer vent come out: the side of the house, or the roof?',
-    roof: "Ah, sorry. We're not allowed up on roofs, so we'll have to skip that dryer vent. Everything else is good to go.",
+    roof: "Ah, sorry. We're not allowed up on residential roofs, so we'll have to skip that dryer vent. One tip: roof vents often have a screen over them, and it has to come off before the vent can be cleaned. Everything else is good to go.",
     tooMany: "That's a big setup! Give us a call and we'll price it out for you.",
     quote: "Alright, here's your number. Flat rate, plus GST, no per-vent nonsense:",
     details: "Great. I just need to know who you are and where the truck is headed.",
