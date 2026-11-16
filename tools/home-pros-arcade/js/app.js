@@ -1362,19 +1362,23 @@
     const map = `<h3>THE EMAIL MAP</h3><table><tr><th>Address</th><th>Gmail label</th><th>Read by</th><th>What goes there</th></tr>${EMAIL_MAP.map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td class="why">${esc(r[3])}</td></tr>`).join('')}</table>`;
     let html, line;
     if (!R) {
-      html = `<div class="report"><h3>DAILY EMAIL CHECK</h3><p>My first check runs once my daily task is set up. Each morning after Rosa's run I check that mail reaches the right label, nothing gets missed, and everything that goes out looks right.</p>${map}</div>`;
+      html = `<div class="report"><h3>DAILY EMAIL CHECK</h3><p>My first check runs once my daily task is set up. Each morning after Rosa's run I go through the last 24 hours: I write reply drafts for anything that needs an answer (you send them), move clear spam to the Spam folder, list what you should check over, and make sure mail reaches the right label and everything that goes out looks right.</p>${map}</div>`;
       line = "No check yet, boss. Once my daily task is on, I'll report here every morning.";
     } else {
       const checks = (R.checks || []).map(c => `<tr><td>${esc(c.name)}</td><td>${tag(c.status)}</td><td class="why">${esc(c.detail || '')}</td></tr>`).join('');
       const hist = H.slice(-14).map(d => `<span class="dot ${esc(d.status)}" title="${esc(d.date + ': ' + d.status)}"></span>`).join('');
       html = `<div class="report"><h3>DAILY EMAIL CHECK · ${esc(fmtDate(R.date).toUpperCase())}</h3>
-        <div class="kpis"><div>Overall<br>${tag(R.status)}</div><div>Mail in, last day<br><span class="big">${Number(R.received || 0)}</span></div><div>Sent, last day<br><span class="big">${Number(R.sent || 0)}</span></div><div>Drafts waiting<br><span class="big">${Number(R.drafts || 0)}</span></div></div>
+        <div class="kpis"><div>Overall<br>${tag(R.status)}</div><div>Mail in, last day<br><span class="big">${Number(R.received || 0)}</span></div><div>Sent, last day<br><span class="big">${Number(R.sent || 0)}</span></div><div>Drafts waiting<br><span class="big">${Number(R.drafts || 0)}</span></div><div>To check over<br><span class="big">${(R.review || []).length}</span></div><div>Moved to spam<br><span class="big">${(R.spamMoved || []).length}</span></div></div>
         <table><tr><th>Check</th><th></th><th>Details</th></tr>${checks}</table>
+        ${list('CHECK THESE OVER', R.review)}
+        ${(R.draftsMade || []).length ? `<h3>REPLY DRAFTS WAITING FOR YOU (${R.draftsMade.length})</h3><ul>${R.draftsMade.map(d => `<li>${esc(d.text || d)}${d.url ? ` <a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">open</a>` : ''}</li>`).join('')}</ul><p class="small">Open Gmail's Drafts, check each one, and send it yourself. Eddie never sends them.</p>` : ''}
+        ${list('MOVED TO SPAM (UNDO IN GMAIL\'S SPAM FOLDER FOR 30 DAYS)', R.spamMoved)}
         ${list('MISSED OR UNLABELLED', R.missed)}${list('CUSTOMERS WAITING FOR A REPLY', R.unanswered)}${list('FORMATTING', R.formatting)}${list('TEST MESSAGES', R.tests)}
         ${hist ? `<h3>LAST 14 DAYS</h3><div class="dots">${hist}</div>` : ''}
         ${map}<p class="soon">From Eddie's check made ${esc(String(R.generatedAt || '').replace('T', ' ').slice(0, 16))}. ${R.session ? `<a class="qa link" href="${esc(R.session)}" target="_blank" rel="noopener noreferrer">Open Eddie's session &#8599;</a>` : ''}</p></div>`;
       const bad = (R.checks || []).filter(c => c.status !== 'ok');
-      line = R.status === 'ok' ? `All clear on ${fmtDate(R.date)}, boss. Every address is delivering to the right place and nothing's been missed.` : `${bad.length} thing${bad.length === 1 ? '' : 's'} to look at: ${bad.map(c => c.name.toLowerCase()).join(', ')}.`;
+      const dm = (R.draftsMade || []).length, rv = (R.review || []).length, sp = (R.spamMoved || []).length;
+      line = `${Number(R.received || 0)} emails in the last day. ${dm} reply draft${dm === 1 ? '' : 's'} waiting for you, ${rv} to check over, ${sp} moved to spam.` + (bad.length ? ` And ${bad.length} setup thing${bad.length === 1 ? '' : 's'} to look at: ${bad.map(c => c.name.toLowerCase()).join(', ')}.` : '');
     }
     $('panel').innerHTML = html;
     await say(line);

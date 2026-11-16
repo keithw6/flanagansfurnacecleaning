@@ -66,7 +66,7 @@ const HP_CONFIG = {
     {
       id: 'eddie', home: 'email', seat: 'seat-b1', name: 'Eddie', title: 'Email Manager',
       intro: "Inbox zero is a lifestyle. I sort it so you don't have to.",
-      duties: ['Daily email check: mail reaches the right person and label', 'Makes sure no order, receipt or customer email is missed', 'Checks that what goes out is from the right address, signed and formatted properly'],
+      duties: ['Every morning: goes through the last 24 hours of email', 'Writes reply drafts for anything that needs an answer (you approve and send)', 'Moves clear spam to the Spam folder and lists what you should check over', 'Makes sure mail reaches the right person and label, and goes out signed and formatted properly'],
     },
     {
       id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
