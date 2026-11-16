@@ -995,6 +995,7 @@
       { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
       { label: 'Expenses', kind: current === 'exp' ? 'primary' : '', onPick: () => acctReport('exp') },
+      { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }
@@ -1068,13 +1069,129 @@
       html = `<div class="report"><h3>EXPENSES · ${esc((E && E.month) || B.date.slice(0, 7))}</h3>
         <div class="kpis"><div>Today<br><span class="big">${$$(tot(expDay))}</span></div><div>This month<br><span class="big">${$$(tot(expMonth))}</span></div><div>GST paid (ITCs)<br><span class="big">${$$(expMonth.reduce((s, x) => s + Number(x.gst || 0), 0))}</span></div></div>
         ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>This month</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>
-        <table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${expMonth.slice().reverse().map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('')}</table>` : '<p>No receipts recorded yet. Each night Penny asks you for the day\'s receipts and sorts them into categories with you.</p>'}${foot}</div>`;
+        <table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${expMonth.slice().reverse().map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('')}</table>` : '<p>No receipts recorded yet. Tap <b>Add a receipt</b> to snap one with your phone, or give them to Penny after her nightly brief.</p>'}${foot}</div>`;
       line = expMonth.length ? `${$$(tot(expMonth))} in expenses this month so far.` : "No receipts yet this month. I'll ask you for them each night after the brief.";
     }
     $('panel').innerHTML = html;
     await say(line);
     if (id !== run) return;
     acctChoices(kind);
+  }
+
+  /* Receipts: a photo from the phone, Penny reads it, asks what she needs, saves it. */
+  const CATS = ['Fuel', 'Vehicle repairs and maintenance', 'Vehicle insurance and registration', 'Supplies and materials', 'Tools and equipment',
+    'Advertising and marketing', 'Phone and internet', 'Office and software', 'Meals (50% deductible)', 'Subcontractors', 'Insurance', 'Bank and card fees', 'Other'];
+  const PAID = ['Company card', 'Cash', 'Personal card', 'E-transfer'];
+  let rc = null;   // the receipt being entered
+
+  async function shrink(file) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', 0.85));
+    } catch (e) { return file; }
+  }
+
+  async function receiptForm() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const L = root.HP_LIVE;
+    const can = L ? await L.receiptAbilities() : { canRead: false, canStore: false, canSave: false };
+    if (id !== run) return;
+    const today = (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 10);
+    rc = { date: today, vendor: '', total: '', gst: '', category: '', paidWith: '', note: '', photo: null, preview: '', read: false, question: '' };
+    drawReceipt(can);
+    await say(can.canSave
+      ? (can.canRead ? "Snap a photo of the receipt and I'll read it, or type it in. I'll ask if anything's unclear." : "Type the receipt in and I'll file it. (Reading photos isn't available here.)")
+      : "I can only save receipts when the arcade is open in claude.ai. Give them to me in my nightly session for now.");
+    if (id !== run) return;
+    acctChoices('rcpt');
+  }
+
+  function drawReceipt(can) {
+    const R = rc, field = (k, label, type, extra) => `<label class="rf"><span>${esc(label)}</span><input data-k="${k}" type="${type}" value="${esc(R[k])}" ${extra || ''}></label>`;
+    const pick = (k, list) => `<div class="qbtns">${list.map(v => `<button class="qa ${R[k] === v ? 'on' : ''}" data-pick="${k}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
+    const missing = [];
+    if (!R.date) missing.push('date'); if (!R.vendor) missing.push('where'); if (!(Number(R.total) > 0)) missing.push('total');
+    if (R.gst === '') missing.push('GST (0 if none)'); if (!R.category) missing.push('category'); if (!R.paidWith) missing.push('how you paid');
+    $('panel').innerHTML = `<div class="report questions receipt"><h3>ADD A RECEIPT</h3>
+      ${can.canSave ? '' : '<p><b>Saving needs the arcade open in claude.ai.</b></p>'}
+      ${can.canRead ? `<div class="q"><h4>1. PHOTO</h4>
+        <label class="qa photo">${R.preview ? 'Retake photo' : 'Take or choose a photo'}<input id="rphoto" type="file" accept="image/*" capture="environment" hidden></label>
+        ${R.preview ? `<img class="rprev" src="${R.preview}" alt="Receipt photo">` : ''}
+        <span id="rstatus" class="small">${R.read ? 'Penny read it. Check the numbers below.' : ''}</span></div>` : ''}
+      ${R.question ? `<div class="q info"><h4>PENNY ASKS</h4><p>${esc(R.question)}</p><p class="small">Answer by picking below, or add it to the note.</p></div>` : ''}
+      <div class="q"><h4>${can.canRead ? '2' : '1'}. THE RECEIPT</h4>
+        <div class="rgrid">${field('date', 'Date', 'date')}${field('vendor', 'Where', 'text', 'placeholder="e.g. Shell, Home Depot"')}
+        ${field('total', 'Total paid (incl. GST)', 'number', 'step="0.01" min="0" inputmode="decimal"')}${field('gst', 'GST on it', 'number', 'step="0.01" min="0" inputmode="decimal"')}</div>
+        ${field('note', 'What it was for', 'text', 'placeholder="e.g. truck fuel, filters for the Viper"')}</div>
+      <div class="q"><h4>${can.canRead ? '3' : '2'}. CATEGORY</h4>${pick('category', CATS)}</div>
+      <div class="q"><h4>${can.canRead ? '4' : '3'}. HOW DID YOU PAY?</h4>${pick('paidWith', PAID)}</div>
+      <div class="q send">${missing.length ? `<p class="small">Still needed: ${esc(missing.join(', '))}.</p>` : ''}
+        <button class="qa send ${missing.length || !can.canSave ? 'dim' : ''}" id="rsave">Save receipt</button><span id="rsaved" class="small"></span></div></div>`;
+    const panel = $('panel');
+    panel.querySelectorAll('input[data-k]').forEach(i => i.oninput = () => { R[i.dataset.k] = i.value; });
+    panel.querySelectorAll('input[data-k]').forEach(i => i.onchange = () => drawReceipt(can));
+    panel.querySelectorAll('button[data-pick]').forEach(b => b.onclick = () => { R[b.dataset.pick] = b.dataset.v; A.select(); drawReceipt(can); });
+    const ph = $('rphoto');
+    if (ph) ph.onchange = async () => {
+      const f = ph.files && ph.files[0];
+      if (!f) return;
+      R.photo = await shrink(f);
+      R.preview = URL.createObjectURL(R.photo);
+      R.read = false; R.question = '';
+      drawReceipt(can);
+      $('rstatus').textContent = ' Penny is reading it...';
+      try {
+        const got = await root.HP_LIVE.readReceipt(R.photo, CATS);
+        if (got && typeof got === 'object') {
+          if (/^\d{4}-\d\d-\d\d$/.test(got.date || '')) R.date = got.date;
+          if (got.vendor) R.vendor = String(got.vendor).slice(0, 80);
+          if (Number(got.total) > 0) R.total = String(Number(got.total).toFixed(2));
+          if (got.gst !== undefined && got.gst !== null && !isNaN(Number(got.gst))) R.gst = String(Number(got.gst).toFixed(2));
+          if (CATS.includes(got.category)) R.category = got.category;
+          const pw = String(got.paidWith || '').toLowerCase();
+          if (pw === 'cash') R.paidWith = 'Cash'; else if (pw === 'e-transfer') R.paidWith = 'E-transfer';
+          if (got.items && !R.note) R.note = String(got.items).slice(0, 120);
+          R.question = [got.sure === false ? "Some numbers were hard to read. Please check the total and GST." : '', got.question || '',
+            !R.paidWith ? 'How did you pay for this one?' : ''].filter(Boolean).join(' ');
+          R.read = true;
+        }
+        drawReceipt(can);
+        say(R.question ? R.question : `Got it: ${R.vendor || 'the receipt'}, ${$$(R.total)}. Looks like ${R.category || 'I need a category'}. Check it and save.`);
+      } catch (e) {
+        drawReceipt(can);
+        $('rstatus').textContent = e && e.code === 'not_granted' ? ' Reading photos was turned off. Type it in instead.' : " I couldn't read that one. Type it in, or try a clearer photo.";
+      }
+    };
+    $('rsave').onclick = async () => {
+      if (missing.length || !can.canSave) return;
+      $('rsaved').textContent = ' Saving...';
+      let photo = null;
+      if (R.photo && can.canStore) photo = await root.HP_LIVE.storeReceipt(R.photo);
+      const item = { date: R.date, vendor: R.vendor.trim(), category: R.category, amount: Math.round(Number(R.total) * 100) / 100, gst: Math.round(Number(R.gst || 0) * 100) / 100,
+        paidWith: R.paidWith, note: R.note.trim(), photoId: photo ? photo.id : '', enteredIn: 'arcade', enteredAt: new Date().toISOString() };
+      try {
+        const doc = await root.HP_LIVE.saveExpense(item);
+        if (ledger && (!ledger.expenses || ledger.expenses.month === doc.month)) ledger.expenses = doc;
+        A.select();
+        const monthTotal = doc.items.reduce((s2, x) => s2 + Number(x.amount || 0), 0);
+        await say(`Filed: ${item.vendor}, ${$$(item.amount)} under ${item.category}. That's ${$$(monthTotal)} in expenses for ${doc.month} so far.${photo ? '' : ' (No photo kept.)'} Keep the paper copy.`);
+        rc = null;
+        receiptAgain();
+      } catch (e) { $('rsaved').textContent = " Couldn't save just now. Try again in a minute."; }
+    };
+  }
+  function receiptAgain() {
+    choices([
+      { label: 'Add another receipt', kind: 'primary', onPick: () => receiptForm() },
+      { label: 'See expenses', onPick: () => acctReport('exp') },
+      { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
+    ]);
   }
 
   async function backToShop() {

@@ -299,3 +299,14 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .report .kpis small.up { color: var(--edge); }
 .report .kpis small.down { color: #ff8a8a; }
 .report p { white-space: normal; font-size: 19px; }
+
+/* receipt form */
+.receipt .rgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 12px; }
+.receipt label.rf { display: block; margin: 0 0 8px; }
+.receipt label.rf span { display: block; font-size: 16px; color: var(--dim); margin-bottom: 2px; }
+.receipt label.rf input { width: 100%; box-sizing: border-box; font: inherit; font-size: 20px; padding: 6px 8px; background: #0c0f0d; color: #e9efe9; border: 2px solid #4a544f; }
+.receipt label.rf input:focus { outline: none; border-color: var(--edge); }
+.receipt label.qa.photo { display: inline-block; font-size: 18px; padding: 8px 14px; border: 2px solid var(--edge); color: var(--edge); cursor: pointer; }
+.receipt img.rprev { display: block; max-width: 100%; max-height: 320px; margin: 8px 0; border: 2px solid #39413d; }
+.questions .q.info p { color: #f4f7f4; }
+.questions .q.info p.small { color: var(--dim); }

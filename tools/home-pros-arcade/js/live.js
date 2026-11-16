@@ -13,6 +13,8 @@
   const has = root.claude && typeof root.claude.use === 'function';
   const dbP = has ? root.claude.use('db').catch(() => null) : Promise.resolve(null);
   const mcpP = has ? root.claude.use('mcp').catch(() => null) : Promise.resolve(null);
+  const sampleP = has ? root.claude.use('sample').catch(() => null) : Promise.resolve(null);
+  const assetsP = has ? root.claude.use('assets').catch(() => null) : Promise.resolve(null);
   const timeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
   const listeners = [];
   let inboxSub = null, lastInbox;
@@ -39,6 +41,42 @@
       const [brief, expenses] = await Promise.all([read('brief', 'penny'), read('expenses-' + month, 'penny')]);
       if (brief === undefined && expenses === undefined) return undefined;
       return { brief: brief || null, expenses: expenses || null };
+    },
+    /* Receipts. canRead: Claude can read photos here. canStore: photos can be kept. */
+    async receiptAbilities() {
+      const [sample, assets, db] = await Promise.all([timeout(sampleP, 6000), timeout(assetsP, 6000), timeout(dbP, 6000)]);
+      let canRead = false;
+      if (sample) { try { const l = await sample.limits(); canRead = !!(l && l.images); } catch (e) { } }
+      return { canRead, canStore: !!assets, canSave: !!db };
+    },
+    /* Ask Claude to read a receipt photo. Resolves the fields it found, or rejects {code}. */
+    async readReceipt(blob, categories) {
+      const sample = await timeout(sampleP, 6000);
+      if (!sample) throw { code: 'unavailable' };
+      const prompt = 'The image is a photo of a business receipt for Home Pros Group, a furnace and duct cleaning company in Alberta, Canada. '
+        + 'Read it and answer with JSON only, no other text: {"date":"YYYY-MM-DD or empty","vendor":"store name","total":number (the amount paid, including GST),'
+        + '"gst":number (GST amount shown, 0 if none shown),"items":"short description of what was bought","paidWith":"cash|card|debit|e-transfer|unknown",'
+        + '"category":"one of: ' + categories.join('; ') + '","sure":true or false (false if any number is hard to read),'
+        + '"question":"one short question to ask the owner if something is unclear or the category could be more than one, else empty"}. '
+        + 'Never guess a number you cannot read: use 0 and set sure to false.';
+      return sample.json(prompt, { images: [blob], modelTier: 'default', cache: false });
+    },
+    /* Keep the photo. Resolves {id, url} or null. */
+    async storeReceipt(blob) {
+      const assets = await timeout(assetsP, 6000);
+      if (!assets) return null;
+      try { const r = await assets.upload(blob); return { id: r.id, url: r.url }; } catch (e) { return null; }
+    },
+    /* Add one expense to penny/expenses-YYYY-MM. Resolves the month's doc. */
+    async saveExpense(item) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const month = item.date.slice(0, 7), ref = db.collection('penny').doc('expenses-' + month);
+      const cur = await ref.get();
+      const doc = cur.exists ? cur.data() : { month, items: [] };
+      const items = (doc.items || []).concat([item]);
+      await ref.set({ month, items });
+      return { month, items };
     },
     /* Called with the new inbox whenever Rosa changes it. */
     onInbox(fn) { listeners.push(fn); if (lastInbox !== undefined) fn(lastInbox); },
