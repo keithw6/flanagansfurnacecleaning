@@ -820,6 +820,7 @@
     if (dirId === 'penny') return acctDesk();
     if (dirId === 'eddie') return emailDesk();
     if (dirId === 'hank') return purchaseDesk();
+    if (dirId === 'grace') return graceDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
@@ -1897,6 +1898,37 @@ Accounts assistant, Home Pros Group`;
     ['accounts@homeprosgroup.com', 'Penny', 'Penny', 'Invoices, payment notices, supplier bills'],
     ['receipts@homeprosgroup.com', 'Penny', 'Penny', 'Receipts you email or forward; Penny files them'],
   ];
+  /* ------------------------------------------------ Grace: the morning and evening reports */
+  let graceTab = null;
+  async function graceDesk(tab) {
+    const id = clear();
+    S.office.select('grace');
+    nameplate('GRACE · GENERAL MANAGER');
+    $('panel').innerHTML = '<div class="loading">Getting my reports</div>';
+    const r = root.HP_LIVE ? await root.HP_LIVE.graceReports() : undefined;
+    if (id !== run) return;
+    const m = r && r.morning, e = r && r.evening;
+    const newest = [m, e].filter(Boolean).sort((a, b) => String(b.generatedAt).localeCompare(String(a.generatedAt)))[0];
+    graceTab = tab || graceTab || (newest ? newest.kind : 'morning');
+    const rep = graceTab === 'evening' ? e : m;
+    const when = x => x && x.generatedAt ? new Date(x.generatedAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const d = cfg.directors.find(x => x.id === 'grace');
+    $('panel').innerHTML = `<div class="report grace">
+      <div class="ptabs"><button class="qa ${graceTab === 'morning' ? 'on' : ''}" data-g="morning">6 AM: today${m ? ' · ' + esc(when(m)) : ''}</button><button class="qa ${graceTab === 'evening' ? 'on' : ''}" data-g="evening">5 PM: end of day${e ? ' · ' + esc(when(e)) : ''}</button></div>
+      ${rep ? `<h3>${esc(rep.headline || (graceTab === 'morning' ? 'TODAY' : 'END OF DAY'))}</h3>
+        ${(rep.problems || []).length ? `<div class="q"><h4>PROBLEMS</h4><ul>${rep.problems.map(x => `<li class="warnc">${esc(x)}</li>`).join('')}</ul></div>` : ''}
+        ${(rep.needsYou || []).length ? `<div class="q"><h4>NEEDS YOU</h4><ol>${rep.needsYou.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
+        ${(rep.sections || []).map(sct => `<div class="q"><h4>${esc(String(sct.title || '').toUpperCase())}</h4><ul>${(sct.lines || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}
+        ${rep.session ? `<p class="soon">Written in <a href="${esc(rep.session)}" target="_blank" rel="noopener noreferrer">Grace's session</a>.</p>` : ''}`
+      : `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="soon">No ${graceTab === 'morning' ? '6 AM' : '5 PM'} report yet. They arrive once my scheduled tasks are set up.</p></div>`}
+    </div>`;
+    $('panel').querySelectorAll('button[data-g]').forEach(b => b.onclick = () => { try { A.select(); } catch (x) { } graceDesk(b.dataset.g); });
+    const need = rep ? (rep.needsYou || []).length : 0;
+    await say(rep ? `${rep.headline || 'Here\'s my report.'}${need ? ` ${need} thing${need === 1 ? '' : 's'} need${need === 1 ? 's' : ''} you.` : ''}` : d.intro);
+    if (id !== run) return;
+    choices(boardChoices('grace'));
+  }
+
   /* ------------------------------------------------ Hank: purchasing */
   // Where things are bought. Hank learns more every time Keith names a supplier.
   const SUPPLIERS = ['Ecco Supply', 'Home Depot', 'ULINE', 'Amazon', 'Canadian Tire', 'Princess Auto', 'Vevor', 'Lowe\'s', 'Costco'];

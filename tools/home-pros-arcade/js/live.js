@@ -167,6 +167,8 @@
         return { ok: true };
       } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
     },
+    /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
+    async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
       const db = await timeout(dbP, 6000);

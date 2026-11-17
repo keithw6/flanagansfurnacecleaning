@@ -51,7 +51,7 @@ const HP_CONFIG = {
     {
       id: 'grace', home: 'gm', seat: 'seat-t1', name: 'Grace', title: 'General Manager',
       intro: "Morning, boss. I keep the whole operation pointed in the same direction.",
-      duties: ['Daily briefing: today\'s jobs, crews and routes', 'Spots problems early and flags what needs you', 'Keeps the other directors on task'],
+      duties: ['6:00 AM: what\'s coming up today (schedule, timed warranty calls, what needs you)', '5:00 PM: how the day went, what every avatar did, and anything that failed', 'Checks every scheduled task ran and flags problems', 'Emails both reports to keith@homeprosgroup.com'],
     },
     {
       id: 'penny', home: 'acct', seat: 'seat-t2', name: 'Penny', title: 'Accounting',
