@@ -1497,7 +1497,7 @@
   /* ------------------------------------------------ Expenses by month */
   const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };
   const nowMonth = () => (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 7);
-  let expYear = null, expSel = null;
+  let expYear = null, expSel = null, expSrc = 'all';
   async function expenseMonth(month) {
     const id = clear();
     S.office.select('penny');
@@ -1511,24 +1511,32 @@
     const [docs, sent, allMonths] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent(), L.allExpenseMonths()]) : [undefined, undefined, undefined];
     if (id !== run) return;
     const live = docs !== undefined;
-    const items = ((docs && docs[expSel]) || { items: [] }).items || [];
+    const items = ((docs && docs[expSel]) || { items: [] }).items || [];   // everything: the report is always combined
+    const srcOf = HP_EXPENSE_PDF.sourceOf;
+    const srcNames = [...new Set(items.map(srcOf))].sort((a, b) => (a === 'Receipts' ? -1 : b === 'Receipts' ? 1 : a.localeCompare(b)));
+    if (expSrc !== 'all' && !srcNames.includes(expSrc)) expSrc = 'all';
+    const shown = expSrc === 'all' ? items : items.filter(x => srcOf(x) === expSrc);
     const S2 = (sent && sent.months) || {};
     const tot = l => l.reduce((t, x) => t + Number(x.amount || 0), 0);
     const chips = Array.from({ length: 12 }, (_, i) => {
       const m = `${expYear}-${String(i + 1).padStart(2, '0')}`, future = m > cur, d = docs && docs[m], n = d && d.items ? d.items.length : 0;
       return `<button class="mchip ${m === expSel ? 'on' : ''}" data-m="${m}" ${future ? 'disabled' : ''}><b>${monthName(m).slice(0, 3).toUpperCase()}</b><small>${future ? '' : n ? `${n} · ${$$(tot(d.items))}` : 'none'}</small>${S2[m] ? '<i title="report emailed">&#10003;</i>' : ''}</button>`;
     }).join('');
-    const cats = {}; for (const x of items) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
-    const rows = items.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const cats = {}; for (const x of shown) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+    const rows = shown.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}${expSrc === 'all' ? `<br><small>${esc(srcOf(x))}</small>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const srcTot = n => items.filter(x => srcOf(x) === n);
+    const srcBar = srcNames.length > 1 || (srcNames.length === 1 && srcNames[0] !== 'Receipts') ? `<div class="qbtns srcbar"><button class="qa ${expSrc === 'all' ? 'on' : ''}" data-src="all">All combined · ${$$(tot(items))}</button>${srcNames.map(n => `<button class="qa ${expSrc === n ? 'on' : ''}" data-src="${esc(n)}">${esc(n)} · ${srcTot(n).length} · ${$$(tot(srcTot(n)))}</button>`).join('')}</div>` : '';
     const sentLine = S2[expSel] ? `Report last emailed ${esc(new Date(S2[expSel].sentAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} with ${S2[expSel].count} receipt${S2[expSel].count === 1 ? '' : 's'} (${$$(S2[expSel].total)}).` : 'This month\'s report hasn\'t been emailed yet.';
     $('panel').innerHTML = `<div class="report expmonths">
       <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
       <div class="mchips">${chips}</div>
       ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).length ? `<p class="small">Receipts on file in other years: ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).map(m => `<button class="qa oth" data-m="${m.month}">${esc(monthName(m.month))} · ${m.count} · ${$$(m.total)}</button>`).join(' ')}</p>` : ''}
-      <h3>${esc(monthName(expSel).toUpperCase())}</h3>
-      <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      <h3>${esc(monthName(expSel).toUpperCase())}${expSrc === 'all' ? '' : ' · ' + esc(expSrc.toUpperCase())}</h3>
+      ${srcBar}
+      <div class="kpis"><div>${expSrc === 'all' ? 'Items' : expSrc === 'Receipts' ? 'Receipts' : 'From this card'}<br><span class="big">${shown.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(shown))}</span></div><div>GST paid<br><span class="big">${$$(shown.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      ${expSrc === 'all' ? '' : `<p class="small">Showing only ${esc(expSrc)}. The month's report always combines everything: ${items.length} items, ${$$(tot(items))}.</p>`}
       ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
-      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>No receipts filed for ${esc(monthName(expSel))} yet.</p>`}
+      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>Nothing filed for ${esc(monthName(expSel))} yet.</p>`}
       <div class="q send"><p class="small">${sentLine}</p>
         <button class="qa send" id="mAdd">+ Add a receipt to ${esc(monthName(expSel))}</button>
         <button class="qa send" id="mEmail"${items.length ? '' : ' disabled'}>Email the ${esc(monthName(expSel))} report</button>
@@ -1537,6 +1545,7 @@
       ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
       <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
     $('panel').querySelectorAll('.mchip[data-m], .qa.oth[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    $('panel').querySelectorAll('button[data-src]').forEach(b => b.onclick = () => { try { A.select(); } catch (e) { } expSrc = b.dataset.src; expenseMonth(expSel); });
     if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
     if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
     $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
@@ -1555,7 +1564,8 @@
       const bytes = await makePdf();
       const total = tot(items), gst = items.reduce((t, x) => t + Number(x.gst || 0), 0);
       const body = `Hi Keith,\n\nHere's the expense report for ${monthName(expSel)}: ${items.length} receipt${items.length === 1 ? '' : 's'}, ${$$(total)} including ${$$(gst)} GST.\n\n` +
-        Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        Object.entries(items.reduce((o, x) => { o[x.category || 'Other'] = (o[x.category || 'Other'] || 0) + Number(x.amount || 0); return o; }, {})).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        (srcNames.length > 1 ? '\n\nBy source:\n' + srcNames.map(n => `${n}: ${srcTot(n).length} items, ${$$(tot(srcTot(n)))}`).join('\n') : '') +
         `\n\nThe PDF has every receipt and its photo.\n\nPenny\nAccounts assistant, Home Pros Group`;
       $('mStatus').textContent = ' Sending to keith@homeprosgroup.com...';
       const r = await L.emailPdf({ to: 'keith@homeprosgroup.com', subject: `Home Pros expense report: ${monthName(expSel)} (${items.length} receipts, ${$$(total)})`, body, filename: fname, bytes });
@@ -1570,7 +1580,8 @@
       }
     };
     const n = items.length;
-    await say(n ? `${monthName(expSel)}: ${n} receipt${n === 1 ? '' : 's'}, ${$$(tot(items))}. Pick another month, add a receipt, or email the report.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
+    const fromCards = items.filter(x => srcOf(x) !== 'Receipts').length;
+    await say(n ? `${monthName(expSel)}: ${n} item${n === 1 ? '' : 's'}, ${$$(tot(items))}${fromCards ? ` (${n - fromCards} receipts, ${fromCards} from card statements)` : ''}. Tap a source to see it on its own; the report combines them all.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
     if (id !== run) return;
     acctChoices('exp');
   }

@@ -10,6 +10,8 @@
   const GREEN = [0.247, 0.667, 0.208], INK = [0.13, 0.13, 0.13], DIM = [0.42, 0.42, 0.42], LINE = [0.85, 0.87, 0.85];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const money = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Where an expense came from: a card statement (by card) or a receipt entered in the arcade
+  const sourceOf = x => x && x.enteredIn === 'statement' ? (x.paidWith || 'Card statement') : 'Receipts';
   const longDate = iso => { const [y, m, d] = iso.split('-').map(Number); return `${MONTHS[m - 1].slice(0, 3)} ${d}, ${y}`; };
 
   // Helvetica widths (1/1000 em) for ASCII 32..126; others ~556
@@ -54,7 +56,7 @@
     let yy = 82;
     const box = (x, w, label, val) => { p.rect(x, yy, w, 44, [0.95, 0.97, 0.95]); p.text(x + 10, yy + 16, label, { size: 8, color: DIM }); p.text(x + 10, yy + 35, val, { size: 14, bold: true }); };
     const bw = (W - 2 * M - 24) / 4;
-    box(M, bw, 'Receipts', String(items.length));
+    box(M, bw, 'Items', String(items.length));
     box(M + bw + 8, bw, 'Total paid (incl. GST)', money(tot));
     box(M + 2 * (bw + 8), bw, 'GST paid (ITCs)', money(gst));
     box(M + 3 * (bw + 8), bw, 'Before GST', money(tot - gst));
@@ -73,6 +75,20 @@
     yy += 6; p.line(M, yy, W - M, yy); yy += 14;
     p.text(cx[0], yy, 'Total', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
     p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
+    // by source: receipts and each card statement, combined above
+    const srcs = {};
+    for (const x of items) { const c = sourceOf(x); srcs[c] = srcs[c] || { n: 0, a: 0, g: 0 }; srcs[c].n++; srcs[c].a += Number(x.amount || 0); srcs[c].g += Number(x.gst || 0); }
+    if (Object.keys(srcs).length) {
+      yy += 24; p.text(M, yy, 'BY SOURCE', { size: 9, bold: true, color: GREEN }); yy += 14;
+      p.text(cx[0], yy, 'Source', { size: 8, color: DIM }); p.text(cx[1], yy, 'Items', { size: 8, color: DIM, align: 'right' });
+      p.text(cx[2] + 60, yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(cx[3], yy, 'Total', { size: 8, color: DIM, align: 'right' }); yy += 5; p.line(M, yy, W - M, yy);
+      for (const [c, v] of Object.entries(srcs).sort((a, b) => (a[0] === 'Receipts' ? -1 : b[0] === 'Receipts' ? 1 : a[0].localeCompare(b[0])))) {
+        yy += 14; p.text(cx[0], yy, fit(c, 9, 280)); p.text(cx[1], yy, String(v.n), { size: 9, align: 'right' }); p.text(cx[2] + 60, yy, money(v.g), { size: 9, align: 'right' }); p.text(cx[3], yy, money(v.a), { size: 9, align: 'right' });
+      }
+      yy += 6; p.line(M, yy, W - M, yy); yy += 14;
+      p.text(cx[0], yy, 'Combined', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
+      p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
+    }
     if (meals) { yy += 16; p.text(M, yy, `Meals are 50% deductible: ${money(meals)} spent, ${money(meals / 2)} deductible.`, { size: 8, color: DIM }); }
     const reimb = items.filter(x => x.reimburse);
     if (reimb.length) { yy += 16; p.text(M, yy, `Paid personally and owed back: ${reimb.map(x => x.reimburse).filter((v, i, a) => a.indexOf(v) === i).join(', ')} ${money(reimb.reduce((s, x) => s + Number(x.amount || 0), 0))} (${reimb.length} item${reimb.length === 1 ? '' : 's'}, marked * below).`, { size: 8, bold: true }); }
@@ -81,8 +97,8 @@
     // every receipt
     const col = [M, M + 62, M + 210, M + 330, M + 412, W - M - 62, W - M];
     const tableHead = () => {
-      p.text(M, yy, 'ALL RECEIPTS', { size: 9, bold: true, color: GREEN }); yy += 14;
-      ['Date', 'Where', 'Category', 'Paid with'].forEach((h, i) => p.text(col[i], yy, h, { size: 8, color: DIM }));
+      p.text(M, yy, 'ALL EXPENSES (RECEIPTS AND CARD STATEMENTS)', { size: 9, bold: true, color: GREEN }); yy += 14;
+      ['Date', 'Where', 'Category', 'Source'].forEach((h, i) => p.text(col[i], yy, h, { size: 8, color: DIM }));
       p.text(col[5], yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(col[6], yy, 'Amount', { size: 8, color: DIM, align: 'right' });
       yy += 5; p.line(M, yy, W - M, yy);
     };
@@ -98,7 +114,8 @@
       const mark = tag(x) ? '  [photo ' + tag(x) + ']' : '';
       p.text(col[1], yy, fit(x.vendor, 8.5, 142 - width(mark, 8.5)) + mark, { size: 8.5 });
       p.text(col[2], yy, fit(x.category, 8.5, 116), { size: 8.5 });
-      p.text(col[3], yy, fit(x.paidWith, 8.5, 78), { size: 8.5 });
+      const card = String(x.paidWith || ''), l4 = (card.match(/(\d{4})\s*$/) || [])[1], kind = /master/i.test(card) ? 'MC' : /visa/i.test(card) ? 'Visa' : 'Card';
+      p.text(col[3], yy, fit(x.enteredIn === 'statement' ? (l4 ? `${kind} ${l4}` : card) : 'Receipt', 8.5, 78), { size: 8.5 });
       p.text(col[5], yy, money(x.gst), { size: 8.5, align: 'right' });
       p.text(col[6], yy, money(x.amount) + (x.reimburse ? '*' : ''), { size: 8.5, align: 'right' });
       if (x.note) { yy += 11; p.text(col[1], yy, fit(x.note, 7.5, W - M - col[1] - 70), { size: 7.5, color: DIM }); }
@@ -169,5 +186,5 @@
     return { bytes: new Uint8Array(await out.arrayBuffer()), w: c.width, h: c.height };
   }
 
-  root.HP_EXPENSE_PDF = { build, jpeg, MONTHS };
+  root.HP_EXPENSE_PDF = { sourceOf, build, jpeg, MONTHS };
 })(window);

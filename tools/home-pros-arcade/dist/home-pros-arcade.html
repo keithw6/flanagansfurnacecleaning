@@ -1615,6 +1615,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   const GREEN = [0.247, 0.667, 0.208], INK = [0.13, 0.13, 0.13], DIM = [0.42, 0.42, 0.42], LINE = [0.85, 0.87, 0.85];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const money = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Where an expense came from: a card statement (by card) or a receipt entered in the arcade
+  const sourceOf = x => x && x.enteredIn === 'statement' ? (x.paidWith || 'Card statement') : 'Receipts';
   const longDate = iso => { const [y, m, d] = iso.split('-').map(Number); return `${MONTHS[m - 1].slice(0, 3)} ${d}, ${y}`; };
 
   // Helvetica widths (1/1000 em) for ASCII 32..126; others ~556
@@ -1659,7 +1661,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     let yy = 82;
     const box = (x, w, label, val) => { p.rect(x, yy, w, 44, [0.95, 0.97, 0.95]); p.text(x + 10, yy + 16, label, { size: 8, color: DIM }); p.text(x + 10, yy + 35, val, { size: 14, bold: true }); };
     const bw = (W - 2 * M - 24) / 4;
-    box(M, bw, 'Receipts', String(items.length));
+    box(M, bw, 'Items', String(items.length));
     box(M + bw + 8, bw, 'Total paid (incl. GST)', money(tot));
     box(M + 2 * (bw + 8), bw, 'GST paid (ITCs)', money(gst));
     box(M + 3 * (bw + 8), bw, 'Before GST', money(tot - gst));
@@ -1678,6 +1680,20 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     yy += 6; p.line(M, yy, W - M, yy); yy += 14;
     p.text(cx[0], yy, 'Total', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
     p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
+    // by source: receipts and each card statement, combined above
+    const srcs = {};
+    for (const x of items) { const c = sourceOf(x); srcs[c] = srcs[c] || { n: 0, a: 0, g: 0 }; srcs[c].n++; srcs[c].a += Number(x.amount || 0); srcs[c].g += Number(x.gst || 0); }
+    if (Object.keys(srcs).length) {
+      yy += 24; p.text(M, yy, 'BY SOURCE', { size: 9, bold: true, color: GREEN }); yy += 14;
+      p.text(cx[0], yy, 'Source', { size: 8, color: DIM }); p.text(cx[1], yy, 'Items', { size: 8, color: DIM, align: 'right' });
+      p.text(cx[2] + 60, yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(cx[3], yy, 'Total', { size: 8, color: DIM, align: 'right' }); yy += 5; p.line(M, yy, W - M, yy);
+      for (const [c, v] of Object.entries(srcs).sort((a, b) => (a[0] === 'Receipts' ? -1 : b[0] === 'Receipts' ? 1 : a[0].localeCompare(b[0])))) {
+        yy += 14; p.text(cx[0], yy, fit(c, 9, 280)); p.text(cx[1], yy, String(v.n), { size: 9, align: 'right' }); p.text(cx[2] + 60, yy, money(v.g), { size: 9, align: 'right' }); p.text(cx[3], yy, money(v.a), { size: 9, align: 'right' });
+      }
+      yy += 6; p.line(M, yy, W - M, yy); yy += 14;
+      p.text(cx[0], yy, 'Combined', { size: 9, bold: true }); p.text(cx[1], yy, String(items.length), { size: 9, bold: true, align: 'right' });
+      p.text(cx[2] + 60, yy, money(gst), { size: 9, bold: true, align: 'right' }); p.text(cx[3], yy, money(tot), { size: 9, bold: true, align: 'right' });
+    }
     if (meals) { yy += 16; p.text(M, yy, `Meals are 50% deductible: ${money(meals)} spent, ${money(meals / 2)} deductible.`, { size: 8, color: DIM }); }
     const reimb = items.filter(x => x.reimburse);
     if (reimb.length) { yy += 16; p.text(M, yy, `Paid personally and owed back: ${reimb.map(x => x.reimburse).filter((v, i, a) => a.indexOf(v) === i).join(', ')} ${money(reimb.reduce((s, x) => s + Number(x.amount || 0), 0))} (${reimb.length} item${reimb.length === 1 ? '' : 's'}, marked * below).`, { size: 8, bold: true }); }
@@ -1686,8 +1702,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     // every receipt
     const col = [M, M + 62, M + 210, M + 330, M + 412, W - M - 62, W - M];
     const tableHead = () => {
-      p.text(M, yy, 'ALL RECEIPTS', { size: 9, bold: true, color: GREEN }); yy += 14;
-      ['Date', 'Where', 'Category', 'Paid with'].forEach((h, i) => p.text(col[i], yy, h, { size: 8, color: DIM }));
+      p.text(M, yy, 'ALL EXPENSES (RECEIPTS AND CARD STATEMENTS)', { size: 9, bold: true, color: GREEN }); yy += 14;
+      ['Date', 'Where', 'Category', 'Source'].forEach((h, i) => p.text(col[i], yy, h, { size: 8, color: DIM }));
       p.text(col[5], yy, 'GST', { size: 8, color: DIM, align: 'right' }); p.text(col[6], yy, 'Amount', { size: 8, color: DIM, align: 'right' });
       yy += 5; p.line(M, yy, W - M, yy);
     };
@@ -1703,7 +1719,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       const mark = tag(x) ? '  [photo ' + tag(x) + ']' : '';
       p.text(col[1], yy, fit(x.vendor, 8.5, 142 - width(mark, 8.5)) + mark, { size: 8.5 });
       p.text(col[2], yy, fit(x.category, 8.5, 116), { size: 8.5 });
-      p.text(col[3], yy, fit(x.paidWith, 8.5, 78), { size: 8.5 });
+      const card = String(x.paidWith || ''), l4 = (card.match(/(\d{4})\s*$/) || [])[1], kind = /master/i.test(card) ? 'MC' : /visa/i.test(card) ? 'Visa' : 'Card';
+      p.text(col[3], yy, fit(x.enteredIn === 'statement' ? (l4 ? `${kind} ${l4}` : card) : 'Receipt', 8.5, 78), { size: 8.5 });
       p.text(col[5], yy, money(x.gst), { size: 8.5, align: 'right' });
       p.text(col[6], yy, money(x.amount) + (x.reimburse ? '*' : ''), { size: 8.5, align: 'right' });
       if (x.note) { yy += 11; p.text(col[1], yy, fit(x.note, 7.5, W - M - col[1] - 70), { size: 7.5, color: DIM }); }
@@ -1774,7 +1791,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     return { bytes: new Uint8Array(await out.arrayBuffer()), w: c.width, h: c.height };
   }
 
-  root.HP_EXPENSE_PDF = { build, jpeg, MONTHS };
+  root.HP_EXPENSE_PDF = { sourceOf, build, jpeg, MONTHS };
 })(window);
 
 </script>
@@ -3850,7 +3867,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   /* ------------------------------------------------ Expenses by month */
   const monthName = m => { const [y, mo] = m.split('-').map(Number); return (root.HP_EXPENSE_PDF ? HP_EXPENSE_PDF.MONTHS : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[mo - 1] + ' ' + y; };
   const nowMonth = () => (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 7);
-  let expYear = null, expSel = null;
+  let expYear = null, expSel = null, expSrc = 'all';
   async function expenseMonth(month) {
     const id = clear();
     S.office.select('penny');
@@ -3864,24 +3881,32 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     const [docs, sent, allMonths] = L ? await Promise.all([L.expenseMonths(months), L.reportsSent(), L.allExpenseMonths()]) : [undefined, undefined, undefined];
     if (id !== run) return;
     const live = docs !== undefined;
-    const items = ((docs && docs[expSel]) || { items: [] }).items || [];
+    const items = ((docs && docs[expSel]) || { items: [] }).items || [];   // everything: the report is always combined
+    const srcOf = HP_EXPENSE_PDF.sourceOf;
+    const srcNames = [...new Set(items.map(srcOf))].sort((a, b) => (a === 'Receipts' ? -1 : b === 'Receipts' ? 1 : a.localeCompare(b)));
+    if (expSrc !== 'all' && !srcNames.includes(expSrc)) expSrc = 'all';
+    const shown = expSrc === 'all' ? items : items.filter(x => srcOf(x) === expSrc);
     const S2 = (sent && sent.months) || {};
     const tot = l => l.reduce((t, x) => t + Number(x.amount || 0), 0);
     const chips = Array.from({ length: 12 }, (_, i) => {
       const m = `${expYear}-${String(i + 1).padStart(2, '0')}`, future = m > cur, d = docs && docs[m], n = d && d.items ? d.items.length : 0;
       return `<button class="mchip ${m === expSel ? 'on' : ''}" data-m="${m}" ${future ? 'disabled' : ''}><b>${monthName(m).slice(0, 3).toUpperCase()}</b><small>${future ? '' : n ? `${n} · ${$$(tot(d.items))}` : 'none'}</small>${S2[m] ? '<i title="report emailed">&#10003;</i>' : ''}</button>`;
     }).join('');
-    const cats = {}; for (const x of items) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
-    const rows = items.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const cats = {}; for (const x of shown) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + Number(x.amount || 0);
+    const rows = shown.slice().sort((a, b) => a.date.localeCompare(b.date)).map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor || '')}${x.photoId ? ` <a href="/_blob/${esc(x.photoId)}" target="_blank" rel="noopener">photo</a>` : ''}${expSrc === 'all' ? `<br><small>${esc(srcOf(x))}</small>` : ''}</td><td>${esc(x.category || '')}</td><td>${$$(x.amount)}</td><td>${$$(x.gst)}</td></tr>`).join('');
+    const srcTot = n => items.filter(x => srcOf(x) === n);
+    const srcBar = srcNames.length > 1 || (srcNames.length === 1 && srcNames[0] !== 'Receipts') ? `<div class="qbtns srcbar"><button class="qa ${expSrc === 'all' ? 'on' : ''}" data-src="all">All combined · ${$$(tot(items))}</button>${srcNames.map(n => `<button class="qa ${expSrc === n ? 'on' : ''}" data-src="${esc(n)}">${esc(n)} · ${srcTot(n).length} · ${$$(tot(srcTot(n)))}</button>`).join('')}</div>` : '';
     const sentLine = S2[expSel] ? `Report last emailed ${esc(new Date(S2[expSel].sentAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} with ${S2[expSel].count} receipt${S2[expSel].count === 1 ? '' : 's'} (${$$(S2[expSel].total)}).` : 'This month\'s report hasn\'t been emailed yet.';
     $('panel').innerHTML = `<div class="report expmonths">
       <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${expYear - 1}</button><h3>EXPENSES · ${expYear}</h3>${expYear < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${expYear + 1} &#9654;</button>` : '<span></span>'}</div>
       <div class="mchips">${chips}</div>
       ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).length ? `<p class="small">Receipts on file in other years: ${(allMonths || []).filter(m => m.month.slice(0, 4) !== String(expYear)).map(m => `<button class="qa oth" data-m="${m.month}">${esc(monthName(m.month))} · ${m.count} · ${$$(m.total)}</button>`).join(' ')}</p>` : ''}
-      <h3>${esc(monthName(expSel).toUpperCase())}</h3>
-      <div class="kpis"><div>Receipts<br><span class="big">${items.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(items))}</span></div><div>GST paid<br><span class="big">${$$(items.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      <h3>${esc(monthName(expSel).toUpperCase())}${expSrc === 'all' ? '' : ' · ' + esc(expSrc.toUpperCase())}</h3>
+      ${srcBar}
+      <div class="kpis"><div>${expSrc === 'all' ? 'Items' : expSrc === 'Receipts' ? 'Receipts' : 'From this card'}<br><span class="big">${shown.length}</span></div><div>Total (incl. GST)<br><span class="big">${$$(tot(shown))}</span></div><div>GST paid<br><span class="big">${$$(shown.reduce((t, x) => t + Number(x.gst || 0), 0))}</span></div></div>
+      ${expSrc === 'all' ? '' : `<p class="small">Showing only ${esc(expSrc)}. The month's report always combines everything: ${items.length} items, ${$$(tot(items))}.</p>`}
       ${Object.keys(cats).length ? `<table><tr><th>Category</th><th>Total</th></tr>${Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${$$(v)}</td></tr>`).join('')}</table>` : ''}
-      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>No receipts filed for ${esc(monthName(expSel))} yet.</p>`}
+      ${rows ? `<table><tr><th>Date</th><th>Where</th><th>Category</th><th>Amount</th><th>GST</th></tr>${rows}</table>` : `<p>Nothing filed for ${esc(monthName(expSel))} yet.</p>`}
       <div class="q send"><p class="small">${sentLine}</p>
         <button class="qa send" id="mAdd">+ Add a receipt to ${esc(monthName(expSel))}</button>
         <button class="qa send" id="mEmail"${items.length ? '' : ' disabled'}>Email the ${esc(monthName(expSel))} report</button>
@@ -3890,6 +3915,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       ${live ? '' : '<p class="soon">Expenses are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
       <p class="soon">Receipts are filed by their date, so a receipt dated in an earlier month lands in that month. The report goes to keith@homeprosgroup.com as a PDF with every receipt and its photo.</p></div>`;
     $('panel').querySelectorAll('.mchip[data-m], .qa.oth[data-m]').forEach(b => b.onclick = () => { A.select(); expenseMonth(b.dataset.m); });
+    $('panel').querySelectorAll('button[data-src]').forEach(b => b.onclick = () => { try { A.select(); } catch (e) { } expSrc = b.dataset.src; expenseMonth(expSel); });
     if ($('yPrev')) $('yPrev').onclick = () => expenseMonth(`${expYear - 1}-12`);
     if ($('yNext')) $('yNext').onclick = () => { const y = expYear + 1; expenseMonth(`${y}-${y === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '01'}`); };
     $('mAdd').onclick = () => receiptForm(expSel === cur ? undefined : expSel + '-01', expSel);
@@ -3908,7 +3934,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       const bytes = await makePdf();
       const total = tot(items), gst = items.reduce((t, x) => t + Number(x.gst || 0), 0);
       const body = `Hi Keith,\n\nHere's the expense report for ${monthName(expSel)}: ${items.length} receipt${items.length === 1 ? '' : 's'}, ${$$(total)} including ${$$(gst)} GST.\n\n` +
-        Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        Object.entries(items.reduce((o, x) => { o[x.category || 'Other'] = (o[x.category || 'Other'] || 0) + Number(x.amount || 0); return o; }, {})).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c}: ${$$(v)}`).join('\n') +
+        (srcNames.length > 1 ? '\n\nBy source:\n' + srcNames.map(n => `${n}: ${srcTot(n).length} items, ${$$(tot(srcTot(n)))}`).join('\n') : '') +
         `\n\nThe PDF has every receipt and its photo.\n\nPenny\nAccounts assistant, Home Pros Group`;
       $('mStatus').textContent = ' Sending to keith@homeprosgroup.com...';
       const r = await L.emailPdf({ to: 'keith@homeprosgroup.com', subject: `Home Pros expense report: ${monthName(expSel)} (${items.length} receipts, ${$$(total)})`, body, filename: fname, bytes });
@@ -3923,7 +3950,8 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       }
     };
     const n = items.length;
-    await say(n ? `${monthName(expSel)}: ${n} receipt${n === 1 ? '' : 's'}, ${$$(tot(items))}. Pick another month, add a receipt, or email the report.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
+    const fromCards = items.filter(x => srcOf(x) !== 'Receipts').length;
+    await say(n ? `${monthName(expSel)}: ${n} item${n === 1 ? '' : 's'}, ${$$(tot(items))}${fromCards ? ` (${n - fromCards} receipts, ${fromCards} from card statements)` : ''}. Tap a source to see it on its own; the report combines them all.` : `Nothing filed for ${monthName(expSel)} yet. Add receipts and I'll build the report.`);
     if (id !== run) return;
     acctChoices('exp');
   }
