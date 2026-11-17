@@ -1028,6 +1028,7 @@
       { label: 'Daily brief', kind: current === 'day' ? 'primary' : '', onPick: () => acctReport('day') },
       { label: 'This month', kind: current === 'month' ? 'primary' : '', onPick: () => acctReport('month') },
       { label: 'Not paid yet', kind: current === 'unpaid' ? 'primary' : '', onPick: () => acctReport('unpaid') },
+      { label: 'Profit & loss', kind: current === 'pl' ? 'primary' : '', onPick: () => profitLoss() },
       { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
       { label: 'Card statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
@@ -1492,6 +1493,118 @@
       back.classList.remove('flash'); void back.offsetWidth; back.classList.add('flash');
       if (note) { const n = document.createElement('p'); n.className = 'savedline'; n.textContent = '\u2713 ' + note; back.querySelector('.txh').after(n); }
     } else if (keep == null && firstOpen > 2) { const el = P.querySelectorAll('.q.tx')[firstOpen]; if (el) el.scrollIntoView({ block: 'center' }); }
+  }
+
+  /* ------------------------------------------------ Profit and loss
+     Revenue (before GST) from ServiceMonster via Penny's nightly brief, expenses
+     (before GST) from the filed receipts and card statements, then Keith's pay:
+     $2,500 take-home on the 15th and the 30th (the last day in a shorter month). */
+  const OWNER_PAY = 2500;
+  const payDays = (m, through) => {
+    const [y, mo] = m.split('-').map(Number), last = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+    return [15, Math.min(30, last)].map(d => `${m}-${String(d).padStart(2, '0')}`).filter(d => !through || d <= through);
+  };
+  let plSel = null;
+  async function profitLoss(month) {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    $('panel').innerHTML = '<div class="loading">Adding it all up</div>';
+    await loadLedger();
+    if (id !== run) return;
+    const L = root.HP_LIVE, cur = nowMonth(), today = (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(0, 10);
+    const rbm = ledger.brief && ledger.brief.revenueByMonth;
+    plSel = month || plSel || cur;
+    const year = Number(plSel.slice(0, 4));
+    const months = Array.from({ length: Number(plSel.slice(5, 7)) }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const docs = L ? await L.expenseMonths(months) : undefined;
+    if (id !== run) return;
+    const revKnown = !!(rbm && rbm.year === year);
+    const rev = m => revKnown ? ((rbm.months || {})[m] || { revenue: 0, jobs: 0 }) : null;
+    const exp = m => ((docs && docs[m]) || { items: [] }).items || [];
+    const net = x => Number(x.amount || 0) - Number(x.gst || 0);
+    const calc = ms => {
+      const items = ms.flatMap(exp), cats = {};
+      for (const x of items) cats[x.category || 'Other'] = (cats[x.category || 'Other'] || 0) + net(x);
+      const revenue = revKnown ? ms.reduce((t, m) => t + Number(rev(m).revenue || 0), 0) : null;
+      const jobs = revKnown ? ms.reduce((t, m) => t + Number(rev(m).jobs || 0), 0) : null;
+      const expenses = Object.values(cats).reduce((a, b) => a + b, 0);
+      const pays = ms.flatMap(m => payDays(m, m === cur ? today : null));
+      const meals = cats['Meals (50% deductible)'] || 0;
+      return { cats, revenue, jobs, expenses, profit: revenue == null ? null : revenue - expenses, pays, pay: pays.length * OWNER_PAY, meals, count: items.length };
+    };
+    const M1 = calc([plSel]), Y = calc(months);
+    const allCats = [...new Set([...Object.keys(Y.cats)])].sort((a, b) => (Y.cats[b] || 0) - (Y.cats[a] || 0));
+    const partial = plSel === cur;
+    const through = partial ? (rbm && rbm.through && rbm.through.slice(0, 7) === cur ? rbm.through : today) : null;
+    const colM = monthName(plSel) + (partial ? ' (so far)' : ''), colY = `Jan-${monthName(plSel).slice(0, 3)} ${year}`;
+    const lines = [
+      { head: 'REVENUE' },
+      { label: `Service revenue, before GST${M1.jobs != null ? ` (${M1.jobs} jobs this month)` : ''}`, values: [M1.revenue, Y.revenue], indent: true },
+      { label: 'Total revenue', values: [M1.revenue, Y.revenue], bold: true, rule: true },
+      { head: 'EXPENSES (before GST)' },
+      ...allCats.map(c => ({ label: c, values: [M1.cats[c] || 0, Y.cats[c] || 0], indent: true })),
+      { label: 'Total expenses', values: [M1.expenses, Y.expenses], bold: true, rule: true },
+      { gap: true },
+      { label: 'Net profit before owner pay', values: [M1.profit, Y.profit], bold: true, rule: true },
+      { label: `Owner pay: $2,500 take-home on the 15th and 30th`, values: [-M1.pay, -Y.pay], indent: true, note: `${M1.pays.length} payment${M1.pays.length === 1 ? '' : 's'} this month${M1.pays.length ? ' (' + M1.pays.map(d => fmtDate(d)).join(', ') + ')' : ''}, ${Y.pays.length} this year` },
+      { label: 'Left in the business after owner pay', values: [M1.profit == null ? null : M1.profit - M1.pay, Y.profit == null ? null : Y.profit - Y.pay], bold: true, rule: true },
+    ];
+    const notes = [
+      'Revenue is from ServiceMonster: jobs count in the month they were done, Jayman jobs always count. Revenue and expenses are before GST.',
+      'Expenses are the receipts and card statement items filed with Penny. Anything not filed yet is not in here.',
+      `Owner pay is the $${OWNER_PAY.toLocaleString()} take-home Keith pays himself on the 15th and 30th, as assumed. Income tax and CPP on it are not shown separately.`,
+      ...(Y.meals ? [`Meals are shown in full; only 50% is deductible for tax (${$$(Y.meals / 2)} of ${$$(Y.meals)} this year).`] : []),
+      ...(partial ? [`${monthName(plSel)} is not over: revenue through ${fmtDate(through)}, expenses filed so far, pay days that have passed.`] : []),
+    ];
+    const row = l => l.head ? `<tr class="plh"><th colspan="3">${esc(l.head)}</th></tr>` : l.gap ? '<tr class="plgap"><td colspan="3"></td></tr>'
+      : `<tr class="${l.bold ? 'plb' : ''}${l.rule ? ' plr' : ''}"><td class="${l.indent ? 'pli' : ''}">${esc(l.label)}${l.note ? `<br><small>${esc(l.note)}</small>` : ''}</td>${l.values.map(v => `<td class="num${v != null && v < 0 ? ' neg' : ''}">${v == null ? '—' : (v < 0 ? '-' : '') + $$(Math.abs(v))}</td>`).join('')}</tr>`;
+    const chips = Array.from({ length: 12 }, (_, i) => { const m = `${year}-${String(i + 1).padStart(2, '0')}`; return `<button class="mchip ${m === plSel ? 'on' : ''}" data-m="${m}" ${m > cur ? 'disabled' : ''}><b>${monthName(m).slice(0, 3).toUpperCase()}</b></button>`; }).join('');
+    $('panel').innerHTML = `<div class="report expmonths pl">
+      <div class="yearbar"><button class="qa" id="yPrev">&#9664; ${year - 1}</button><h3>PROFIT &amp; LOSS · ${year}</h3>${year < Number(cur.slice(0, 4)) ? `<button class="qa" id="yNext">${year + 1} &#9654;</button>` : '<span></span>'}</div>
+      <div class="mchips">${chips}</div>
+      ${revKnown ? '' : `<p class="warnline">I don't have ServiceMonster revenue for ${year} yet${rbm ? ` (I have ${rbm.year})` : ''}. It comes in with my nightly brief.</p>`}
+      <div class="kpis"><div>Revenue<br><span class="big">${M1.revenue == null ? '—' : $$(M1.revenue)}</span></div><div>Expenses<br><span class="big">${$$(M1.expenses)}</span></div><div>Profit before pay<br><span class="big">${M1.profit == null ? '—' : $$(M1.profit)}</span></div><div>Left after your pay<br><span class="big">${M1.profit == null ? '—' : $$(M1.profit - M1.pay)}</span></div></div>
+      <table class="pltab"><tr><th></th><th class="num">${esc(colM)}</th><th class="num">${esc(colY)}</th></tr>${lines.map(row).join('')}</table>
+      <div class="q send"><button class="qa send" id="plEmail">Email the P&amp;L to keith@homeprosgroup.com</button> <button class="qa" id="plPdf">Download PDF</button> <span id="plStatus" class="small"></span></div>
+      ${notes.map(n => `<p class="soon">${esc(n)}</p>`).join('')}</div>`;
+    $('panel').querySelectorAll('.mchip[data-m]').forEach(b => b.onclick = () => { try { A.select(); } catch (e) { } profitLoss(b.dataset.m); });
+    if ($('yPrev')) $('yPrev').onclick = () => profitLoss(`${year - 1}-12`);
+    if ($('yNext')) $('yNext').onclick = () => { const y2 = year + 1; profitLoss(`${y2}-${y2 === Number(cur.slice(0, 4)) ? cur.slice(5, 7) : '12'}`); };
+    const made = new Date().toLocaleDateString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', year: 'numeric' });
+    const pdf = () => HP_EXPENSE_PDF.buildPL({ title: `Profit & loss: ${monthName(plSel)}`, sub: `Prepared by Penny (Accounts), ${made}`, cols: [colM, colY], lines, notes });
+    const fname = `Home-Pros-Profit-and-Loss-${plSel}.pdf`;
+    $('plPdf').onclick = async () => { const ok = await L.download(fname, pdf()); $('plStatus').textContent = ok ? ' Saved.' : " Couldn't save the file here."; };
+    $('plEmail').onclick = async () => {
+      $('plEmail').disabled = true; $('plStatus').textContent = ' Sending to keith@homeprosgroup.com...';
+      const f = v => v == null ? 'n/a' : (v < 0 ? '-' : '') + $$(Math.abs(v));
+      const body = `Hi Keith,
+
+Here's the profit and loss for ${colM}, with the year to date.
+
+` +
+        `                                ${colM}   |   ${colY}
+Revenue (before GST):           ${f(M1.revenue)}   |   ${f(Y.revenue)}
+Expenses (before GST):          ${f(M1.expenses)}   |   ${f(Y.expenses)}
+Net profit before owner pay:    ${f(M1.profit)}   |   ${f(Y.profit)}
+Owner pay ($2,500 x ${M1.pays.length} / ${Y.pays.length}):    ${f(-M1.pay)}   |   ${f(-Y.pay)}
+Left in the business:           ${f(M1.profit == null ? null : M1.profit - M1.pay)}   |   ${f(Y.profit == null ? null : Y.profit - Y.pay)}
+
+` +
+        `The PDF has the expenses by category and the notes.
+
+Penny
+Accounts assistant, Home Pros Group`;
+      const r = await L.emailPdf({ to: 'keith@homeprosgroup.com', subject: `Home Pros profit & loss: ${colM}`, body, filename: fname, bytes: pdf() });
+      $('plEmail').disabled = false;
+      if (r.ok) { try { A.select(); } catch (e) { } $('plStatus').textContent = ' Sent.'; say(`Sent. The ${monthName(plSel)} profit and loss is in your inbox.`); }
+      else $('plStatus').textContent = r.error === 'server_not_connected' || r.error === 'not_in_manifest' || r.error === 'not_granted' ? ' Allow the Gmail connector for the arcade, then try again. You can also download the PDF.' : " The email didn't go through. Try again, or download the PDF.";
+    };
+    const left = M1.profit == null ? null : M1.profit - M1.pay;
+    await say(M1.revenue == null ? `${monthName(plSel)}: ${$$(M1.expenses)} in expenses so far. Revenue comes in with my nightly brief.` :
+      `${colM}: ${$$(M1.revenue)} in, ${$$(M1.expenses)} out, ${$$(M1.profit)} profit. After your ${M1.pays.length ? $$(M1.pay) + ' pay' : 'pay'}, ${left >= 0 ? $$(left) + ' stays in the business' : 'the business is short ' + $$(-left)}.`);
+    if (id !== run) return;
+    acctChoices('pl');
   }
 
   /* ------------------------------------------------ Expenses by month */

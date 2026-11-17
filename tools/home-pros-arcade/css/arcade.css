@@ -392,3 +392,15 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .stmts .q.tx.flash { animation: txflash .7s ease-out; }
 @keyframes txflash { from { box-shadow: 0 0 0 3px var(--edge); } to { box-shadow: 0 0 0 0 transparent; } }
 .stmts .savedline { color: var(--edge); font-size: 16px; margin: 4px 0 2px; white-space: normal; }
+
+.pl .pltab { width: 100%; border-collapse: collapse; margin: 10px 0; }
+.pl .pltab td, .pl .pltab th { padding: 5px 8px; text-align: left; }
+.pl .pltab .num { text-align: right; white-space: nowrap; }
+.pl .pltab .pli { padding-left: 24px; }
+.pl .pltab .plh th { color: var(--edge); padding-top: 14px; font-size: 15px; }
+.pl .pltab .plb td { font-weight: bold; color: #fff; }
+.pl .pltab .plr td { border-top: 1px solid #3a4a3a; }
+.pl .pltab .neg { color: #ffb3a6; }
+.pl .pltab small { color: #9aa79a; }
+.pl .pltab .plgap td { height: 6px; }
+.pl .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; font-size: 18px; white-space: normal; }

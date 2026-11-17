@@ -140,7 +140,33 @@
     }
     pages.forEach((pg, n) => pg.text(W / 2, H - 22, `${title}  |  page ${n + 1} of ${pages.length}`, { size: 7.5, color: DIM, align: 'center' }));
 
-    // assemble the file
+    return assemble(pages, images);
+  }
+
+  // A profit and loss statement: one page, a label column and value columns.
+  // lines: [{label, values: [number|null], bold, indent, rule, dim, note}]
+  function buildPL({ title, sub, cols, lines, notes }) {
+    const p = new Page(); header(p, title, sub);
+    let yy = 92;
+    const right = [W - M - 110, W - M];
+    cols.forEach((c, i) => p.text(right[i], yy, c, { size: 9, bold: true, align: 'right', color: GREEN }));
+    yy += 6; p.line(M, yy, W - M, yy, GREEN, 0.8);
+    for (const l of lines) {
+      if (l.gap) { yy += 10; continue; }
+      if (l.head) { yy += 18; p.text(M, yy, l.head, { size: 9, bold: true, color: GREEN }); yy += 2; continue; }
+      yy += 15;
+      if (l.rule) { p.line(M, yy - 11, W - M, yy - 11); }
+      p.text(M + (l.indent ? 14 : 0), yy, fit(l.label, l.bold ? 10 : 9.5, 300, l.bold), { size: l.bold ? 10 : 9.5, bold: !!l.bold, color: l.dim ? DIM : INK });
+      (l.values || []).forEach((v, i) => { if (v != null) p.text(right[i], yy, (v < 0 ? '-' : '') + money(Math.abs(v)), { size: l.bold ? 10 : 9.5, bold: !!l.bold, align: 'right', color: l.dim ? DIM : INK }); });
+      if (l.note) { yy += 11; p.text(M + (l.indent ? 14 : 0), yy, fit(l.note, 7.5, W - 2 * M - 30), { size: 7.5, color: DIM }); }
+    }
+    yy += 30;
+    for (const n of notes || []) { p.text(M, yy, fit(n, 7.5, W - 2 * M), { size: 7.5, color: DIM }); yy += 11; }
+    p.text(W / 2, H - 22, title, { size: 7.5, color: DIM, align: 'center' });
+    return assemble([p], {});
+  }
+
+  function assemble(pages, images) {
     const enc = new TextEncoder(), latin = s => Uint8Array.from(s, c => c.charCodeAt(0) & 255);
     const parts = [], offsets = [];
     let len = 0;
@@ -186,5 +212,5 @@
     return { bytes: new Uint8Array(await out.arrayBuffer()), w: c.width, h: c.height };
   }
 
-  root.HP_EXPENSE_PDF = { sourceOf, build, jpeg, MONTHS };
+  root.HP_EXPENSE_PDF = { sourceOf, buildPL, build, jpeg, MONTHS };
 })(window);

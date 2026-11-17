@@ -136,7 +136,19 @@ const unpaid = { toRecord, toRecordTotal: sum(toRecord), notPaid: homeowners, no
 const companyWord = /\b(inc|ltd|homes?|builders?|construction|management|property|properties|modular|heating|real estate|corp|group|developments?|services)\b/i;
 const askCommercial = [...new Map(homeowners.filter(o => companyWord.test(o.account || '') && !notCommercial.some(n => n.accountID === o.accountID)).map(o => [o.accountID, { accountID: o.accountID, name: o.account }])).values()];
 
-const brief = { date, generatedAt: now, today, month, lastMonth, unpaid, notInvoiced, askPaid, askCommercial, commercialAccounts: commercial,
+// revenue for every month of the year so far, for Penny's profit and loss.
+// Within the brief's window jobs count on their calendar day (as above); earlier
+// months count invoices (and Jayman orders) on their Date Completed.
+const yearStart = date.slice(0, 4) + '-01-01';
+const yearOrders = yearStart < lastMonthStart ? (await all(`/orders?wField=dateCompleted&wOperator=gt&wValue=${us(addDays(yearStart, -1))}&${F}`)).map(norm) : [];
+const months = {};
+const addTo = (m, o) => { const x = months[m] = months[m] || { jobs: 0, revenue: 0, gst: 0 }; x.jobs++; x.revenue += o.subTotal; x.gst += o.taxTotal; };
+for (const o of yearOrders) if (o.dateCompleted >= yearStart && o.dateCompleted < lastMonthStart && invoiced(o)) addTo(o.dateCompleted.slice(0, 7), o);
+for (const o of done) if (o.day >= yearStart) addTo(o.day.slice(0, 7), o);
+for (const m of Object.values(months)) { m.revenue = r2(m.revenue); m.gst = r2(m.gst); }
+const revenueByMonth = { year: +date.slice(0, 4), through: date, months };
+
+const brief = { date, generatedAt: now, today, month, lastMonth, revenueByMonth, unpaid, notInvoiced, askPaid, askCommercial, commercialAccounts: commercial,
   notes: ['Each job counts on the day it was done on the calendar. Jayman jobs always count as billed. Revenue is before GST. Billed and paid include GST. Km are estimates from job locations (straight line x 1.3), shop to shop.'] };
 const out = arg('out') || 'penny';
 mkdirSync(out, { recursive: true });
