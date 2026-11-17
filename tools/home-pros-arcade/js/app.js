@@ -1500,6 +1500,31 @@
      (before GST) from the filed receipts and card statements, then Keith's pay:
      $2,500 take-home on the 15th and the 30th (the last day in a shorter month). */
   const OWNER_PAY = 2500;
+  // Keith's pay as salary through payroll: find the gross pay that leaves $2,500
+  // take-home after income tax (federal + Alberta) and CPP, using 2026 rates.
+  // EI is left out: an owner with more than 40% of the voting shares can't pay into EI.
+  const PAYROLL = { year: 2026, perYear: 24, ei: false,
+    cpp: { rate: 0.0595, baseRate: 0.0495, exempt: 3500, ympe: 74600, cpp2Rate: 0.04, yampe: 85000 },
+    eiRate: 0.0163, eiMax: 68900,
+    fed: { bpa: 16452, cea: 1501, credit: 0.14, brackets: [[58523, 0.14], [117045, 0.205], [181440, 0.26], [258482, 0.29], [Infinity, 0.33]] },
+    ab: { bpa: 22769, credit: 0.08, brackets: [[61200, 0.08], [154259, 0.10], [185111, 0.12], [246813, 0.13], [370220, 0.14], [Infinity, 0.15]] } };
+  const payroll = (() => {
+    const P = PAYROLL, band = (x, bs) => { let t = 0, prev = 0; for (const [lim, r] of bs) { t += Math.max(0, Math.min(x, lim) - prev) * r; prev = lim; } return t; };
+    const year = G => {
+      const cpp1 = P.cpp.rate * Math.max(0, Math.min(G, P.cpp.ympe) - P.cpp.exempt), cpp2 = P.cpp.cpp2Rate * Math.max(0, Math.min(G, P.cpp.yampe) - P.cpp.ympe);
+      const ei = P.ei ? P.eiRate * Math.min(G, P.eiMax) : 0, base = cpp1 * P.cpp.baseRate / P.cpp.rate, ti = G - (cpp1 - base) - cpp2;
+      const tax = Math.max(0, band(ti, P.fed.brackets) - P.fed.credit * (P.fed.bpa + base + ei + P.fed.cea)) + Math.max(0, band(ti, P.ab.brackets) - P.ab.credit * (P.ab.bpa + base + ei));
+      return { gross: G, tax, cpp: cpp1 + cpp2, ei, net: G - tax - cpp1 - cpp2 - ei };
+    };
+    let lo = 0, hi = OWNER_PAY * P.perYear * 2;
+    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (year(mid).net < OWNER_PAY * P.perYear) lo = mid; else hi = mid; }
+    const y = year(hi), per = k => Math.round(y[k] / P.perYear * 100) / 100;
+    const r = { gross: per('gross'), tax: per('tax'), cpp: per('cpp'), ei: per('ei') };
+    r.takeHome = OWNER_PAY; r.cppEmployer = r.cpp; r.eiEmployer = Math.round(r.ei * 1.4 * 100) / 100;
+    r.cost = Math.round((r.takeHome + r.tax + r.cpp + r.ei + r.cppEmployer + r.eiEmployer) * 100) / 100;
+    r.remit = Math.round((r.tax + r.cpp + r.ei + r.cppEmployer + r.eiEmployer) * 100) / 100;
+    return r;
+  })();
   const payDays = (m, through) => {
     const [y, mo] = m.split('-').map(Number), last = new Date(Date.UTC(y, mo, 0)).getUTCDate();
     return [15, Math.min(30, last)].map(d => `${m}-${String(d).padStart(2, '0')}`).filter(d => !through || d <= through);
@@ -1531,7 +1556,7 @@
       const expenses = Object.values(cats).reduce((a, b) => a + b, 0);
       const pays = ms.flatMap(m => payDays(m, m === cur ? today : null));
       const meals = cats['Meals (50% deductible)'] || 0;
-      return { cats, revenue, jobs, expenses, profit: revenue == null ? null : revenue - expenses, pays, pay: pays.length * OWNER_PAY, meals, count: items.length };
+      return { cats, revenue, jobs, expenses, profit: revenue == null ? null : revenue - expenses, pays, pay: pays.length * payroll.cost, payN: k => pays.length * payroll[k], meals, count: items.length };
     };
     const M1 = calc([plSel]), Y = calc(months);
     const allCats = [...new Set([...Object.keys(Y.cats)])].sort((a, b) => (Y.cats[b] || 0) - (Y.cats[a] || 0));
@@ -1547,13 +1572,21 @@
       { label: 'Total expenses', values: [M1.expenses, Y.expenses], bold: true, rule: true },
       { gap: true },
       { label: 'Net profit before owner pay', values: [M1.profit, Y.profit], bold: true, rule: true },
-      { label: `Owner pay: $2,500 take-home on the 15th and 30th`, values: [-M1.pay, -Y.pay], indent: true, note: `${M1.pays.length} payment${M1.pays.length === 1 ? '' : 's'} this month${M1.pays.length ? ' (' + M1.pays.map(d => fmtDate(d)).join(', ') + ')' : ''}, ${Y.pays.length} this year` },
+      { head: "KEITH'S PAY (salary through payroll)" },
+      { label: 'Take-home pay: $2,500 on the 15th and 30th', values: [-M1.payN('takeHome'), -Y.payN('takeHome')], indent: true, note: `${M1.pays.length} payday${M1.pays.length === 1 ? '' : 's'} this month${M1.pays.length ? ' (' + M1.pays.map(d => fmtDate(d)).join(', ') + ')' : ''}, ${Y.pays.length} this year. Gross pay ${$$(payroll.gross)} each.` },
+      { label: 'Income tax withheld (federal + Alberta)', values: [-M1.payN('tax'), -Y.payN('tax')], indent: true },
+      { label: 'CPP withheld (your share)', values: [-M1.payN('cpp'), -Y.payN('cpp')], indent: true },
+      ...(payroll.ei ? [{ label: 'EI withheld (your share)', values: [-M1.payN('ei'), -Y.payN('ei')], indent: true }] : []),
+      { label: "CPP, the business's share", values: [-M1.payN('cppEmployer'), -Y.payN('cppEmployer')], indent: true },
+      ...(payroll.ei ? [{ label: "EI, the business's share", values: [-M1.payN('eiEmployer'), -Y.payN('eiEmployer')], indent: true }] : []),
+      { label: 'Total cost of your pay', values: [-M1.pay, -Y.pay], bold: true, rule: true, note: `Sent to the CRA as payroll remittances: ${$$(M1.payN('remit'))} this month, ${$$(Y.payN('remit'))} this year.` },
       { label: 'Left in the business after owner pay', values: [M1.profit == null ? null : M1.profit - M1.pay, Y.profit == null ? null : Y.profit - Y.pay], bold: true, rule: true },
     ];
     const notes = [
       'Revenue is from ServiceMonster: jobs count in the month they were done, Jayman jobs always count. Revenue and expenses are before GST.',
       'Expenses are the receipts and card statement items filed with Penny. Anything not filed yet is not in here.',
-      `Owner pay is the $${OWNER_PAY.toLocaleString()} take-home Keith pays himself on the 15th and 30th, as assumed. Income tax and CPP on it are not shown separately.`,
+      `Keith's pay: $${OWNER_PAY.toLocaleString()} take-home on the 15th and 30th, paid as salary. Gross pay ${$$(payroll.gross)} per payday is what leaves $2,500 after income tax (federal + Alberta, ${PAYROLL.year} rates, basic credits only) and CPP; the business also pays its matching CPP. These are estimates; the actual payroll figures may differ a little.`,
+      ...(payroll.ei ? [] : ['EI is not included: an owner with more than 40% of the voting shares does not pay into EI.']),
       ...(Y.meals ? [`Meals are shown in full; only 50% is deductible for tax (${$$(Y.meals / 2)} of ${$$(Y.meals)} this year).`] : []),
       ...(partial ? [`${monthName(plSel)} is not over: revenue through ${fmtDate(through)}, expenses filed so far, pay days that have passed.`] : []),
     ];
@@ -1587,7 +1620,10 @@ Here's the profit and loss for ${colM}, with the year to date.
 Revenue (before GST):           ${f(M1.revenue)}   |   ${f(Y.revenue)}
 Expenses (before GST):          ${f(M1.expenses)}   |   ${f(Y.expenses)}
 Net profit before owner pay:    ${f(M1.profit)}   |   ${f(Y.profit)}
-Owner pay ($2,500 x ${M1.pays.length} / ${Y.pays.length}):    ${f(-M1.pay)}   |   ${f(-Y.pay)}
+Your take-home ($2,500 x ${M1.pays.length} / ${Y.pays.length}):  ${f(-M1.payN('takeHome'))}   |   ${f(-Y.payN('takeHome'))}
+Income tax withheld:            ${f(-M1.payN('tax'))}   |   ${f(-Y.payN('tax'))}
+CPP (yours + business's):       ${f(-M1.payN('cpp') - M1.payN('cppEmployer'))}   |   ${f(-Y.payN('cpp') - Y.payN('cppEmployer'))}
+Total cost of your pay:         ${f(-M1.pay)}   |   ${f(-Y.pay)}
 Left in the business:           ${f(M1.profit == null ? null : M1.profit - M1.pay)}   |   ${f(Y.profit == null ? null : Y.profit - Y.pay)}
 
 ` +
