@@ -1382,8 +1382,9 @@
     const id = clear();
     S.office.select('penny');
     nameplate('PENNY · ACCOUNTING');
-    stmt = doc || await root.HP_LIVE.statement(sid);
+    const got = doc || await root.HP_LIVE.statement(sid);
     if (id !== run) return;
+    stmt = got ? JSON.parse(JSON.stringify(got)) : got;
     if (!stmt) { $('panel').innerHTML = ''; await say("I can't find that statement."); acctChoices('stmt'); return; }
     if (!stmt.owner) {
       // same card as one Keith already told us about? use that answer

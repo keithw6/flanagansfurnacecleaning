@@ -26,7 +26,8 @@
     if (!db) return undefined;
     try {
       const s = await timeout(db.collection(col || 'rosa').doc(id).get(), 8000);
-      return s && s.exists ? s.data() : null;
+      // a plain, editable copy: the live database can hand back read-only objects
+      return s && s.exists ? JSON.parse(JSON.stringify(s.data())) : null;
     } catch (e) { return undefined; }
   }
 
