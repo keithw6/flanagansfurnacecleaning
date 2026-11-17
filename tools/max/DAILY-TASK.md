@@ -1,7 +1,7 @@
 # Max's 6 PM task: thank-you and Google review emails (drafts for Keith to approve)
 
 Max's task has ServiceMonster but no Gmail. He builds the list and hands it to
-Eddie's Mail room task (Gmail), which makes the drafts. Keith approves every night.
+his Mail room task (Gmail), which makes the drafts. Keith approves every night.
 
 ## Normal run (6:00 PM)
 
@@ -11,8 +11,8 @@ Eddie's Mail room task (Gmail), which makes the drafts. Keith approves every nig
    (reads ServiceMonster only).
 3. If `send` is empty: push Keith "Max: no residential jobs to thank today." and stop.
 4. Find the Mail room: list_triggers, the enabled one whose name starts with
-   "Eddie · Mail room". If there is none, push Keith "Max: the Mail room task isn't set
-   up yet, so no drafts were made (see tools/eddie/MAIL-ROOM.md)." and list who would
+   "Max · Mail room". If there is none, push Keith "Max: the Mail room task isn't set
+   up yet, so no drafts were made (see tools/setup/2-MAX-MAIL-ROOM.md)." and list who would
    have been thanked here, then stop.
 5. fire_trigger on it with text = "HAND-OFF FROM MAX" + newline + JSON
    `{"type": "review-drafts", "date", "notesTrigger": "<this task's trigger id>", "send": [...], "skipped": [...]}`
