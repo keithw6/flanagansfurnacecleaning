@@ -23,6 +23,7 @@
     'dir-max': 'img/dir-max.webp',
     'dir-eddie': 'img/dir-eddie.webp',
     'dir-rosa': 'img/dir-rosa.webp',
+    'dir-hank': 'img/dir-hank.webp',
   };
   const img = {};
   function load() {
@@ -240,7 +241,7 @@
   /* Bobblehead proportions: the head is drawn bigger and the body smaller.
      NECK is where each character's head ends in their sprite (fraction of the
      frame height), measured from the art.                                   */
-  const NECK = { grace: 0.27, penny: 0.29, max: 0.24, eddie: 0.25, rosa: 0.25, keith: 0.22 };
+  const NECK = { grace: 0.27, penny: 0.29, max: 0.24, eddie: 0.25, rosa: 0.25, keith: 0.22, hank: 0.27 };
   const HEAD_S = 1.55, BODY_S = 0.8;
   function dims(p) {
     const h = PERSON_H * SY, n = NECK[p.id] || 0.25;

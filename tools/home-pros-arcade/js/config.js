@@ -69,6 +69,11 @@ const HP_CONFIG = {
       duties: ['Every morning: goes through the last 24 hours of email', 'Writes reply drafts for anything that needs an answer (you approve and send)', 'Moves clear spam to the Spam folder and lists what you should check over', 'Makes sure mail reaches the right person and label, and goes out signed and formatted properly'],
     },
     {
+      id: 'hank', home: 'shop', seat: 'seat-b3', name: 'Hank', title: 'Purchasing',
+      intro: "Need something for the van or the shop? Tell me and it goes on the list. I'll remember where we buy it.",
+      duties: ['Keeps the purchase list: add things whenever you think of them', 'Learns where each item is ordered from (10 x 10 patches: Ecco Supply)', 'Groups the list by supplier so each order is one trip or one call', 'Emails you the list, and sits in on board meetings'],
+    },
+    {
       id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
       intro: "Every customer leaves happy. That's my whole job.",
       duties: ['Every morning before 6:30: reads new Jayman purchase orders and prepares them for the New Home route, for your approval', 'Never double-books: checks New Home and Edmonton Residential before proposing a slot', 'Plans the driving: closest Jayman calls back to back (warranty calls keep their time)', 'Turns Jayman warranty calls into work orders', 'Questions, reschedules and cancellations', 'Catches unhappy customers before they post a review'],

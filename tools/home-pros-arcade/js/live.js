@@ -149,6 +149,24 @@
       try { const r = await assets.upload(file); return { id: r.id, url: r.url }; } catch (e) { return null; }
     },
     /* Which monthly reports have been emailed: {months: {'YYYY-MM': {sentAt, count, total, to}}} */
+    /* Hank's purchase list: hank/list = {items:[{id, name, qty, supplier, note, status, addedAt}], learned:{key:{item, supplier, n, at}}} */
+    async purchasing() { return read('list', 'hank'); },
+    async savePurchasing(doc) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      await db.collection('hank').doc('list').set(doc);
+    },
+    /* A plain email through Keith's Gmail; mail to his own address is put in the inbox too. */
+    async emailText({ to, subject, body }) {
+      const mcp = await timeout(mcpP, 6000);
+      if (!mcp) return { ok: false, error: 'unavailable' };
+      try {
+        const r = await mcp.callTool('Gmail', 'send_message', { to: [to], subject, body });
+        const id = r && r.payload && r.payload.id;
+        if (id && /@homeprosgroup\.com$/i.test(to)) { try { await mcp.callTool('Gmail', 'update_message_labels', { messageId: id, addLabelIds: ['INBOX', 'UNREAD', 'IMPORTANT'] }); } catch (e) { } }
+        return { ok: true };
+      } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
+    },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
       const db = await timeout(dbP, 6000);

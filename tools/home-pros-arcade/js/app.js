@@ -235,7 +235,7 @@
     const m = $('bunnyModal');
     if (!m || !root.HP_BUNNY) return;
     if (bunnyGame) bunnyGame.stop();
-    bunnyGame = root.__bunnyGame = HP_BUNNY.mount($('bunnyMount'), {
+    bunnyGame = HP_BUNNY.mount($('bunnyMount'), {
       sound: { blip: () => A.blip(), select: () => A.select(), back: () => A.back(), error: () => A.error(), win: () => A.win() },
       onResult: (p, hits) => { if (p && hits >= HP_BUNNY.GOAL5) { S.celebrate && S.celebrate(); } },
       onBook: p => { closeBunny(); state.history = []; say(p ? `${p.pct}% off, nice shooting! Let's get your price.` : "Let's get your price."); setTimeout(() => ask('town'), 600); },
@@ -819,6 +819,7 @@
     if (dirId === 'rosa') return csDesk();
     if (dirId === 'penny') return acctDesk();
     if (dirId === 'eddie') return emailDesk();
+    if (dirId === 'hank') return purchaseDesk();
     const d = cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
@@ -1896,6 +1897,156 @@ Accounts assistant, Home Pros Group`;
     ['accounts@homeprosgroup.com', 'Penny', 'Penny', 'Invoices, payment notices, supplier bills'],
     ['receipts@homeprosgroup.com', 'Penny', 'Penny', 'Receipts you email or forward; Penny files them'],
   ];
+  /* ------------------------------------------------ Hank: purchasing */
+  // Where things are bought. Hank learns more every time Keith names a supplier.
+  const SUPPLIERS = ['Ecco Supply', 'Home Depot', 'ULINE', 'Amazon', 'Canadian Tire', 'Princess Auto', 'Vevor', 'Lowe\'s', 'Costco'];
+  const SEED_LEARNED = { '10x10 patch': { item: '10 x 10 patches', supplier: 'Ecco Supply', n: 1, at: '' } };
+  const itemKey = t => String(t || '').toLowerCase().replace(/(\d+)\s*(x|by)\s*(\d+)/g, '$1x$3').replace(/[^a-z0-9x ]+/g, ' ')
+    .split(/\s+/).filter(w => w && !['the', 'a', 'an', 'of', 'some', 'more', 'new', 'box', 'boxes', 'pack', 'packs', 'case', 'cases', 'roll', 'rolls'].includes(w))
+    .map(w => w.length > 4 && /(ches|shes|xes|sses)$/.test(w) ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w).join(' ');
+  function learnedFor(name, learned) {
+    const k = itemKey(name);
+    if (!k) return null;
+    if (learned[k]) return learned[k];
+    const want = new Set(k.split(' '));
+    let best = null, bestScore = 0;
+    for (const [key, v] of Object.entries(learned)) {
+      const have = key.split(' '), common = have.filter(w => want.has(w)).length;
+      const score = common / Math.max(have.length, want.size);
+      if (score > bestScore) { best = v; bestScore = score; }
+    }
+    return bestScore >= .6 ? best : null;
+  }
+  // "2 boxes 10x10 patches" -> {qty: '2 boxes', name: '10x10 patches'}
+  function parseLine(line) {
+    const t = String(line || '').trim().replace(/^[-*•]\s*/, '');
+    const m = t.match(/^(\d+(?:\.\d+)?)\s*(boxes|box|packs?|cases?|rolls?|bags?|pcs|pieces|ea|each|ft|feet|m|x)?\b\s*(?:of\s+)?(.*)$/i);
+    if (m && m[3] && !/^x\s*\d/i.test(t)) return { qty: (m[1] + (m[2] ? ' ' + m[2] : '')).trim(), name: m[3].trim() };
+    return { qty: '', name: t };
+  }
+  let pl = null;
+  async function purchaseDesk() {
+    const id = clear();
+    S.office.select('hank');
+    nameplate('HANK · PURCHASING');
+    $('panel').innerHTML = '<div class="loading">Getting the list</div>';
+    const L = root.HP_LIVE;
+    const doc = L ? await L.purchasing() : undefined;
+    if (id !== run) return;
+    pl = { items: [], learned: {}, ...(doc || {}) };
+    pl.learned = { ...SEED_LEARNED, ...(pl.learned || {}) };
+    drawPurchase(doc !== undefined);
+    const open = pl.items.filter(x => x.status !== 'got');
+    await say(open.length ? `${open.length} thing${open.length === 1 ? '' : 's'} on the list. Add more any time, I'll sort them by where we buy them.` : "List's empty, boss. What do we need?");
+    if (id !== run) return;
+    choices(boardChoices('hank'));
+  }
+  let plSaveT = null;
+  function plSave() {
+    clearTimeout(plSaveT);
+    const doc = pl;
+    plSaveT = setTimeout(() => { if (root.HP_LIVE) root.HP_LIVE.savePurchasing(doc).catch(() => { const m = $('plMsg'); if (m) m.textContent = " Couldn't save just now."; }); }, 500);
+  }
+  function addItem(name, qty, supplier, note) {
+    name = String(name || '').trim();
+    if (!name) return null;
+    const known = learnedFor(name, pl.learned);
+    supplier = String(supplier || '').trim() || (known ? known.supplier : '');
+    const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name, qty: String(qty || '').trim(), supplier, note: String(note || '').trim(), status: 'needed', addedAt: new Date().toISOString() };
+    pl.items.push(item);
+    if (supplier) {   // learn (or re-learn) where this is bought
+      const k = itemKey(name), old = pl.learned[k];
+      pl.learned[k] = { item: name, supplier, n: (old && old.supplier === supplier ? old.n : 0) + 1, at: item.addedAt };
+    }
+    return { item, known };
+  }
+  function listText(items) {
+    const by = {};
+    for (const x of items) (by[x.supplier || 'Supplier not set'] = by[x.supplier || 'Supplier not set'] || []).push(x);
+    return Object.entries(by).sort((a, b) => a[0] === 'Supplier not set' ? 1 : b[0] === 'Supplier not set' ? -1 : a[0].localeCompare(b[0]))
+      .map(([sup, l]) => `${sup.toUpperCase()}\n` + l.map(x => `  - ${x.qty ? x.qty + ' ' : ''}${x.name}${x.note ? ' (' + x.note + ')' : ''}${x.status === 'ordered' ? ' [ordered]' : ''}`).join('\n')).join('\n\n');
+  }
+  function drawPurchase(live) {
+    const items = pl.items.filter(x => x.status !== 'got'), got = pl.items.filter(x => x.status === 'got');
+    const by = {};
+    for (const x of items) (by[x.supplier || ''] = by[x.supplier || ''] || []).push(x);
+    const groups = Object.entries(by).sort((a, b) => !a[0] ? 1 : !b[0] ? -1 : a[0].localeCompare(b[0]));
+    const known = [...new Set([...SUPPLIERS, ...Object.values(pl.learned).map(v => v.supplier), ...pl.items.map(x => x.supplier)].filter(Boolean))].sort();
+    const learnedRows = Object.entries(pl.learned).sort((a, b) => a[1].item.localeCompare(b[1].item));
+    $('panel').innerHTML = `<div class="report purch">
+      <h3>PURCHASE LIST</h3>
+      <div class="q"><h4>ADD TO THE LIST</h4>
+        <div class="pform">
+          <label class="rf pq"><span>How many</span><input id="pQty" type="text" placeholder="2 boxes"></label>
+          <label class="rf pn"><span>What</span><input id="pName" type="text" placeholder="10 x 10 patches" autocomplete="off"></label>
+          <label class="rf ps"><span>Where from</span><input id="pSup" type="text" list="pSups" placeholder="Hank fills this in when he knows"><datalist id="pSups">${known.map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
+          <label class="rf pnote"><span>Note (optional)</span><input id="pNote" type="text" placeholder="for the Jayman jobs"></label>
+          <button class="qa send" id="pAdd">Add it</button>
+        </div>
+        <p class="small" id="pHint"></p>
+        <details class="pmany"><summary>Add several at once</summary>
+          <textarea id="pMany" rows="4" placeholder="One per line, e.g.&#10;2 boxes 10x10 patches&#10;foil tape&#10;3 dryer vent hoods"></textarea>
+          <button class="qa" id="pAddMany">Add these</button></details>
+      </div>
+      ${groups.length ? groups.map(([sup, l]) => `<div class="q pgroup"><h4>${sup ? 'ORDER FROM ' + esc(sup.toUpperCase()) : 'WHERE FROM? (not set yet)'} <small>${l.length} item${l.length === 1 ? '' : 's'}</small></h4>
+        ${l.map(x => `<div class="prow ${x.status}"><div class="pwhat"><b>${x.qty ? esc(x.qty) + ' ' : ''}${esc(x.name)}</b>${x.note ? `<small>${esc(x.note)}</small>` : ''}${x.status === 'ordered' ? '<span class="tag ok">ORDERED</span>' : ''}
+          ${!sup ? `<span class="psetsup"><input type="text" list="pSups" data-sup="${esc(x.id)}" placeholder="Where do we get this?"><button class="qa tiny" data-supset="${esc(x.id)}">Save</button></span>` : ''}</div>
+          <div class="pbtns">${x.status !== 'ordered' ? `<button class="qa tiny" data-st="ordered" data-id="${esc(x.id)}">Ordered</button>` : ''}<button class="qa tiny" data-st="got" data-id="${esc(x.id)}">Got it</button><button class="qa tiny no" data-del="${esc(x.id)}" aria-label="Remove">&times;</button></div></div>`).join('')}</div>`).join('')
+        : '<div class="q"><p>Nothing on the list right now.</p></div>'}
+      <div class="q send"><button class="qa send" id="pEmail"${items.length ? '' : ' disabled'}>Email me the list</button> <button class="qa" id="pCopy"${items.length ? '' : ' disabled'}>Copy the list</button>${got.length ? ` <button class="qa" id="pClear">Clear ${got.length} picked up</button>` : ''} <span id="plMsg" class="small"></span></div>
+      <details class="q"><summary><b>WHERE WE BUY THINGS</b> <small>(${learnedRows.length} learned)</small></summary>
+        <table>${learnedRows.map(([k, v]) => `<tr><td>${esc(v.item)}</td><td>${esc(v.supplier)}</td><td><button class="qa tiny no" data-forget="${esc(k)}" aria-label="Forget">&times;</button></td></tr>`).join('')}</table>
+        <p class="small">Hank learns these as you add things with a supplier. Change the supplier on a new item and he remembers the new one.</p></details>
+      ${live ? '' : '<p class="soon">The list is kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
+    </div>`;
+    const P = $('panel');
+    const nameIn = $('pName'), supIn = $('pSup'), hint = $('pHint');
+    nameIn.oninput = () => {
+      const k = learnedFor(nameIn.value, pl.learned);
+      hint.textContent = k ? `I know this one: we get ${k.item} from ${k.supplier}.` : '';
+      if (k && !supIn.dataset.touched) supIn.value = k.supplier;
+      if (!k && !supIn.dataset.touched) supIn.value = '';
+    };
+    supIn.oninput = () => { supIn.dataset.touched = supIn.value ? '1' : ''; };
+    const doAdd = () => {
+      const r = addItem(nameIn.value, $('pQty').value, supIn.value, $('pNote').value);
+      if (!r) { nameIn.focus(); return; }
+      try { A.select(); } catch (e) { }
+      plSave(); drawPurchase(live); $('pName').focus();
+      say(r.item.supplier ? `${r.item.name}: on the list${r.known && r.known.supplier === r.item.supplier ? `, from ${r.item.supplier} like always` : `. ${r.item.supplier} it is, I'll remember that`}.` : `${r.item.name}: on the list. Where do we get it? Tell me once and I'll remember.`);
+    };
+    $('pAdd').onclick = doAdd;
+    [nameIn, $('pQty'), supIn, $('pNote')].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }));
+    $('pAddMany').onclick = () => {
+      const lines = $('pMany').value.split('\n').map(t => t.trim()).filter(Boolean);
+      let n = 0, unknown = 0;
+      for (const ln of lines) { const { qty, name } = parseLine(ln); const r = addItem(name, qty, '', ''); if (r) { n++; if (!r.item.supplier) unknown++; } }
+      if (!n) return;
+      try { A.select(); } catch (e) { }
+      plSave(); drawPurchase(live);
+      say(`Added ${n}.` + (unknown ? ` ${unknown} need a supplier: tell me where we get ${unknown === 1 ? 'it' : 'them'} and I'll remember.` : ' I knew where to get all of them.'));
+    };
+    P.querySelectorAll('button[data-st]').forEach(b => b.onclick = () => { const x = pl.items.find(i => i.id === b.dataset.id); if (!x) return; x.status = b.dataset.st; x[b.dataset.st + 'At'] = new Date().toISOString(); try { A.select(); } catch (e) { } plSave(); drawPurchase(live); });
+    P.querySelectorAll('button[data-del]').forEach(b => b.onclick = () => { pl.items = pl.items.filter(i => i.id !== b.dataset.del); try { A.back(); } catch (e) { } plSave(); drawPurchase(live); });
+    P.querySelectorAll('button[data-supset]').forEach(b => b.onclick = () => {
+      const x = pl.items.find(i => i.id === b.dataset.supset), v = (P.querySelector(`input[data-sup="${b.dataset.supset}"]`) || {}).value || '';
+      if (!x || !v.trim()) return;
+      x.supplier = v.trim();
+      const k = itemKey(x.name); pl.learned[k] = { item: x.name, supplier: x.supplier, n: ((pl.learned[k] || {}).n || 0) + 1, at: new Date().toISOString() };
+      try { A.select(); } catch (e) { } plSave(); drawPurchase(live); say(`Got it: ${x.name} from ${x.supplier}. I'll remember.`);
+    });
+    P.querySelectorAll('button[data-forget]').forEach(b => b.onclick = () => { delete pl.learned[b.dataset.forget]; plSave(); drawPurchase(live); });
+    if ($('pClear')) $('pClear').onclick = () => { pl.items = pl.items.filter(i => i.status !== 'got'); plSave(); drawPurchase(live); };
+    $('pCopy').onclick = async () => { try { await navigator.clipboard.writeText(listText(items)); $('plMsg').textContent = ' Copied.'; } catch (e) { $('plMsg').textContent = " Couldn't copy here."; } };
+    $('pEmail').onclick = async () => {
+      $('pEmail').disabled = true; $('plMsg').textContent = ' Sending to keith@homeprosgroup.com...';
+      const r = await root.HP_LIVE.emailText({ to: 'keith@homeprosgroup.com', subject: `Hank's purchase list: ${items.length} item${items.length === 1 ? '' : 's'}`, body: `Hi Keith,\n\nHere's what we need, grouped by where we buy it:\n\n${listText(items)}\n\nHank\nPurchasing, Home Pros Group` });
+      $('pEmail').disabled = false;
+      $('plMsg').textContent = r.ok ? ' Sent. It\'s in your inbox.' : r.error === 'server_not_connected' || r.error === 'not_granted' || r.error === 'not_in_manifest' ? ' Allow the Gmail connector for the arcade, then try again. Or copy the list.' : " The email didn't go through. Try again, or copy the list.";
+      if (r.ok) { try { A.select(); } catch (e) { } say('Sent. The list is in your inbox.'); }
+    };
+  }
+
   async function emailDesk() {
     const id = clear();
     S.office.select('eddie');
