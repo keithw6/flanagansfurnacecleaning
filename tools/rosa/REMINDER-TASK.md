@@ -1,25 +1,31 @@
-# Rosa's 2 PM task: appointment reminders for tomorrow
+# Rosa's 2 PM task: appointment reminders for tomorrow (one task, Gmail + ServiceMonster)
 
-Rosa's task has ServiceMonster but no Gmail. She builds the list and hands it to
-her Mail room task (Gmail), which sends the reminders.
+This task runs in the "flanagansfurnacecleaning" environment (it can read
+ServiceMonster) with the Gmail connector on, so it does the whole job itself.
 
-1. Get the arcade docs `penny/accounts` (else `{"commercial":[],"notCommercial":[]}`)
-   and `rosa/reminders` (else `{"sent": []}`) with ArtifactData.
+1. With ArtifactData (the arcade artifact): get `penny/accounts` and save it as
+   accounts.json (else `{"commercial":[],"notCommercial":[]}`); get `rosa/reminders`
+   (else `{"sent": []}`).
 2. `node tools/rosa/reminders.mjs --commercial=accounts.json --out=rosa-out`
-   (reads ServiceMonster only; the appointment day is tomorrow).
+   (reads ServiceMonster only; the appointment day is tomorrow). If it can't reach
+   ServiceMonster, push Keith the exact error and stop.
 3. Drop any row in `send` or `ask` whose WO and date are already in `rosa/reminders` sent.
    If both are empty: push Keith "Rosa: no residential reminders for tomorrow." and stop.
-4. Find the Mail room: list_triggers, the enabled one whose name starts with
-   "Rosa · Mail room". If there is none, push Keith "Rosa: the Mail room task isn't set
-   up yet, so no reminders went out (see tools/setup/1-ROSA-MAIL-ROOM.md)." and list who would
-   have been reminded here, then stop.
-5. fire_trigger on it with text = "HAND-OFF FROM ROSA" + newline + JSON
-   `{"type": "reminders", "date", "send": [...], "ask": [...], "skipped": [...]}`
-   copied from rosa-out/reminders.json.
-6. Add the handed-off rows to `rosa/reminders` → `sent`: {wo, accountID, name, date, at}
-   (never the email address), pinned to the version read in step 1. Keep only the last
-   60 days.
-7. Say here who was handed off, who needs Keith's OK, and who was skipped and why.
-   No push (the Mail room pushes).
+4. RESIDENTIAL (`send`): send each one the email in `tools/rosa/REMINDER.md` with
+   send_message (subject, plain text as `body`, HTML as `htmlBody`), filled in from the
+   row. One email each, only to the address in the row.
+5. LOOKS COMMERCIAL (`ask`): never send these. For each, create a Gmail DRAFT of the same
+   reminder (create_draft). Then send ONE email to keith@homeprosgroup.com, subject
+   "Rosa: approve or deny [n] reminder(s) for tomorrow", listing WO, name, time, address
+   and why it looks commercial, ending with: "The reminders are waiting in Gmail Drafts.
+   Send the ones you approve; delete the ones you deny." Right after sending it, add the
+   labels INBOX and UNREAD to it (update_message_labels with the id send_message returned).
+6. Add what went out (and the drafted ones) to `rosa/reminders` → `sent`:
+   {wo, accountID, name, date, at, drafted: true for ask rows}, never the email address,
+   pinned to the version read in step 1. Keep only the last 60 days.
+7. Push Keith: "Rosa: [n] reminders sent for tomorrow ([names]). [m] waiting for your OK
+   in Gmail Drafts." (leave out the last part when there are none). Same summary here,
+   with the skipped jobs and why.
 
-ServiceMonster is read only for this task. Never change anything there.
+Never send to Jayman, builders, commercial accounts or anyone skipped. ServiceMonster is
+read only for this task. Never delete or trash mail.

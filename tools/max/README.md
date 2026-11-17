@@ -8,7 +8,7 @@ day in ServiceMonster and drafts a thank-you email for each customer asking for 
   thank, and who was skipped and why (Jayman/builders, commercial accounts in
   ServiceMonster or on Penny's commercial list, company names, "Do not email",
   no email address, asked already in the past year, a second job the same day).
-- `EMAIL.md` is the email (subject, plain text and HTML). Drafted by Max's Mail room task (Gmail), sent from
+- `EMAIL.md` is the email (subject, plain text and HTML). Drafted by Max's task (Gmail + ServiceMonster), sent from
   keith@homeprosgroup.com.
 - What was sent is logged in the arcade's database, `eddie/reviews`
   (`{sent: [{accountID, wo, name, date}]}`), so nobody is asked twice in a year.
