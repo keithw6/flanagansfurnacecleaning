@@ -470,3 +470,17 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .purch .pbtns { display: flex; gap: 6px; flex-shrink: 0; }
 .purch details summary { cursor: pointer; }
 @media (max-width: 640px) { .purch .pform { grid-template-columns: 1fr; } .purch .pform .pnote, .purch .pform #pAdd { grid-column: auto; } .purch .prow { flex-wrap: wrap; } }
+
+.purch .ptabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.purch .ptabs .qa.on { background: var(--edge); color: #0c0e0d; }
+.purch .pspecial { display: flex; gap: 8px; align-items: center; font-size: 18px; align-self: center; }
+.purch .pspecial input { width: 20px; height: 20px; }
+.purch .pform .pspecial { grid-column: 3; }
+.purch .pform #pAdd { grid-column: 3; }
+.purch .sform { grid-template-columns: 2fr 1fr 1fr 1fr; }
+.purch .sform .ps { grid-column: 1 / 3; } .purch .sform #sAdd { grid-column: 3 / 5; }
+.purch table.stk { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.purch table.stk th, .purch table.stk td { padding: 6px 6px; text-align: left; border-top: 1px solid #2a312d; vertical-align: middle; }
+.purch table.stk input { width: 80px; font-size: 18px; padding: 4px 6px; background: #0e1210; color: #f4f6f4; border: 2px solid #39413d; }
+.purch table.stk tr.low td { background: rgba(217, 154, 30, .12); }
+@media (max-width: 640px) { .purch .sform { grid-template-columns: 1fr 1fr; } .purch .sform .pn, .purch .sform .ps, .purch .sform #sAdd { grid-column: 1 / 3; } .purch .pform .pspecial { grid-column: auto; } .purch table.stk input { width: 60px; } }

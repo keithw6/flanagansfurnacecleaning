@@ -71,7 +71,7 @@ const HP_CONFIG = {
     {
       id: 'hank', home: 'shop', seat: 'seat-b3', name: 'Hank', title: 'Purchasing',
       intro: "Need something for the van or the shop? Tell me and it goes on the list. I'll remember where we buy it.",
-      duties: ['Keeps the purchase list: add things whenever you think of them', 'Learns where each item is ordered from (10 x 10 patches: Ecco Supply)', 'Groups the list by supplier so each order is one trip or one call', 'Emails you the list, and sits in on board meetings'],
+      duties: ['Keeps the purchase list: add things whenever you think of them, and special orders', 'Inventory: the basic products we stock, each with a minimum, counted once a week', 'Anything at or below its minimum goes on the purchase list automatically', 'Learns where each item is ordered from (10 x 10 patches: Ecco Supply) and groups the list by supplier', 'Emails you the list, and sits in on board meetings'],
     },
     {
       id: 'rosa', home: 'cs', seat: 'seat-b2', name: 'Rosa', title: 'Customer Service',
