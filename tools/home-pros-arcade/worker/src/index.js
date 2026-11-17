@@ -193,9 +193,15 @@ async function book(req, env) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) return { status: 400, body: { error: 'bad_email' } };
   if (customer.phone.replace(/\D/g, '').length < 10) return { status: 400, body: { error: 'bad_phone' } };
 
+  // Dust Bunny Blaster prize: only 5% or 10%, and the code must say the same
+  const pr = body.promo || {};
+  const promoCode = clean(pr.code, 16).toUpperCase();
+  const promoMatch = /^BUNNY(5|10)-[A-Z0-9]{4}$/.exec(promoCode);
+  const promo = promoMatch && Number(promoMatch[1]) === Number(pr.pct) ? { pct: Number(pr.pct), code: promoCode } : null;
+
   // priced from the town on the booking form, never from the browser's number
   const travel = await travelFor(customer.city);
-  const q = quote(answers, travel, CFG);
+  const q = quote(answers, travel, CFG, promo);
 
   const start = clean(body.start, 19);
   const now = SCHED.localNow(CFG.business.timeZone);
@@ -208,6 +214,7 @@ async function book(req, env) {
     `Quoted flat rate: ${money(q.subtotal)} + ${CFG.tax.label} ${money(q.tax)} = ${money(q.total)}`,
     ...q.lines.map(l => `- ${l.label}: ${money(l.amount)}${l.detail ? ' (' + l.detail + ')' : ''}`),
     q.travelPending ? 'TRAVEL FEE TO CONFIRM: address not found, call the customer before the visit.' : '',
+    promo ? `ARCADE GAME PRIZE: ${promo.pct}% off (Dust Bunny Blaster, code ${promo.code}). Rosa: take ${promo.pct}% off the invoice. One prize per customer.` : '',
     customer.notes ? `Customer notes: ${customer.notes}` : '',
   ].filter(Boolean).join('\n');
 

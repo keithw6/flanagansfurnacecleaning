@@ -418,6 +418,56 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .pl .pltab .plgap td { height: 6px; }
 .pl .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; font-size: 18px; white-space: normal; }
 
+/* Dust Bunny Blaster brochure on the counter, right of Hank */
+.howto.bunny-btn { left: 70.5%; top: 52.5%; width: 12.5%; outline-color: #ffcf3a; animation-name: bunnyGlow; }
+.bunny-btn .howto-txt { color: #ffcf3a; }
+.bunny-btn .howto-go { color: #ffcf3a; }
+.bunny-ico { width: 3cqw; height: 2.6cqw; background: #b8bcb8; border-radius: 50% 50% 45% 45%; position: relative; box-shadow: inset -.3cqw -.3cqw 0 #8d928e; }
+.bunny-ico::before, .bunny-ico::after { content: ''; position: absolute; top: .9cqw; width: .45cqw; height: .45cqw; background: #111; }
+.bunny-ico::before { left: .8cqw; } .bunny-ico::after { right: .8cqw; }
+@keyframes bunnyGlow { 50% { box-shadow: 0 .4cqw 0 #000, 0 0 2.2cqw rgba(255, 207, 58, .7); } }
+.bunny-btn:hover, .bunny-btn:focus-visible { outline-color: #ffe28a; box-shadow: 0 .4cqw 0 #000, 0 0 2.4cqw rgba(255, 207, 58, .9); }
+
+.bunny-box { max-width: 760px; }
+.bb { padding: 18px 20px 22px; color: #f4f6f4; font-family: var(--pixel); }
+.bb-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; border-bottom: 3px dashed #3faa35; padding-bottom: 14px; }
+.bb-title { font-size: 26px; line-height: 1.25; color: #ffcf3a; text-shadow: 3px 3px 0 #a0521c; }
+.bb-sub { font-family: system-ui, sans-serif; font-size: 17px; line-height: 1.4; color: #dfe4e0; flex: 1; min-width: 220px; }
+.bb-sub b { color: #7fd977; }
+.bb-rules { font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.5; color: #c9cfcb; margin: 12px 0 14px; padding-left: 20px; }
+.bb-rules b { color: #fff; }
+.bb-screen { position: relative; border: 4px solid #000; outline: 3px solid #3faa35; background: #000; touch-action: manipulation; user-select: none; }
+.bb-canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: crosshair; }
+.bb-overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.bb-overlay[hidden] { display: none; }
+.bb-card { background: rgba(8, 10, 9, .88); border: 3px solid #3faa35; padding: 14px 20px; text-align: center; display: grid; gap: 8px; max-width: 80%; }
+.bb-card b { font-size: 18px; color: #ffcf3a; }
+.bb-card span { font-size: 11px; line-height: 1.6; }
+.bb-card small { font-family: system-ui, sans-serif; font-size: 13px; color: #c9cfcb; }
+.bb-card.win { border-color: #ffcf3a; box-shadow: 0 0 30px rgba(255, 207, 58, .5); }
+.bb-prize { font-size: 30px !important; color: #7fd977; text-shadow: 3px 3px 0 #1b4d17; }
+.bb-hud { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; background: #111512; border: 3px solid #000; border-top: 0; padding: 8px 10px; font-size: 10px; }
+.bb-shots, .bb-tally { display: flex; gap: 3px; flex-wrap: wrap; }
+.bb-shots i { width: 10px; height: 14px; background: #333a36; border: 2px solid #000; }
+.bb-shots i.on { background: #ffcf3a; }
+.bb-tally i { width: 8px; height: 8px; background: #333a36; }
+.bb-tally i.hit { background: #7fd977; } .bb-tally i.miss { background: #e2463b; }
+.bb-score { color: #7fd977; }
+.bb-foot { margin-top: 14px; }
+.bb-msg { font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.4; min-height: 1.4em; margin: 0 0 12px; }
+.bb-msg b { color: #ffcf3a; }
+.bb-btns { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px; }
+.bb-btns button { font-family: var(--pixel); font-size: 13px; padding: 14px 10px; cursor: pointer; border: 3px solid #000; box-shadow: 0 4px 0 #000; }
+.bb-btns button small { display: block; font-family: system-ui, sans-serif; font-size: 12px; margin-top: 4px; }
+.bb-play { background: #1d2320; color: #f4f6f4; outline: 2px solid #3faa35; }
+.bb-play:disabled { opacity: .5; cursor: default; }
+.bb-book { background: #3faa35; color: #0c0e0d; }
+.bb-book.win { background: #ffcf3a; animation: bunnyPulse 1.2s ease-in-out infinite; }
+.bb-btns button:hover:not(:disabled), .bb-btns button:focus-visible { filter: brightness(1.15); }
+@keyframes bunnyPulse { 50% { transform: scale(1.03); } }
+@media (max-width: 560px) { .bb { padding: 14px 12px 18px; } .bb-title { font-size: 20px; } .bb-btns { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .bb-book.win { animation: none; } }
+
 </style>
 </head>
 <body class="street">
@@ -448,6 +498,11 @@ body.street .cash, body.office .cash { visibility: hidden; }
         <span class="howto-txt">HOW WE<br>CLEAN</span>
         <span class="howto-go" aria-hidden="true">&#9654; 7 STEPS</span>
       </button>
+      <button type="button" class="howto bunny-btn" id="bunnyBtn" aria-label="Dust Bunny Blaster: play to win up to 10% off">
+        <span class="bunny-ico" aria-hidden="true"></span>
+        <span class="howto-txt">WIN UP TO<br>10% OFF</span>
+        <span class="howto-go" aria-hidden="true">&#9654; PLAY</span>
+      </button>
     </div>
 
     <div class="brand" aria-hidden="true"><img src="data:image/webp;base64,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" alt=""><div><b>HOME<span>PROS</span></b><small>QUALITY YOU CAN TRUST</small></div></div>
@@ -467,6 +522,13 @@ body.street .cash, body.office .cash { visibility: hidden; }
     <div class="howto-box">
       <button type="button" class="howto-close" id="howtoClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
       <div id="howtoMount"></div>
+    </div>
+  </div>
+
+  <div class="howto-modal" id="bunnyModal" role="dialog" aria-modal="true" aria-label="Dust Bunny Blaster" hidden>
+    <div class="howto-box bunny-box">
+      <button type="button" class="howto-close" id="bunnyClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
+      <div id="bunnyMount"></div>
     </div>
   </div>
 
@@ -776,11 +838,13 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
      zone: true|false,
      dryer: 'no'|'side'|'roof'
    }
-   travel = result of HP_TRAVEL.estimate() (or the server's lookup)       */
+   travel = result of HP_TRAVEL.estimate() (or the server's lookup)
+   promo  = optional {pct: 5|10, code}: the Dust Bunny Blaster prize, taken off
+            the subtotal before GST                                        */
 (function (root) {
   const int = v => (Number.isInteger(+v) ? +v : NaN);
 
-  function quote(answers, travel, cfg) {
+  function quote(answers, travel, cfg, promo) {
     cfg = cfg || root.HP_CONFIG;
     const p = cfg.prices, h = cfg.hours;
     const a = answers || {};
@@ -824,16 +888,22 @@ if (typeof globalThis !== 'undefined') globalThis.HP_CONFIG = HP_CONFIG;
       }
     } else errors.push('travel');
 
+    const pct = promo && (promo.pct === 5 || promo.pct === 10) ? promo.pct : 0;
+    if (pct) {
+      const before = lines.reduce((s, l) => s + l.amount, 0);
+      lines.push({ key: 'promo', label: `Dust Bunny Blaster prize: ${pct}% off`, detail: promo.code ? 'Code ' + promo.code : '', amount: -Math.round(before * pct) / 100 });
+    }
     const subtotal = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
     const tax = Math.round(subtotal * cfg.tax.rate * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
     const summary = lines.map(l => `${l.label}${l.detail ? ' (' + l.detail + ')' : ''}: ${money(l.amount)}`).join('\n');
-    return { valid: errors.length === 0, errors, lines, subtotal, tax, total, hours, travelPending, summary };
+    return { valid: errors.length === 0, errors, lines, subtotal, tax, total, hours, travelPending, summary, promoPct: pct };
   }
 
   function money(n) {
     n = Math.round(n * 100) / 100;
-    return '$' + (n % 1 ? n.toFixed(2) : String(n));
+    const a = Math.abs(n);
+    return (n < 0 ? '-$' : '$') + (a % 1 ? a.toFixed(2) : String(a));
   }
 
   root.HP_PRICING = { quote, money };
@@ -1614,6 +1684,334 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       })();
     },
   };
+})(window);
+
+</script>
+<script>
+/* DUST BUNNY BLASTER: Hank's counter game. Dust bunnies burst out of the floor
+   vents; zap them with the vacuum before they get away. 2 rounds, 20 bunnies,
+   3 shots each. Zap 15 for 5% off, 18 for 10% off your cleaning.
+   HP_BUNNY.mount(el, { onBook(prize), sound }) draws the brochure into el.
+   HP_BUNNY.prize() -> {pct, code, until} or null (a win is kept for 30 days).   */
+(function (root) {
+  'use strict';
+  const W = 256, H = 192;                       // logical pixels, scaled up
+  const TOTAL = 20, PER_ROUND = 10, SHOTS = 3;
+  const GOAL5 = 15, GOAL10 = 18, TRIES_PER_DAY = 3;
+  const KEY_PRIZE = 'hp-bunny-prize', KEY_TRIES = 'hp-bunny-tries';
+  const VENTS = [52, 128, 204];                 // vent centres on the floor
+  const FLOOR = 150;
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+  };
+  const today = () => new Date().toISOString().slice(0, 10);
+  function triesLeft() { const t = store.get(KEY_TRIES); return t && t.day === today() ? Math.max(0, TRIES_PER_DAY - t.n) : TRIES_PER_DAY; }
+  function useTry() { const t = store.get(KEY_TRIES); store.set(KEY_TRIES, { day: today(), n: (t && t.day === today() ? t.n : 0) + 1 }); }
+  function prize() { const p = store.get(KEY_PRIZE); return p && p.until > Date.now() ? p : null; }
+  function savePrize(pct) {
+    const old = prize();
+    if (old && old.pct >= pct) return old;
+    const code = 'BUNNY' + pct + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+    const p = { pct, code, until: Date.now() + 30 * 864e5 };
+    store.set(KEY_PRIZE, p);
+    return p;
+  }
+
+  // ---------------------------------------------------------------- sprites
+  const PAL = { d: '#4d524f', G: '#b8bcb8', L: '#dfe2df', w: '#ffffff', k: '#111111', p: '#ff8fb3', r: '#e23b3b' };
+  const BUN = [[
+    '...dd..dd...',
+    '..dLGddGLd..',
+    '..dLGddGLd..',
+    '.dGGGGGGGGd.',
+    'dGLGGGGGGLGd',
+    'dGGwkGGwkGGd',
+    'dGGGGGGGGGGd',
+    'dGLGGppGGLGd',
+    '.dGGGGGGGGd.',
+    '..dGdGGdGd..',
+    '...d.dd.d...',
+  ], [
+    '..dd....dd..',
+    '..dLd..dLd..',
+    '..dLGddGLd..',
+    '.dGGGGGGGGd.',
+    'dGLGGGGGGLGd',
+    'dGGwkGGwkGGd',
+    'dGGGGGGGGGGd',
+    'dGLGGppGGLGd',
+    '.dGGGGGGGGd.',
+    '.dGd.dd.dGd.',
+    '..d......d..',
+  ]];
+  const DIZZY = [
+    '...dd..dd...',
+    '..dLGddGLd..',
+    '.dGGGGGGGGd.',
+    'dGLGGGGGGLGd',
+    'dGkGkGGkGkGd',
+    'dGGkGGGGkGGd',
+    'dGkGkGGkGkGd',
+    'dGGGGrrGGGGd',
+    '.dGGGGGGGGd.',
+    '..dGdGGdGd..',
+    '...d.dd.d...',
+  ];
+  function sprite(g, rows, x, y, s = 1) {
+    for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) {
+      const c = rows[j][i]; if (c === '.') continue;
+      g.fillStyle = PAL[c]; g.fillRect(Math.round(x + i * s), Math.round(y + j * s), Math.ceil(s), Math.ceil(s));
+    }
+  }
+
+  // ------------------------------------------------------------- the scene
+  function drawRoom(g, t) {
+    // wall
+    g.fillStyle = '#26332c'; g.fillRect(0, 0, W, FLOOR);
+    g.fillStyle = '#2c3b33'; for (let x = 0; x < W; x += 16) g.fillRect(x, 0, 8, FLOOR);
+    // window with a little sky
+    g.fillStyle = '#0d1410'; g.fillRect(150, 22, 70, 52);
+    g.fillStyle = '#21405a'; g.fillRect(153, 25, 64, 46);
+    g.fillStyle = '#e8eef0'; g.fillRect(160 + ((t / 400) % 60), 34, 14, 4); g.fillRect(164 + ((t / 400) % 60), 31, 8, 3);
+    g.fillStyle = '#0d1410'; g.fillRect(184, 25, 2, 46); g.fillRect(153, 47, 64, 2);
+    // picture frame: the Home Pros shield
+    g.fillStyle = '#7a5530'; g.fillRect(30, 30, 40, 34);
+    g.fillStyle = '#121614'; g.fillRect(33, 33, 34, 28);
+    g.fillStyle = '#3faa35'; g.fillRect(43, 38, 14, 12); g.fillRect(45, 50, 10, 3); g.fillRect(47, 53, 6, 2);
+    g.fillStyle = '#f4f6f4'; g.fillRect(46, 40, 2, 8); g.fillRect(52, 40, 2, 8); g.fillRect(48, 43, 4, 2);
+    // wainscot and baseboard
+    g.fillStyle = '#1b231e'; g.fillRect(0, 112, W, 38);
+    g.fillStyle = '#3faa35'; g.fillRect(0, 110, W, 2);
+    g.fillStyle = '#0f1411'; g.fillRect(0, FLOOR - 4, W, 4);
+    // floor: green and black checks, like the shop
+    for (let y = FLOOR; y < H; y += 10) for (let x = 0; x < W; x += 16) {
+      g.fillStyle = ((x / 16 + (y - FLOOR) / 10) % 2) ? '#2f7d29' : '#0e130f';
+      g.fillRect(x, y, 16, 10);
+    }
+    // floor vents
+    for (const vx of VENTS) {
+      g.fillStyle = '#0a0c0b'; g.fillRect(vx - 15, FLOOR + 2, 30, 9);
+      g.fillStyle = '#9aa09c'; g.fillRect(vx - 14, FLOOR + 3, 28, 7);
+      g.fillStyle = '#3d423f'; for (let i = 0; i < 6; i++) g.fillRect(vx - 12 + i * 5, FLOOR + 4, 2, 5);
+    }
+  }
+
+  // ----------------------------------------------------------------- mount
+  function mount(el, opts = {}) {
+    const S = opts.sound || {};
+    const snd = k => { try { S[k] && S[k](); } catch (e) { } };
+    el.innerHTML = `
+      <div class="bb">
+        <div class="bb-head">
+          <div class="bb-title">DUST BUNNY<br>BLASTER</div>
+          <div class="bb-sub">Zap the dust bunnies before they get away.<br><b>Win up to 10% off</b> your duct cleaning.</div>
+        </div>
+        <ul class="bb-rules">
+          <li><b>Tap or click</b> a dust bunny to zap it. You get <b>3 shots</b> per bunny.</li>
+          <li><b>20 bunnies</b> in 2 rounds. Round 2 is faster, and they come two at a time.</li>
+          <li>Zap <b>${GOAL5}</b> for <b>5% off</b>. Zap <b>${GOAL10}</b> for <b>10% off</b>.</li>
+          <li>${TRIES_PER_DAY} tries a day. Your prize is saved for 30 days and Rosa applies it when you book.</li>
+        </ul>
+        <div class="bb-screen">
+          <canvas class="bb-canvas" width="${W}" height="${H}" aria-label="Dust Bunny Blaster game"></canvas>
+          <div class="bb-overlay"></div>
+        </div>
+        <div class="bb-hud">
+          <span class="bb-round">ROUND 1</span>
+          <span class="bb-shots" aria-label="Shots left"></span>
+          <span class="bb-tally" aria-label="Bunnies zapped"></span>
+          <span class="bb-score">0/${TOTAL}</span>
+        </div>
+        <div class="bb-foot">
+          <p class="bb-msg" aria-live="polite"></p>
+          <div class="bb-btns">
+            <button type="button" class="bb-play">&#9654; PLAY</button>
+            <button type="button" class="bb-book">BOOK NOW</button>
+          </div>
+        </div>
+      </div>`;
+    const $ = s => el.querySelector(s);
+    const cv = $('.bb-canvas'), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const ov = $('.bb-overlay'), msg = $('.bb-msg'), playBtn = $('.bb-play'), bookBtn = $('.bb-book');
+
+    let game = null, raf = 0, last = 0, aim = { x: W / 2, y: H / 2, on: false }, flashT = 0;
+
+    function setFoot() {
+      const p = prize(), left = triesLeft();
+      bookBtn.textContent = p ? `BOOK NOW WITH ${p.pct}% OFF` : 'BOOK NOW';
+      bookBtn.classList.toggle('win', !!p);
+      playBtn.disabled = !!(game && game.live) || left <= 0;
+      playBtn.innerHTML = left <= 0 ? 'NO TRIES LEFT TODAY' : (game && game.done ? '&#8635; PLAY AGAIN' : '&#9654; PLAY') + ` <small>(${left} ${left === 1 ? 'try' : 'tries'} left today)</small>`;
+    }
+    function overlay(html) { ov.innerHTML = html; ov.hidden = !html; }
+
+    function hud() {
+      if (!game) { $('.bb-shots').innerHTML = ''; $('.bb-tally').innerHTML = ''; return; }
+      $('.bb-round').textContent = 'ROUND ' + game.round;
+      const shots = game.bunnies.length ? Math.max(...game.bunnies.filter(b => b.state === 'fly').map(b => b.shots), 0) : 0;
+      $('.bb-shots').innerHTML = Array.from({ length: SHOTS }, (_, i) => `<i class="${i < shots ? 'on' : ''}"></i>`).join('');
+      $('.bb-tally').innerHTML = game.tally.map(r => `<i class="${r === 1 ? 'hit' : r === 0 ? 'miss' : ''}"></i>`).join('');
+      $('.bb-score').textContent = `${game.hits}/${TOTAL}`;
+    }
+
+    function newBunny(i) {
+      const r2 = game.round === 2;
+      const vx = VENTS[Math.floor(Math.random() * 3)];
+      const speed = (r2 ? 74 : 52) + game.served * 1.6;     // gets faster with every bunny
+      const a = (-Math.PI / 2) + (Math.random() - .5) * 1.4;
+      return { idx: i, x: vx - 6, y: FLOOR - 4, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, speed, shots: SHOTS, state: 'fly', t: 0,
+        turn: .35 + Math.random() * .4, life: (r2 ? 3.3 : 4.2) - game.served * .03, frame: 0 };
+    }
+    function serve() {
+      const n = game.round === 2 ? 2 : 1;
+      game.bunnies = [];
+      for (let k = 0; k < n && game.served < TOTAL; k++) { game.bunnies.push(newBunny(game.served)); game.served++; }
+      game.wait = 0;
+      hud();
+    }
+
+    function start() {
+      if (triesLeft() <= 0 || (game && game.live)) return;
+      useTry();
+      game = { live: true, done: false, round: 1, served: 0, hits: 0, tally: Array(TOTAL).fill(-1), bunnies: [], wait: 1.2, banner: 'ROUND 1', bannerT: 1.6, pops: [] };
+      overlay('');
+      msg.textContent = 'Here they come!';
+      snd('select');
+      setFoot(); hud();
+    }
+
+    function finish() {
+      game.live = false; game.done = true;
+      const h = game.hits;
+      let p = null;
+      if (h >= GOAL10) p = savePrize(10); else if (h >= GOAL5) p = savePrize(5);
+      if (p && h >= GOAL5) {
+        snd('win');
+        overlay(`<div class="bb-card win"><b>${h >= GOAL10 ? 'DUST-FREE!' : 'NICE SHOOTING!'}</b><span>You zapped ${h} of ${TOTAL}.</span><span class="bb-prize">${p.pct}% OFF</span><small>Code ${p.code} · saved for 30 days</small></div>`);
+        msg.innerHTML = `You won <b>${p.pct}% off</b>. Press <b>Book now</b> and Rosa takes it off your bill.`;
+      } else {
+        snd('error');
+        const need = GOAL5 - h;
+        overlay(`<div class="bb-card"><b>THEY GOT AWAY!</b><span>You zapped ${h} of ${TOTAL}.</span><small>${need > 0 ? `${need} more for 5% off.` : ''}${triesLeft() ? ' Try again?' : ' Come back tomorrow for 3 more tries.'}</small></div>`);
+        const keep = prize();
+        msg.innerHTML = keep ? `Your earlier prize, <b>${keep.pct}% off</b>, is still saved.` : 'So close. The dust bunnies win this time.';
+      }
+      setFoot(); hud();
+      if (opts.onResult) opts.onResult(prize(), h);
+    }
+
+    function zap(x, y) {
+      if (!game || !game.live) return;
+      const flying = game.bunnies.filter(b => b.state === 'fly');
+      if (!flying.length) return;
+      snd('blip');
+      flashT = .06;
+      let hit = null;
+      for (const b of flying) { const cx = b.x + 6, cy = b.y + 5.5; if ((x - cx) ** 2 + (y - cy) ** 2 <= 10 * 10) { hit = b; break; } }
+      for (const b of flying) b.shots--;
+      if (hit) {
+        hit.state = 'hit'; hit.t = 0;
+        game.hits++; game.tally[hit.idx] = 1;
+        game.pops.push({ x: hit.x + 6, y: hit.y, t: 0, txt: 'ZAP!' });
+        snd('select');
+      }
+      for (const b of game.bunnies) if (b.state === 'fly' && b.shots <= 0) { b.state = 'flee'; b.t = 0; }
+      hud();
+    }
+
+    function step(dt) {
+      if (!game || !game.live) return;
+      if (game.bannerT > 0) { game.bannerT -= dt; return; }
+      if (!game.bunnies.length || game.bunnies.every(b => b.state === 'gone')) {
+        game.wait -= dt;
+        if (game.wait > 0) return;
+        if (game.served >= TOTAL) return finish();
+        if (game.served === PER_ROUND && game.round === 1) { game.round = 2; game.banner = 'ROUND 2 · FASTER!'; game.bannerT = 1.6; game.bunnies = []; hud(); return; }
+        return serve();
+      }
+      for (const b of game.bunnies) {
+        b.t += dt; b.frame = Math.floor(b.t * 8) % 2;
+        if (b.state === 'fly') {
+          b.turn -= dt;
+          if (b.turn <= 0) {   // zig-zag: pick a new heading, mostly upward
+            const a = (Math.random() < .75 ? -Math.PI / 2 : Math.PI / 2) + (Math.random() - .5) * 2.2;
+            b.vx = Math.cos(a) * b.speed; b.vy = Math.sin(a) * b.speed * .8;
+            b.turn = .3 + Math.random() * .45;
+          }
+          b.x += b.vx * dt; b.y += b.vy * dt;
+          if (b.x < 2) { b.x = 2; b.vx = Math.abs(b.vx); } if (b.x > W - 14) { b.x = W - 14; b.vx = -Math.abs(b.vx); }
+          if (b.y < 4) { b.y = 4; b.vy = Math.abs(b.vy); } if (b.y > FLOOR - 16) { b.y = FLOOR - 16; b.vy = -Math.abs(b.vy); }
+          if (b.t > b.life) { b.state = 'flee'; b.t = 0; }
+        } else if (b.state === 'flee') {
+          b.y -= 140 * dt; b.x += Math.sin(b.t * 14) * 1.5;
+          if (b.y < -16) { b.state = 'gone'; game.tally[b.idx] = 0; game.pops.push({ x: Math.max(20, Math.min(W - 20, b.x + 6)), y: 16, t: 0, txt: 'MISSED!', bad: true }); snd('back'); hud(); }
+        } else if (b.state === 'hit') {
+          if (b.t > .55) { b.state = 'gone'; }
+        }
+      }
+      if (game.bunnies.length && game.bunnies.every(b => b.state === 'gone') && game.wait <= 0) game.wait = .7;
+      for (const p of game.pops) p.t += dt;
+      game.pops = game.pops.filter(p => p.t < .8);
+    }
+
+    function draw(t) {
+      drawRoom(g, t);
+      if (game) {
+        for (const b of game.bunnies) {
+          if (b.state === 'gone') continue;
+          if (b.state === 'hit') {           // sucked into the vacuum: spin and shrink
+            const s = Math.max(.1, 1 - b.t * 1.7);
+            sprite(g, DIZZY, b.x + 6 - 6 * s, b.y + 5.5 - 5.5 * s, s);
+          } else sprite(g, BUN[b.frame], b.x, b.y);
+        }
+        for (const p of game.pops) {
+          g.font = '8px "Press Start 2P", monospace'; g.textAlign = 'center';
+          g.fillStyle = '#000'; g.fillText(p.txt, p.x + 1, p.y - p.t * 20 + 1);
+          g.fillStyle = p.bad ? '#ff6a5a' : '#7fd977'; g.fillText(p.txt, p.x, p.y - p.t * 20);
+        }
+        if (game.live && game.bannerT > 0) {
+          g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 76, W, 30);
+          g.font = '10px "Press Start 2P", monospace'; g.textAlign = 'center'; g.fillStyle = '#7fd977'; g.fillText(game.banner, W / 2, 95);
+        }
+      }
+      if (aim.on && game && game.live) {   // vacuum crosshair
+        g.fillStyle = '#7fd977';
+        const { x, y } = aim;
+        g.fillRect(x - 9, y - 9, 5, 2); g.fillRect(x - 9, y - 9, 2, 5); g.fillRect(x + 4, y - 9, 5, 2); g.fillRect(x + 7, y - 9, 2, 5);
+        g.fillRect(x - 9, y + 7, 5, 2); g.fillRect(x - 9, y + 4, 2, 5); g.fillRect(x + 4, y + 7, 5, 2); g.fillRect(x + 7, y + 4, 2, 5);
+        g.fillRect(x - 1, y - 1, 2, 2);
+      }
+      if (flashT > 0) { g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, W, H); }
+    }
+
+    function loop(ts) {
+      const dt = Math.min(.05, (ts - (last || ts)) / 1000); last = ts;
+      if (flashT > 0) flashT -= dt;
+      step(dt); draw(ts);
+      raf = el.isConnected ? requestAnimationFrame(loop) : 0;
+    }
+
+    const toLogical = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; };
+    cv.addEventListener('pointermove', e => { const p = toLogical(e); aim = { ...p, on: true }; });
+    cv.addEventListener('pointerleave', () => { aim.on = false; });
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); const p = toLogical(e); aim = { ...p, on: true }; zap(p.x, p.y); });
+    playBtn.onclick = start;
+    bookBtn.onclick = () => { if (opts.onBook) opts.onBook(prize()); };
+
+    const p0 = prize();
+    overlay(`<div class="bb-card"><b>READY?</b><span>${TOTAL} dust bunnies. ${SHOTS} shots each.</span><small>Zap ${GOAL5} for 5% off · ${GOAL10} for 10% off</small></div>`);
+    msg.innerHTML = p0 ? `You already won <b>${p0.pct}% off</b> (code ${p0.code}). Book now, or play to win more.` : 'Press <b>Play</b> to start. No sign-up needed.';
+    setFoot(); hud();
+    cancelAnimationFrame(raf); last = 0; raf = requestAnimationFrame(loop);
+    return { stop() { cancelAnimationFrame(raf); raf = 0; if (game) game.live = false; }, peek: () => game };
+  }
+
+  // once a booking goes through, the prize is used
+  function spend() { try { localStorage.removeItem(KEY_PRIZE); } catch (e) { } }
+  root.HP_BUNNY = { mount, prize, spend, GOAL5, GOAL10 };
 })(window);
 
 </script>
@@ -2534,7 +2932,9 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     if (to !== from) { const c = $('cash'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
   const selection = () => ({ answers: state.answers, location: state.customer.city || state.location });
-  const running = () => P.quote(state.answers, state.travel);
+  // the Dust Bunny Blaster prize, if this customer won one (kept 30 days in their browser)
+  const promoNow = () => { const p = root.HP_BUNNY && HP_BUNNY.prize(); return p ? { pct: p.pct, code: p.code } : null; };
+  const running = () => P.quote(state.answers, state.travel, undefined, promoNow());
 
   function syncMute() {
     const b = $('muteBtn');
@@ -2606,6 +3006,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     choices([
       { label: 'Get my flat-rate price', amt: 'from ' + money(pr.base), kind: 'primary', onPick: () => ask('town') },
       { label: 'How do you clean my ducts?', onPick: () => openHowTo() },
+      { label: promoNow() ? `Book with my ${promoNow().pct}% off` : 'Play to win up to 10% off', onPick: () => promoNow() ? ask('town') : openBunny() },
       { label: 'Just looking at prices', kind: 'ghost', onPick: browse },
     ]);
   }
@@ -2636,6 +3037,38 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   if ($('howtoClose')) $('howtoClose').onclick = closeHowTo;
   if ($('howtoModal')) $('howtoModal').addEventListener('click', e => { if (e.target === $('howtoModal')) closeHowTo(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('howtoModal') && !$('howtoModal').hidden) { e.stopPropagation(); closeHowTo(); } }, true);
+
+  /* Dust Bunny Blaster: the game brochure on the counter */
+  let bunnyBack = null, bunnyGame = null;
+  function openBunny() {
+    const m = $('bunnyModal');
+    if (!m || !root.HP_BUNNY) return;
+    if (bunnyGame) bunnyGame.stop();
+    bunnyGame = root.__bunnyGame = HP_BUNNY.mount($('bunnyMount'), {
+      sound: { blip: () => A.blip(), select: () => A.select(), back: () => A.back(), error: () => A.error(), win: () => A.win() },
+      onResult: (p, hits) => { if (p && hits >= HP_BUNNY.GOAL5) { S.celebrate && S.celebrate(); } },
+      onBook: p => { closeBunny(); state.history = []; say(p ? `${p.pct}% off, nice shooting! Let's get your price.` : "Let's get your price."); setTimeout(() => ask('town'), 600); },
+    });
+    bunnyBack = document.activeElement;
+    m.hidden = false; m.scrollTop = 0;
+    $('bunnyClose').focus();
+    A.select();
+    if (S.mood) S.mood('talk');
+    say(promoNow() ? `You've got ${promoNow().pct}% off saved. Play again or book it in.` : 'Those dust bunnies are breeding in the vents. Zap 15 and I\'ll knock 5% off. Zap 18 and it\'s 10%.');
+  }
+  function closeBunny() {
+    const m = $('bunnyModal');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    if (bunnyGame) { bunnyGame.stop(); bunnyGame = null; }
+    A.back();
+    if (S.mood) S.mood('idle');
+    if (bunnyBack && bunnyBack.focus) bunnyBack.focus();
+  }
+  if ($('bunnyBtn')) $('bunnyBtn').onclick = openBunny;
+  if ($('bunnyClose')) $('bunnyClose').onclick = closeBunny;
+  if ($('bunnyModal')) $('bunnyModal').addEventListener('click', e => { if (e.target === $('bunnyModal')) closeBunny(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('bunnyModal') && !$('bunnyModal').hidden) { e.stopPropagation(); closeBunny(); } }, true);
 
   async function browse() {
     const id = clear();
@@ -2981,7 +3414,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     $('panel').innerHTML = '<div class="loading">Booking</div>';
     const { website, ...customer } = state.customer;
     try {
-      const res = await api.book({ answers: state.answers, customer, start: state.slot.start, website });
+      const res = await api.book({ answers: state.answers, customer, start: state.slot.start, website, promo: promoNow() });
       if (id !== run) return;
       booked(res);
     } catch (err) {
@@ -3007,7 +3440,9 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     const ref = res && res.reference ? `<div class="row sub"><span>Reference: ${esc(res.reference)}</span></div>` : '';
     $('panel').innerHTML = receipt(q, `<hr><div class="row"><b>${esc(describeSlot(state.slot))}</b></div>${ref}
       <div class="stamp">&#9733; CONFIRMED &#9733;</div>`, 'BOOKING CONFIRMED');
-    await say(cfg.lines.booked + (api.demo ? ' (Demo mode: nothing was actually booked.)' : ''));
+    const pz = promoNow();
+    if (pz && root.HP_BUNNY) HP_BUNNY.spend();
+    await say(cfg.lines.booked + (pz ? ` Your ${pz.pct}% Dust Bunny Blaster prize is on the work order, and Rosa takes it off your bill.` : '') + (api.demo ? ' (Demo mode: nothing was actually booked.)' : ''));
     if (id !== run) return;
     choices([
       { label: 'Thanks, ' + cfg.host.name + '!', kind: 'primary', onPick: () => { S.mood('idle'); say('Anytime. Stay warm out there.'); choices([{ label: 'Head back outside', kind: 'ghost', onPick: () => location.reload() }]); } },

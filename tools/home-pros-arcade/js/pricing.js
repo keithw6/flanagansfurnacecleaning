@@ -8,11 +8,13 @@
      zone: true|false,
      dryer: 'no'|'side'|'roof'
    }
-   travel = result of HP_TRAVEL.estimate() (or the server's lookup)       */
+   travel = result of HP_TRAVEL.estimate() (or the server's lookup)
+   promo  = optional {pct: 5|10, code}: the Dust Bunny Blaster prize, taken off
+            the subtotal before GST                                        */
 (function (root) {
   const int = v => (Number.isInteger(+v) ? +v : NaN);
 
-  function quote(answers, travel, cfg) {
+  function quote(answers, travel, cfg, promo) {
     cfg = cfg || root.HP_CONFIG;
     const p = cfg.prices, h = cfg.hours;
     const a = answers || {};
@@ -56,16 +58,22 @@
       }
     } else errors.push('travel');
 
+    const pct = promo && (promo.pct === 5 || promo.pct === 10) ? promo.pct : 0;
+    if (pct) {
+      const before = lines.reduce((s, l) => s + l.amount, 0);
+      lines.push({ key: 'promo', label: `Dust Bunny Blaster prize: ${pct}% off`, detail: promo.code ? 'Code ' + promo.code : '', amount: -Math.round(before * pct) / 100 });
+    }
     const subtotal = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
     const tax = Math.round(subtotal * cfg.tax.rate * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
     const summary = lines.map(l => `${l.label}${l.detail ? ' (' + l.detail + ')' : ''}: ${money(l.amount)}`).join('\n');
-    return { valid: errors.length === 0, errors, lines, subtotal, tax, total, hours, travelPending, summary };
+    return { valid: errors.length === 0, errors, lines, subtotal, tax, total, hours, travelPending, summary, promoPct: pct };
   }
 
   function money(n) {
     n = Math.round(n * 100) / 100;
-    return '$' + (n % 1 ? n.toFixed(2) : String(n));
+    const a = Math.abs(n);
+    return (n < 0 ? '-$' : '$') + (a % 1 ? a.toFixed(2) : String(a));
   }
 
   root.HP_PRICING = { quote, money };

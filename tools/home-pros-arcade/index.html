@@ -40,6 +40,11 @@
         <span class="howto-txt">HOW WE<br>CLEAN</span>
         <span class="howto-go" aria-hidden="true">&#9654; 7 STEPS</span>
       </button>
+      <button type="button" class="howto bunny-btn" id="bunnyBtn" aria-label="Dust Bunny Blaster: play to win up to 10% off">
+        <span class="bunny-ico" aria-hidden="true"></span>
+        <span class="howto-txt">WIN UP TO<br>10% OFF</span>
+        <span class="howto-go" aria-hidden="true">&#9654; PLAY</span>
+      </button>
     </div>
 
     <div class="brand" aria-hidden="true"><img src="img/logo.webp" alt=""><div><b>HOME<span>PROS</span></b><small>QUALITY YOU CAN TRUST</small></div></div>
@@ -59,6 +64,13 @@
     <div class="howto-box">
       <button type="button" class="howto-close" id="howtoClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
       <div id="howtoMount"></div>
+    </div>
+  </div>
+
+  <div class="howto-modal" id="bunnyModal" role="dialog" aria-modal="true" aria-label="Dust Bunny Blaster" hidden>
+    <div class="howto-box bunny-box">
+      <button type="button" class="howto-close" id="bunnyClose" aria-label="Close">&times; BACK TO THE COUNTER</button>
+      <div id="bunnyMount"></div>
     </div>
   </div>
 
@@ -83,6 +95,7 @@
 <script src="js/api.js"></script>
 <script src="js/live.js"></script>
 <script src="js/process.js"></script>
+<script src="js/bunny.js"></script>
 <script src="js/expense-pdf.js"></script>
 <script src="js/statement.js"></script>
 <script src="js/scene.js"></script>

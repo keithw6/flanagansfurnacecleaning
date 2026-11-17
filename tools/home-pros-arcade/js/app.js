@@ -123,7 +123,9 @@
     if (to !== from) { const c = $('cash'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
   }
   const selection = () => ({ answers: state.answers, location: state.customer.city || state.location });
-  const running = () => P.quote(state.answers, state.travel);
+  // the Dust Bunny Blaster prize, if this customer won one (kept 30 days in their browser)
+  const promoNow = () => { const p = root.HP_BUNNY && HP_BUNNY.prize(); return p ? { pct: p.pct, code: p.code } : null; };
+  const running = () => P.quote(state.answers, state.travel, undefined, promoNow());
 
   function syncMute() {
     const b = $('muteBtn');
@@ -195,6 +197,7 @@
     choices([
       { label: 'Get my flat-rate price', amt: 'from ' + money(pr.base), kind: 'primary', onPick: () => ask('town') },
       { label: 'How do you clean my ducts?', onPick: () => openHowTo() },
+      { label: promoNow() ? `Book with my ${promoNow().pct}% off` : 'Play to win up to 10% off', onPick: () => promoNow() ? ask('town') : openBunny() },
       { label: 'Just looking at prices', kind: 'ghost', onPick: browse },
     ]);
   }
@@ -225,6 +228,38 @@
   if ($('howtoClose')) $('howtoClose').onclick = closeHowTo;
   if ($('howtoModal')) $('howtoModal').addEventListener('click', e => { if (e.target === $('howtoModal')) closeHowTo(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('howtoModal') && !$('howtoModal').hidden) { e.stopPropagation(); closeHowTo(); } }, true);
+
+  /* Dust Bunny Blaster: the game brochure on the counter */
+  let bunnyBack = null, bunnyGame = null;
+  function openBunny() {
+    const m = $('bunnyModal');
+    if (!m || !root.HP_BUNNY) return;
+    if (bunnyGame) bunnyGame.stop();
+    bunnyGame = root.__bunnyGame = HP_BUNNY.mount($('bunnyMount'), {
+      sound: { blip: () => A.blip(), select: () => A.select(), back: () => A.back(), error: () => A.error(), win: () => A.win() },
+      onResult: (p, hits) => { if (p && hits >= HP_BUNNY.GOAL5) { S.celebrate && S.celebrate(); } },
+      onBook: p => { closeBunny(); state.history = []; say(p ? `${p.pct}% off, nice shooting! Let's get your price.` : "Let's get your price."); setTimeout(() => ask('town'), 600); },
+    });
+    bunnyBack = document.activeElement;
+    m.hidden = false; m.scrollTop = 0;
+    $('bunnyClose').focus();
+    A.select();
+    if (S.mood) S.mood('talk');
+    say(promoNow() ? `You've got ${promoNow().pct}% off saved. Play again or book it in.` : 'Those dust bunnies are breeding in the vents. Zap 15 and I\'ll knock 5% off. Zap 18 and it\'s 10%.');
+  }
+  function closeBunny() {
+    const m = $('bunnyModal');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    if (bunnyGame) { bunnyGame.stop(); bunnyGame = null; }
+    A.back();
+    if (S.mood) S.mood('idle');
+    if (bunnyBack && bunnyBack.focus) bunnyBack.focus();
+  }
+  if ($('bunnyBtn')) $('bunnyBtn').onclick = openBunny;
+  if ($('bunnyClose')) $('bunnyClose').onclick = closeBunny;
+  if ($('bunnyModal')) $('bunnyModal').addEventListener('click', e => { if (e.target === $('bunnyModal')) closeBunny(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('bunnyModal') && !$('bunnyModal').hidden) { e.stopPropagation(); closeBunny(); } }, true);
 
   async function browse() {
     const id = clear();
@@ -570,7 +605,7 @@
     $('panel').innerHTML = '<div class="loading">Booking</div>';
     const { website, ...customer } = state.customer;
     try {
-      const res = await api.book({ answers: state.answers, customer, start: state.slot.start, website });
+      const res = await api.book({ answers: state.answers, customer, start: state.slot.start, website, promo: promoNow() });
       if (id !== run) return;
       booked(res);
     } catch (err) {
@@ -596,7 +631,9 @@
     const ref = res && res.reference ? `<div class="row sub"><span>Reference: ${esc(res.reference)}</span></div>` : '';
     $('panel').innerHTML = receipt(q, `<hr><div class="row"><b>${esc(describeSlot(state.slot))}</b></div>${ref}
       <div class="stamp">&#9733; CONFIRMED &#9733;</div>`, 'BOOKING CONFIRMED');
-    await say(cfg.lines.booked + (api.demo ? ' (Demo mode: nothing was actually booked.)' : ''));
+    const pz = promoNow();
+    if (pz && root.HP_BUNNY) HP_BUNNY.spend();
+    await say(cfg.lines.booked + (pz ? ` Your ${pz.pct}% Dust Bunny Blaster prize is on the work order, and Rosa takes it off your bill.` : '') + (api.demo ? ' (Demo mode: nothing was actually booked.)' : ''));
     if (id !== run) return;
     choices([
       { label: 'Thanks, ' + cfg.host.name + '!', kind: 'primary', onPick: () => { S.mood('idle'); say('Anytime. Stay warm out there.'); choices([{ label: 'Head back outside', kind: 'ghost', onPick: () => location.reload() }]); } },
