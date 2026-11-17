@@ -3,7 +3,7 @@
      NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node tools/max/reviews.mjs
        [--date=YYYY-MM-DD] [--commercial=FILE] [--sent=FILE] [--out=DIR]
    Reads ServiceMonster only. Writes DIR/reviews.json (default ./max):
-     { date, send: [{wo, accountID, name, firstName, email}], skipped: [{wo, name, reason}] }
+     { date, send: [{wo, orderID, accountID, name, firstName, email}], skipped: [{wo, name, reason}] }
    A job counts on the day it was completed on the calendar; an invoice with no
    calendar job counts on its Date Completed.
    Residential only. Skipped: Jayman and other builder accounts, accounts marked
@@ -67,7 +67,7 @@ for (const o of done) {
   if (!email) { skipped.push({ wo, name: nm, reason: 'no email address' }); continue; }
   if (askedRecently(o.accountID)) { skipped.push({ wo, name: nm, reason: 'already asked for a review this past year' }); continue; }
   const first = (a.firstName || '').trim() || (nm.includes(',') ? nm.split(',')[1].trim().split(' ')[0] : nm.split(' ')[0]);
-  send.push({ wo, accountID: o.accountID, name: nm, firstName: first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(), email });
+  send.push({ wo, orderID: o.orderID, accountID: o.accountID, name: nm, firstName: first.charAt(0).toUpperCase() + first.slice(1).toLowerCase(), email });
 }
 
 const out = arg('out') || 'max';
