@@ -25,9 +25,9 @@ times are Alberta time. Money with 2 decimals. Short, plain lines.
 ["assistant","result"] on a run's session to read how it ended). Match by name:
 | Avatar | Task names start with | Runs |
 |---|---|---|
-| Rosa | "Rosa · 6:01 AM" (Jayman emails), "Rosa · Booking desk", "Rosa · Apply your arcade answers", "Rosa · 2:00 PM" or "Rosa · 1:52 PM" (reminders) | morning, on approval, afternoon |
+| Rosa | "Rosa · 6:01 AM" (Jayman emails), "Rosa · Booking desk", "Rosa · Apply your arcade answers", "Rosa · Mail room" or "Rosa · 2:00 PM" (reminders, 2:05 PM) | morning, on approval, afternoon |
 | Eddie | "Eddie · 7:12 AM" | morning |
-| Max | "Max · 6:00 PM" | evening |
+| Max | "Max · Mail room" or "Max · 6:00 PM" (Gmail) | evening, 6:03 PM |
 | Penny | "Penny · 7:51 PM" | evening |
 | Keith's watch | "Keith · 6:30 AM weekdays" | weekday mornings |
 For each task due today: did it run (last_run fired today), did it succeed, and what did it
