@@ -7,19 +7,29 @@ one report. Two reports a day:
 - **MORNING (6:00 AM): what's coming up today.**
 - **EVENING (5:00 PM): how today went, and what still needs Keith.**
 
-Run node with `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`.
 The arcade is https://claude.ai/artifact/UzjFfo9KUmPYRwdU25ieFS (ArtifactData). Dates and
 times are Alberta time. Money with 2 decimals. Short, plain lines.
 
 ## Where to look
 
-**ServiceMonster (read only)**
-- `node tools/grace/day.mjs --date=YYYY-MM-DD --out=grace`: every job on the calendar that
-  day: time, route, kind (jayman / warranty / commercial / residential), WO, customer,
-  address, status, total.
-- `node tools/penny/brief.mjs --commercial=accounts.json --marks=marks.json --out=grace`
-  (accounts.json / marks.json from `penny/accounts` and `penny/marks`): today's completed
-  jobs, revenue, paid / not paid, month to date, the not-paid list, done-but-not-invoiced.
+**ServiceMonster data** (Grace's report task can't reach ServiceMonster; Claude's
+"Grace · 5:50 AM & 4:50 PM" task reads it 10 minutes before each report and leaves it in
+the arcade doc `grace/data`):
+- `day`: today's calendar (from tools/grace/day.mjs): time, route, kind (jayman /
+  warranty / commercial / residential), WO, customer, address, status, total.
+- `tomorrow`: tomorrow's calendar, same shape (built for the 5 PM report).
+- `brief`: today's completed jobs, revenue, paid / not paid, month to date, the not-paid
+  list, done-but-not-invoiced (from tools/penny/brief.mjs).
+- `builtAt`. If `grace/data` is missing or `builtAt` is more than 2 hours old, say so
+  under problems and use what you have (Penny's `penny/brief` has last night's numbers).
+
+## PREP (Claude's ServiceMonster task, 5:50 AM and 4:50 PM)
+1. Get `penny/accounts` and `penny/marks` (save as accounts.json and marks.json).
+2. `node tools/grace/day.mjs --out=grace` (today) and, at 4:50 PM, also
+   `node tools/grace/day.mjs --date=<tomorrow> --out=grace`.
+3. `node tools/penny/brief.mjs --commercial=accounts.json --marks=marks.json --out=grace`.
+4. Set `grace/data` = {builtAt: now, day, tomorrow (or null), brief} (pin if_version).
+   No push unless ServiceMonster can't be reached (then push the exact error).
 
 **The staff's scheduled tasks** (list_triggers, then list_events with kinds
 ["assistant","result"] on a run's session to read how it ended). Match by name:
@@ -49,7 +59,7 @@ error or "can't" message is a **problem**: say which and why.
 
 ## MORNING report (6:00 AM): "Grace: today, [Weekday Mon D]"
 1. **Headline**: one line: how many jobs today, first job time and place, anything urgent.
-2. **Today's schedule** (day.mjs for today): each job: time, route, kind, customer,
+2. **Today's schedule** (`grace/data` day): each job: time, route, kind, customer,
    address. Mark warranty calls "TIMED: arrive at [time] sharp". Flag any residential job
    with no reminder in `rosa/reminders` sent.
 3. **Overnight** (from last night's tasks): Max's review drafts (how many, approved or
@@ -62,14 +72,14 @@ error or "can't" message is a **problem**: say which and why.
 
 ## EVENING report (5:00 PM): "Grace: end of day, [Weekday Mon D]"
 1. **Headline**: one line: jobs done, revenue, anything that went wrong.
-2. **Today in the field** (brief.mjs today): jobs completed (Jayman count), revenue before
+2. **Today in the field** (`grace/data` brief): jobs completed (Jayman count), revenue before
    GST, collected, not paid yet. Anything on today's calendar not marked complete.
 3. **What the team did today**, one short block per avatar: Rosa (Jayman bookings, what
    she booked, reminders sent for tomorrow), Eddie (emails in, drafts made, spam moved,
    problems), Max (last night's review emails; tonight's run is at 6:00), Penny (last
    night's brief; tonight's at 7:51), Hank (purchase list, stock count due), Keith's watch.
    Each with "✓ ran" or "✗ problem: …".
-4. **Tomorrow** (day.mjs for tomorrow): job count, first job time and place, timed
+4. **Tomorrow** (`grace/data` tomorrow): job count, first job time and place, timed
    warranty calls, and whether every residential job got its reminder.
 5. **Needs you**: same list as the morning, updated.
 6. **Still to run tonight**: Max at 6:00 PM, Penny at 7:51 PM (their results are in
