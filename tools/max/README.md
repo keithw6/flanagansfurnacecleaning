@@ -1,8 +1,8 @@
 # Max (Marketing): thank-you and review emails
 
 Every evening at 6:00 PM (Alberta), Max finds the residential jobs completed that
-day in ServiceMonster and sends each customer a thank-you email asking for a
-5-star Google review.
+day in ServiceMonster and drafts a thank-you email for each customer asking for a
+5-star Google review. Keith approves the drafts before anything is sent.
 
 - `reviews.mjs` reads ServiceMonster only and writes `max/reviews.json`: who to
   thank, and who was skipped and why (Jayman/builders, commercial accounts in

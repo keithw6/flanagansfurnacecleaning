@@ -1427,7 +1427,10 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       const mcp = await timeout(mcpP, 6000);
       if (!mcp) return { ok: false, error: 'unavailable' };
       try {
-        await mcp.callTool('Gmail', 'send_message', { to: [to], subject, body, attachments: [{ filename, mimeType: 'application/pdf', content: b64(bytes) }] });
+        const r = await mcp.callTool('Gmail', 'send_message', { to: [to], subject, body, attachments: [{ filename, mimeType: 'application/pdf', content: b64(bytes) }] });
+        // Sent from keith@ to keith@: Gmail keeps only the Sent copy, so put it in the inbox too
+        const id = r && r.payload && r.payload.id;
+        if (id && /@homeprosgroup\.com$/i.test(to)) { try { await mcp.callTool('Gmail', 'update_message_labels', { messageId: id, addLabelIds: ['INBOX', 'UNREAD', 'IMPORTANT'] }); } catch (e) { } }
         return { ok: true };
       } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error', message: e && e.message }; }
     },
