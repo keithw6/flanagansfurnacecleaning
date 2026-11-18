@@ -33,12 +33,15 @@ Gmail can't reach ServiceMonster. They meet in the arcade's records (`eddie/revi
    `htmlBody`. One draft each. Never call send_message on your own.
 3. Update `eddie/reviews` (pin if_version): `drafted` = the rows without email addresses
    ({wo, orderID, accountID, name, date, draftId}); remove `pending`.
-4. Push Keith: "Max: [n] thank-you drafts ready in Gmail ([names]). Send the ones you
-   approve, or reply 'send them' here." List them here with the skipped jobs and why.
-5. If Keith replies here to send (all, or all but some): send only those drafts
-   (send_message with the draftId). For each that went out, add {wo, orderID, accountID,
-   name, date} to `eddie/reviews` → `sent` and `notePending` (the 5:55 PM task adds the
-   ServiceMonster notes next day). Tell Keith what went out.
-   If Keith sends them himself from Gmail, the next 6:03 PM run checks Gmail Sent for
-   yesterday's `drafted` rows (subject "Thank you from Home Pros Group", to that customer)
-   and records the ones that went out the same way.
+4. Push Keith: "Max: [n] thank-you drafts ready ([names]). Read them in Gmail Drafts, then
+   reply 'send them' (or 'send all but X') in this session and I'll send them from
+   keith@homeprosgroup.com." List them here with the skipped jobs and why.
+   Why: drafts made here start out from keithwickseo@gmail.com, so a draft sent from Gmail
+   goes out under the wrong name unless Keith changes From to keith@homeprosgroup.com.
+5. When Keith replies to send (all, or all but some): for each approved row send a NEW
+   message with send_message (to, subject, body, htmlBody exactly as in the draft; do NOT
+   pass draftId), so it goes from keith@homeprosgroup.com. Then tell Keith the drafts can
+   be deleted (never delete them yourself). For each that went out, add {wo, orderID,
+   accountID, name, date} to `eddie/reviews` → `sent` and `notePending` (the 5:55 PM task
+   adds the ServiceMonster notes), and remove it from `drafted`. Tell Keith what went out.
+   If Keith sends drafts himself from Gmail, step 0 of the next run picks them up.

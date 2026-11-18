@@ -29,9 +29,16 @@ Gmail can't reach ServiceMonster. They meet in the arcade's records (`rosa/remin
 4. Update `rosa/reminders` (pin if_version): add every drafted row to `sent` as
    {wo, accountID, name, date, at: now, drafted: true} (never the email address), keep
    only the last 60 days, and remove `pending` (that clears the email addresses).
-5. Push Keith: "Rosa: [n] reminder drafts ready in Gmail for tomorrow ([names]). Read and
-   send the ones you approve." (add "[m] look commercial: check before sending" when
-   there are any). Say the same here, with the skipped jobs and why.
+5. Push Keith: "Rosa: [n] reminder drafts ready for tomorrow ([names]). Read them in
+   Gmail Drafts, then reply 'send them' (or 'send all but X') in this session and I'll
+   send them from keith@homeprosgroup.com." (add "[m] look commercial: check before
+   sending" when there are any). Say the same here, with the skipped jobs and why.
+   Why: drafts made here start out from keithwickseo@gmail.com, so a draft sent from
+   Gmail goes out under the wrong name unless Keith changes From to keith@homeprosgroup.com.
+6. When Keith replies to send (all, or all but some): for each approved reminder send a
+   NEW message with send_message (to, subject, body, htmlBody exactly as in the draft; do
+   NOT pass draftId), so it goes from keith@homeprosgroup.com. Then tell Keith the drafts
+   can be deleted (never delete them yourself) and say what went out.
 
-Never send to customers yourself, and never draft for Jayman, builders or anyone skipped.
+Never send to customers unless Keith says so in this session, and never draft for Jayman, builders or anyone skipped.
 ServiceMonster is read only. Never delete or trash mail.
