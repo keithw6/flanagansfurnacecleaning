@@ -11,3 +11,6 @@ Flanagans-GBP-Setup-Guide.pdf
 # but it is also the file a non-developer is meant to download and open, so it
 # has to actually be in the repository. Rebuild it with:
 #   node tools/20-year-test/build-single.mjs
+
+# Private business documents (bills of sale, etc.): kept locally, never committed
+documents/
