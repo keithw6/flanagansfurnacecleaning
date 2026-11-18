@@ -61,7 +61,7 @@ const HP_CONFIG = {
     {
       id: 'max', home: 'mkt', seat: 'seat-t3', name: 'Max', title: 'Marketing',
       intro: "Let's get Home Pros in front of every furnace in the Edmonton area!",
-      duties: ['Where bookings come from, including this storefront', 'Google reviews and review requests', 'Seasonal promos and website ideas'],
+      duties: ['Every day: adds Edmonton-area property managers and real estate agents to the contact list (name, phone, email, area)', 'Writes Facebook and LinkedIn posts as drafts: you check them and press Post', 'Thank-you and Google review emails after residential jobs (drafts you approve)', 'Seasonal promos and where bookings come from'],
     },
     {
       id: 'eddie', home: 'email', seat: 'seat-b1', name: 'Eddie', title: 'Email Manager',

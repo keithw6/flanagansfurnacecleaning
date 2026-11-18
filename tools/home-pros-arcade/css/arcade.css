@@ -488,3 +488,14 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .grace .ptabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .grace .ptabs .qa.on { background: var(--edge); color: #0c0e0d; }
 .grace ul, .grace ol { font-size: 19px; line-height: 1.35; padding-left: 24px; white-space: normal; margin: 4px 0; }
+/* Max: contacts and post drafts */
+.maxd .mfilter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.maxd .mfilter select, .maxd .mfilter input { font-size: 17px; padding: 5px 8px; background: #0e1210; color: #f4f6f4; border: 2px solid #39413d; }
+.maxd .mfilter input { flex: 1 1 180px; min-width: 0; }
+.maxd .mtable { overflow-x: auto; }
+.maxd table td small { display: block; opacity: .75; font-size: 15px; }
+.maxd table td { vertical-align: top; overflow-wrap: anywhere; }
+.maxd table a { color: inherit; }
+.maxd .mpost textarea { width: 100%; box-sizing: border-box; font-size: 17px; line-height: 1.35; padding: 8px; background: #0e1210; color: #f4f6f4; border: 2px solid #39413d; resize: vertical; }
+.maxd .mpost .pbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.maxd .mpost a.qa { text-decoration: none; }

@@ -156,6 +156,26 @@
       if (!db) throw { code: 'unavailable' };
       await db.collection('hank').doc('list').set(doc);
     },
+    /* Max: eddie/prospects = {contacts:[{id, type:'pm'|'agent', name, company, phone, email, area, source, addedAt}], removed:[keys], lastRun:{date, added, areas, note}}
+            eddie/posts = {posts:[{id, network:'facebook'|'hpg-linkedin'|'keith-linkedin', text, photo, status:'draft'|'posted'|'skipped', createdAt, doneAt}]} */
+    async max() { const [p, s] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie')]); if (p === undefined && s === undefined) return undefined; return { prospects: p || null, posts: s || null }; },
+    /* Change one of Max's docs: re-read it first so a change made meanwhile by Max's task is kept. */
+    async maxChange(docId, fn) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('eddie').doc(docId), cur = await ref.get();
+      const doc = cur.exists ? JSON.parse(JSON.stringify(cur.data())) : {};
+      fn(doc);
+      await ref.set(doc);
+      return doc;
+    },
+    /* Save a text file (CSV). */
+    async downloadText(filename, text, type) {
+      const blob = new Blob([text], { type: type || 'text/csv' });
+      const dl = await timeout(dlP, 6000);
+      if (dl) { try { await dl.save({ filename, data: blob }); return true; } catch (e) { return false; } }
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); return true; } catch (e) { return false; }
+    },
     /* A plain email through Keith's Gmail; mail to his own address is put in the inbox too. */
     async emailText({ to, subject, body }) {
       const mcp = await timeout(mcpP, 6000);

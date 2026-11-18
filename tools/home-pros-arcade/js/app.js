@@ -821,7 +821,8 @@
     if (dirId === 'eddie') return emailDesk();
     if (dirId === 'hank') return purchaseDesk();
     if (dirId === 'grace') return graceDesk();
-    const d = cfg.directors.find(x => x.id === dirId);
+    if (dirId === 'max') return maxDesk();
+    const d =cfg.directors.find(x => x.id === dirId);
     if (!d) return;
     const id = clear();
     S.office.select(d.id);
@@ -1927,6 +1928,113 @@ Accounts assistant, Home Pros Group`;
     await say(rep ? `${rep.headline || 'Here\'s my report.'}${need ? ` ${need} thing${need === 1 ? '' : 's'} need${need === 1 ? 's' : ''} you.` : ''}` : d.intro);
     if (id !== run) return;
     choices(boardChoices('grace'));
+  }
+
+  /* ------------------------------------------------ Max: contact list and social post drafts */
+  const NETS = { facebook: 'Facebook · Home Pros Group', 'hpg-linkedin': 'LinkedIn · Home Pros Group page', 'keith-linkedin': 'LinkedIn · Keith (personal)' };
+  const NET_URL = { facebook: 'https://www.facebook.com/', 'hpg-linkedin': 'https://www.linkedin.com/', 'keith-linkedin': 'https://www.linkedin.com/feed/' };
+  const TYPES = { pm: 'Property manager', agent: 'Real estate agent' };
+  let mx = null, mxTab = 'contacts', mxType = 'all', mxArea = '', mxFind = '';
+  async function maxDesk(tab) {
+    const id = clear();
+    S.office.select('max');
+    nameplate('MAX · MARKETING');
+    $('panel').innerHTML = '<div class="loading">Getting my lists</div>';
+    const r = root.HP_LIVE ? await root.HP_LIVE.max() : undefined;
+    if (id !== run) return;
+    mx = { live: r !== undefined, prospects: { contacts: [], ...((r && r.prospects) || {}) }, posts: { posts: [], ...((r && r.posts) || {}) } };
+    const waiting = mx.posts.posts.filter(p => p.status === 'draft');
+    mxTab = tab || (waiting.length ? 'posts' : 'contacts');
+    drawMax();
+    const n = mx.prospects.contacts.length, lr = mx.prospects.lastRun;
+    await say((waiting.length ? `${waiting.length} post${waiting.length === 1 ? '' : 's'} ready for you to check and post. ` : '')
+      + (n ? `${n} contact${n === 1 ? '' : 's'} on the list${lr && lr.added ? `, ${lr.added} added on my last run` : ''}.` : "I'm starting the property manager and agent list for the greater Edmonton area. I add to it every day."));
+    if (id !== run) return;
+    choices(boardChoices('max'));
+  }
+  const mxDigits = s => String(s || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  function drawMax() {
+    const P = $('panel'), all = mx.prospects.contacts, posts = mx.posts.posts;
+    const waiting = posts.filter(p => p.status === 'draft');
+    const tabs = `<div class="ptabs"><button class="qa ${mxTab === 'contacts' ? 'on' : ''}" data-mt="contacts">Contacts (${all.length})</button><button class="qa ${mxTab === 'posts' ? 'on' : ''}" data-mt="posts">Post drafts${waiting.length ? ` (${waiting.length})` : ''}</button></div>`;
+    const note = mx.live ? '' : '<p class="soon">The lists are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>';
+    if (mxTab === 'posts') {
+      const done = posts.filter(p => p.status !== 'draft').sort((a, b) => String(b.doneAt || '').localeCompare(String(a.doneAt || ''))).slice(0, 10);
+      P.innerHTML = `<div class="report maxd">${tabs}
+        <h3>POST DRAFTS</h3>
+        <p class="small">Max writes these. Read each one, change anything you like right here, then press Copy, paste it into ${'Facebook or LinkedIn'} and press Post there. Then tap "I posted it".</p>
+        ${waiting.length ? waiting.map(p => `<div class="q mpost"><h4>${esc((NETS[p.network] || p.network || '').toUpperCase())} <small>${p.createdAt ? esc(fmtDate(String(p.createdAt).slice(0, 10))) : ''}</small></h4>
+          <textarea data-txt="${esc(p.id)}" rows="${Math.min(12, 3 + Math.ceil(String(p.text || '').length / 70))}">${esc(p.text || '')}</textarea>
+          ${p.photo ? `<p class="small"><b>Photo idea:</b> ${esc(p.photo)}</p>` : ''}
+          <div class="pbtns"><button class="qa send" data-copy="${esc(p.id)}">Copy</button> <a class="qa" href="${NET_URL[p.network] || '#'}" target="_blank" rel="noopener noreferrer">Open ${p.network === 'facebook' ? 'Facebook' : 'LinkedIn'}</a> <button class="qa" data-posted="${esc(p.id)}">I posted it</button> <button class="qa no" data-skip="${esc(p.id)}">Skip</button> <span class="small" data-msg="${esc(p.id)}"></span></div></div>`).join('')
+        : '<div class="q"><p>No drafts waiting. Max writes new ones on his daily run, keeping about three ready for each page.</p></div>'}
+        ${done.length ? `<details class="q"><summary><b>RECENT</b> <small>(${done.length})</small></summary><ul>${done.map(p => `<li>${p.status === 'posted' ? 'Posted' : 'Skipped'} ${p.doneAt ? esc(fmtDate(String(p.doneAt).slice(0, 10))) : ''} · ${esc(NETS[p.network] || p.network)}: ${esc(String(p.text || '').slice(0, 90))}…</li>`).join('')}</ul></details>` : ''}
+        ${note}</div>`;
+    } else {
+      const areas = [...new Set(all.map(c => c.area).filter(Boolean))].sort();
+      const f = mxFind.toLowerCase();
+      const rows = all.filter(c => (mxType === 'all' || c.type === mxType) && (!mxArea || c.area === mxArea)
+        && (!f || [c.name, c.company, c.email, c.phone, c.area].join(' ').toLowerCase().includes(f)))
+        .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || String(a.company || a.name).localeCompare(String(b.company || b.name)));
+      const cnt = t => all.filter(c => c.type === t).length, lr = mx.prospects.lastRun;
+      P.innerHTML = `<div class="report maxd">${tabs}
+        <h3>PROPERTY MANAGERS AND AGENTS</h3>
+        <p class="small">${cnt('pm')} property managers · ${cnt('agent')} real estate agents. Only the name, phone, email and area they serve, from their own public business pages. Never listings.${lr ? ` Last run ${esc(fmtDate(String(lr.date || '').slice(0, 10)))}: ${esc(String(lr.added || 0))} added${lr.areas ? ` (${esc(lr.areas)})` : ''}.` : ''}</p>
+        <div class="mfilter"><select id="mType"><option value="all">Everyone</option><option value="pm"${mxType === 'pm' ? ' selected' : ''}>Property managers</option><option value="agent"${mxType === 'agent' ? ' selected' : ''}>Real estate agents</option></select>
+          <select id="mArea"><option value="">All areas</option>${areas.map(a => `<option${a === mxArea ? ' selected' : ''}>${esc(a)}</option>`).join('')}</select>
+          <input id="mFind" type="search" placeholder="Search name, company, email" value="${esc(mxFind)}">
+          <button class="qa" id="mCsv"${rows.length ? '' : ' disabled'}>Download (CSV)</button> <span class="small" id="mMsg"></span></div>
+        ${rows.length ? `<div class="mtable"><table><tr><th>Who</th><th>Phone</th><th>Email</th><th>Area</th><th></th></tr>
+          ${rows.map(c => `<tr><td><b>${esc(c.name || c.company)}</b>${c.name && c.company ? `<small>${esc(c.company)}</small>` : ''}<small>${esc(TYPES[c.type] || '')}${c.source ? ` · <a href="${esc(c.source)}" target="_blank" rel="noopener noreferrer">source</a>` : ''}</small></td>
+            <td>${c.phone ? `<a href="tel:${esc(mxDigits(c.phone))}">${esc(c.phone)}</a>` : ''}</td><td>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ''}</td><td>${esc(c.area || '')}</td>
+            <td><button class="qa tiny no" data-rm="${esc(c.id)}" aria-label="Remove ${esc(c.name || c.company)}" title="Remove and don't add again">&times;</button></td></tr>`).join('')}</table></div>`
+        : `<div class="q"><p>${all.length ? 'Nobody matches that.' : 'The list is empty so far. Max adds to it once a day, starting with the greater Edmonton area.'}</p></div>`}
+        ${note}</div>`;
+      $('mType').onchange = e => { mxType = e.target.value; drawMax(); };
+      $('mArea').onchange = e => { mxArea = e.target.value; drawMax(); };
+      $('mFind').oninput = e => { mxFind = e.target.value; clearTimeout(drawMax.t); drawMax.t = setTimeout(() => { drawMax(); const i = $('mFind'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 350); };
+      $('mCsv').onclick = async () => {
+        const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+        const csv = ['Type,Name,Company,Phone,Email,Area,Added', ...rows.map(c => [TYPES[c.type] || c.type, c.name, c.company, c.phone, c.email, c.area, String(c.addedAt || '').slice(0, 10)].map(q).join(','))].join('\r\n');
+        const ok = await root.HP_LIVE.downloadText(`home-pros-contacts-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+        $('mMsg').textContent = ok ? ' Saved.' : " Couldn't save the file here.";
+      };
+    }
+    P.querySelectorAll('button[data-mt]').forEach(b => b.onclick = () => { mxTab = b.dataset.mt; try { A.select(); } catch (e) { } drawMax(); });
+    const fail = () => say("Couldn't save that just now. Try again in a minute.");
+    P.querySelectorAll('button[data-rm]').forEach(b => b.onclick = async () => {
+      const c = all.find(x => x.id === b.dataset.rm);
+      if (!c || !confirm(`Remove ${c.name || c.company} from the list? Max won't add them again.`)) return;
+      try {
+        mx.prospects = await root.HP_LIVE.maxChange('prospects', d => {
+          d.contacts = (d.contacts || []).filter(x => x.id !== c.id);
+          d.removed = [...new Set([...(d.removed || []), ...[c.email && c.email.toLowerCase(), mxDigits(c.phone)].filter(Boolean)])];
+        });
+        mx.prospects.contacts = mx.prospects.contacts || [];
+        drawMax();
+      } catch (e) { fail(); }
+    });
+    const setPost = async (pid, status) => {
+      const ta = P.querySelector(`textarea[data-txt="${pid}"]`), text = ta ? ta.value : null;
+      try {
+        mx.posts = await root.HP_LIVE.maxChange('posts', d => {
+          const p = (d.posts || []).find(x => x.id === pid);
+          if (p) { p.status = status; p.doneAt = new Date().toISOString(); if (text != null && text !== p.text) { p.text = text; p.edited = true; } }
+        });
+        mx.posts.posts = mx.posts.posts || [];
+        try { A.select(); } catch (e) { }
+        drawMax();
+        say(status === 'posted' ? 'Nice. Logged it as posted.' : 'Skipped. I\'ll write a fresh one.');
+      } catch (e) { fail(); }
+    };
+    P.querySelectorAll('button[data-posted]').forEach(b => b.onclick = () => setPost(b.dataset.posted, 'posted'));
+    P.querySelectorAll('button[data-skip]').forEach(b => b.onclick = () => setPost(b.dataset.skip, 'skipped'));
+    P.querySelectorAll('button[data-copy]').forEach(b => b.onclick = async () => {
+      const ta = P.querySelector(`textarea[data-txt="${b.dataset.copy}"]`), m = P.querySelector(`[data-msg="${b.dataset.copy}"]`);
+      let ok = false;
+      try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) { try { ta.select(); ok = document.execCommand('copy'); } catch (x) { } }
+      if (m) m.textContent = ok ? ' Copied. Paste it in and press Post.' : ' Select the text and copy it.';
+    });
   }
 
   /* ------------------------------------------------ Hank: purchasing */
