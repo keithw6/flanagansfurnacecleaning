@@ -499,3 +499,4 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .maxd .mpost textarea { width: 100%; box-sizing: border-box; font-size: 17px; line-height: 1.35; padding: 8px; background: #0e1210; color: #f4f6f4; border: 2px solid #39413d; resize: vertical; }
 .maxd .mpost .pbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .maxd .mpost a.qa { text-decoration: none; }
+.grace .okc { color: var(--edge); } .grace .warnc { color: #ffcf73; }

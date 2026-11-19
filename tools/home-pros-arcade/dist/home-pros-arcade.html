@@ -512,6 +512,7 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .maxd .mpost textarea { width: 100%; box-sizing: border-box; font-size: 17px; line-height: 1.35; padding: 8px; background: #0e1210; color: #f4f6f4; border: 2px solid #39413d; resize: vertical; }
 .maxd .mpost .pbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .maxd .mpost a.qa { text-decoration: none; }
+.grace .okc { color: var(--edge); } .grace .warnc { color: #ffcf73; }
 
 </style>
 </head>
@@ -1542,7 +1543,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     },
     /* Max: eddie/prospects = {contacts:[{id, type:'pm'|'agent', name, company, phone, email, area, source, addedAt}], removed:[keys], lastRun:{date, added, areas, note}}
             eddie/posts = {posts:[{id, network:'facebook'|'hpg-linkedin'|'keith-linkedin', text, photo, status:'draft'|'posted'|'skipped', createdAt, doneAt}]} */
-    async max() { const [p, s] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie')]); if (p === undefined && s === undefined) return undefined; return { prospects: p || null, posts: s || null }; },
+    async max() { const [p, s, v] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie'), read('reviews', 'eddie')]); if (p === undefined && s === undefined && v === undefined) return undefined; return { prospects: p || null, posts: s || null, reviews: v || null }; },
     /* Change one of Max's docs: re-read it first so a change made meanwhile by Max's task is kept. */
     async maxChange(docId, fn) {
       const db = await timeout(dbP, 6000);
@@ -1572,6 +1573,14 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
     },
     /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
+    /* Everything Grace needs to walk Keith through a board meeting, in one read. */
+    async meeting() {
+      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['list', 'hank']];
+      const got = await Promise.all(want.map(([id, col]) => read(id, col)));
+      if (got.every(x => x === undefined)) return undefined;
+      const out = {}; want.forEach(([id, col], i) => { out[col + '/' + id] = got[i] || null; });
+      return out;
+    },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
@@ -3674,6 +3683,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   }
 
   async function floor(first) {
+    if (inMeeting && mtg && !first) return meetingStep(mtg.i);
     const id = clear();
     nameplate(inMeeting ? 'BOARD MEETING' : 'HEAD OFFICE');
     S.office.select(null);
@@ -3691,14 +3701,15 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     S.office.select(null);
     inMeeting = true;
     let seated = false;
-    S.office.meeting(true, () => { seated = true; if (id === run) floor(); });
+    mtg = null;
+    S.office.meeting(true, () => { seated = true; if (id === run) graceMeeting(); });
     await say(fillOwner(cfg.lines.meetingCall));
     if (id !== run || seated) return;
     $('panel').innerHTML = '<div class="loading">Everyone heading to the boardroom</div>';
   }
 
   async function adjourn() {
-    inMeeting = false;
+    inMeeting = false; mtg = null;
     S.office.meeting(false);
     const id = clear();
     nameplate('HEAD OFFICE');
@@ -4799,6 +4810,97 @@ Accounts assistant, Home Pros Group`;
     ['accounts@homeprosgroup.com', 'Penny', 'Penny', 'Invoices, payment notices, supplier bills'],
     ['receipts@homeprosgroup.com', 'Penny', 'Penny', 'Receipts you email or forward; Penny files them'],
   ];
+  /* ------------------------------------------------ Board meeting: Grace goes round the table */
+  let mtg = null;
+  const $2 = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  const first = n => { const t = String(n || ''); const i = t.indexOf(', '); return i > 0 ? t.slice(i + 2) + ' ' + t.slice(0, i) : t; };
+  function meetingSteps(d) {
+    const g = k => (d && d[k]) || null, rep = [g('grace/morning'), g('grace/evening')].filter(Boolean).sort((a, b) => String(b.generatedAt || '').localeCompare(String(a.generatedAt || '')))[0];
+    const steps = [];
+    steps.push({ id: 'grace', title: 'Where we stand', lines: rep ? [rep.headline, ...(rep.problems || []).map(x => 'Problem: ' + x)].filter(Boolean) : ['No report from me yet today.'],
+      say: `Thanks for coming, everyone. ${rep && rep.headline ? rep.headline + ' ' : ''}I'll go round the table one at a time, then finish with what needs you.` });
+    const ib = g('rosa/inbox'), rem = g('rosa/reminders');
+    const rl = [];
+    if (ib) {
+      (ib.results || []).forEach(x => rl.push(x));
+      if (ib.status !== 'done' && (ib.plan || []).length) rl.push(`${plural(ib.plan.length, 'Jayman booking')} waiting for your answer.`);
+      if ((ib.held || []).length) rl.push(`Held ${ib.held.length}: ${ib.held.map(h => `${h.address} (${h.why})`).join('; ')}.`);
+    }
+    const sentR = (rem && rem.sent) || [], lastR = sentR.slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))[0];
+    if (lastR) rl.push(`Last reminder: ${first(lastR.name)}, for ${fmtDate(String(lastR.date).slice(0, 10))}.`);
+    steps.push({ id: 'rosa', title: 'Rosa · Customer Service', lines: rl.length ? rl : ['Nothing new from Rosa.'],
+      say: ib && (ib.results || []).length ? `Rosa's up first. On her Jayman run she ${ib.results.filter(x => /^Created WO/.test(x)).length ? `booked ${plural(ib.results.filter(x => /^Created WO/.test(x)).length, 'job')}` : 'had nothing new to book'}.` : "Rosa's up first. Quiet on the Jayman side." });
+    const er = g('eddie/report'), el2 = [];
+    if (er) {
+      el2.push(`${er.date ? fmtDate(er.date) + ': ' : ''}${Number(er.received || 0)} emails in, ${Number(er.sent || 0)} sent, ${(er.missed || []).length} missed, ${Number(er.drafts || 0)} drafts, ${(er.spamMoved || []).length} moved to spam. Status: ${er.status || '?'}.`);
+      (er.review || []).forEach(x => el2.push('Check over: ' + x));
+    }
+    steps.push({ id: 'eddie', title: 'Eddie · Email', lines: el2.length ? el2 : ['No email report yet.'],
+      say: er ? `Eddie, your turn. ${(er.missed || []).length ? plural(er.missed.length, 'email') + ' slipped through.' : 'Nothing was missed.'}${(er.review || []).length ? ` He's got ${plural(er.review.length, 'thing')} for you to check over.` : ''}` : 'Eddie has no report in yet.' });
+    mx = { live: true, prospects: { contacts: [], ...(g('eddie/prospects') || {}) }, posts: { posts: [], ...(g('eddie/posts') || {}) }, reviews: g('eddie/reviews') || {} };
+    const rv = mxReviews(), drafts = mx.posts.posts.filter(p => p.status === 'draft');
+    steps.push({ id: 'max', title: 'Max · Marketing', lines: [
+      `Review requests: ${rv.sent.length} sent, ${rv.waiting.length} waiting for you${rv.waiting.length ? ` (${rv.waiting.map(x => first(x.name)).join(', ')})` : ''}.`,
+      `${plural(drafts.length, 'post draft')} ready to check and post.`,
+      `${plural(mx.prospects.contacts.length, 'contact')} on the property manager and agent list.`],
+      say: `Max. ${rv.waiting.length ? `${plural(rv.waiting.length, 'review request')} need${rv.waiting.length === 1 ? 's' : ''} your OK.` : 'Review requests are all caught up.'}${drafts.length ? ` And ${plural(drafts.length, 'post')} ready to go out.` : ''}`, open: 'max' });
+    const pb = g('penny/brief'), pl = [];
+    if (pb) {
+      const t = pb.today || {}, u = pb.unpaid || {}, m = pb.month || {}, cnt = v => Array.isArray(v) ? v.length : Number(v || 0);
+      pl.push(`${pb.date ? fmtDate(pb.date) + ': ' : ''}${plural(Number(t.jobs || 0), 'job')}${t.jayman ? ` (${t.jayman} Jayman)` : ''}, ${$2(t.revenue)} revenue, ${$2(t.paid)} collected.`);
+      pl.push(`Month to date: ${plural(Number(m.jobs || 0), 'job')}, ${$2(m.revenue)} revenue, ${$2(m.paid)} paid.`);
+      pl.push(`Not paid yet: ${plural(cnt(u.notPaid), 'job')}, ${$2(u.notPaidTotal)} (${$2(u.over60)} over 60 days). Commercial: ${$2(u.commercialTotal)}.`);
+      (pb.askPaid || []).forEach(x => pl.push(`Question: was ${first(x.account)} WO ${x.wo} (${$2(x.balance)}) paid?`));
+      (pb.notInvoiced || []).forEach(x => pl.push(`Not invoiced: WO ${x.wo} ${x.account || ''}`));
+    }
+    steps.push({ id: 'penny', title: 'Penny · Accounting', lines: pl.length ? pl : ['No brief from Penny yet.'],
+      say: pb ? `Penny, the numbers. ${pb.date ? fmtDate(pb.date) : 'Last day'}: ${$2((pb.today || {}).revenue)} in revenue. ${$2((pb.unpaid || {}).notPaidTotal)} still owed to us.` : 'Penny has no brief in yet.', open: 'penny' });
+    const hl = g('hank/list'), items = ((hl && hl.items) || []).filter(x => x.status !== 'got');
+    const due = !hl || !hl.lastCountAt || (Date.now() - new Date(hl.lastCountAt)) / 864e5 >= 7;
+    steps.push({ id: 'hank', title: 'Hank · Purchasing', lines: [
+      `${plural(items.length, 'item')} on the purchase list${items.filter(x => x.special).length ? `, ${items.filter(x => x.special).length} special orders` : ''}.`,
+      due ? `Stock count is due${hl && hl.lastCountAt ? ` (last one ${fmtDate(hl.lastCountAt.slice(0, 10))})` : ' (never done)'}.` : `Stock counted ${fmtDate(hl.lastCountAt.slice(0, 10))}.`,
+      ...items.slice(0, 8).map(x => `${x.name || x.what || 'Item'}${x.qty ? ' × ' + x.qty : ''}${x.supplier ? ' · ' + x.supplier : ''}`)],
+      say: `Hank. ${items.length ? plural(items.length, 'thing') + ' to buy.' : 'Nothing to buy right now.'}${due ? ' And the stock count is due.' : ''}`, open: 'hank' });
+    const need = rep ? rep.needsYou || [] : [];
+    steps.push({ id: 'grace', title: 'What needs you', lines: need.length ? need : ['Nothing needs you right now.'], done: rep ? rep.done || [] : [], numbered: true,
+      say: need.length ? `That's everyone. ${plural(need.length, 'thing')} need${need.length === 1 ? 's' : ''} you, most important first.` : "That's everyone. Nothing needs you right now.", last: true });
+    return steps;
+  }
+  async function graceMeeting() {
+    const id = clear();
+    nameplate('BOARD MEETING · GRACE');
+    S.office.select('grace');
+    $('panel').innerHTML = '<div class="loading">Grace is getting her notes</div>';
+    const d = root.HP_LIVE && root.HP_LIVE.meeting ? await root.HP_LIVE.meeting() : undefined;
+    if (id !== run) return;
+    mtg = { steps: meetingSteps(d), i: 0, live: d !== undefined };
+    meetingStep(0);
+  }
+  async function meetingStep(i) {
+    const id = clear();
+    const st = mtg.steps[i]; mtg.i = i;
+    const who = cfg.directors.find(x => x.id === st.id) || { name: 'Grace' };
+    nameplate(`BOARD MEETING · ${i + 1}/${mtg.steps.length} · ${who.name.toUpperCase()}`);
+    S.office.select(st.id);
+    const li = x => `<li>${esc(x)}</li>`;
+    $('panel').innerHTML = `<div class="report grace"><h3>${esc(st.title.toUpperCase())}</h3>
+      <div class="q">${st.numbered ? `<ol>${st.lines.map(li).join('')}</ol>` : `<ul>${st.lines.map(li).join('')}</ul>`}</div>
+      ${(st.done || []).length ? `<details class="q"><summary><b>ALREADY DONE</b> <small>(${st.done.length})</small></summary><ul>${st.done.map(x => `<li class="okc">${esc(x)}</li>`).join('')}</ul></details>` : ''}
+      ${mtg.live ? '' : '<p class="soon">The team\'s records only load when the arcade is open in claude.ai.</p>'}</div>`;
+    await say(st.say);
+    if (id !== run) return;
+    const next = mtg.steps[i + 1], list = [];
+    if (next) list.push({ label: next.last ? 'Wrap up: what needs me' : `Next: ${(cfg.directors.find(x => x.id === next.id) || {}).name || 'Next'}`, kind: 'primary', onPick: () => meetingStep(i + 1) });
+    else list.push({ label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn });
+    if (i > 0) list.push({ label: 'Back one', kind: 'ghost', sound: 'back', onPick: () => meetingStep(i - 1) });
+    if (st.id !== 'grace') list.push({ label: `Open ${who.name}'s desk`, onPick: () => talkTo(st.id) });
+    if (next) list.push({ label: 'Adjourn the meeting', kind: 'ghost', onPick: adjourn });
+    choices(list, false);
+    $('hint').textContent = st.id !== 'grace' ? `Open ${who.name}'s desk to act on anything; "Back to the meeting" brings you back here.` : '';
+  }
+
   /* ------------------------------------------------ Grace: the morning and evening reports */
   let graceTab = null;
   async function graceDesk(tab) {
@@ -4819,6 +4921,7 @@ Accounts assistant, Home Pros Group`;
       ${rep ? `<h3>${esc(rep.headline || (graceTab === 'morning' ? 'TODAY' : 'END OF DAY'))}</h3>
         ${(rep.problems || []).length ? `<div class="q"><h4>PROBLEMS</h4><ul>${rep.problems.map(x => `<li class="warnc">${esc(x)}</li>`).join('')}</ul></div>` : ''}
         ${(rep.needsYou || []).length ? `<div class="q"><h4>NEEDS YOU</h4><ol>${rep.needsYou.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
+        ${(rep.done || []).length ? `<details class="q"><summary><b>DONE</b> <small>(${rep.done.length})</small></summary><ul>${rep.done.map(x => `<li class="okc">${esc(x)}</li>`).join('')}</ul></details>` : ''}
         ${(rep.sections || []).map(sct => `<div class="q"><h4>${esc(String(sct.title || '').toUpperCase())}</h4><ul>${(sct.lines || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}
         ${rep.session ? `<p class="soon">Written in <a href="${esc(rep.session)}" target="_blank" rel="noopener noreferrer">Grace's session</a>.</p>` : ''}`
       : `<div class="card"><h3>WHAT I HANDLE FOR YOU</h3><ul>${d.duties.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="soon">No ${graceTab === 'morning' ? '6 AM' : '5 PM'} report yet. They arrive once my scheduled tasks are set up.</p></div>`}
@@ -4842,7 +4945,7 @@ Accounts assistant, Home Pros Group`;
     $('panel').innerHTML = '<div class="loading">Getting my lists</div>';
     const r = root.HP_LIVE ? await root.HP_LIVE.max() : undefined;
     if (id !== run) return;
-    mx = { live: r !== undefined, prospects: { contacts: [], ...((r && r.prospects) || {}) }, posts: { posts: [], ...((r && r.posts) || {}) } };
+    mx = { live: r !== undefined, prospects: { contacts: [], ...((r && r.prospects) || {}) }, posts: { posts: [], ...((r && r.posts) || {}) }, reviews: (r && r.reviews) || {} };
     const waiting = mx.posts.posts.filter(p => p.status === 'draft');
     mxTab = tab || (waiting.length ? 'posts' : 'contacts');
     drawMax();
@@ -4852,13 +4955,35 @@ Accounts assistant, Home Pros Group`;
     if (id !== run) return;
     choices(boardChoices('max'));
   }
+  /* eddie/reviews = {autoSend, pending:{date, builtAt, send:[..], skipped:[..]}, drafted:[{wo, name, date, draftId}], sent:[{wo, name, date}]} */
+  function mxReviews() {
+    const v = (mx && mx.reviews) || {}, sent = (v.sent || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const done = new Set(sent.map(x => String(x.wo))), seen = new Set(), waiting = [];
+    for (const x of [...(v.drafted || []), ...((v.pending && v.pending.send) || []).map(x => ({ date: v.pending.date, ...x }))]) {
+      const k = String(x.wo); if (done.has(k) || seen.has(k)) continue; seen.add(k); waiting.push(x);
+    }
+    const skipped = ((v.pending && v.pending.skipped) || []).map(x => ({ date: v.pending.date, ...x }));
+    return { autoSend: !!v.autoSend, sent, waiting, skipped, builtAt: v.pending && v.pending.builtAt };
+  }
   const mxDigits = s => String(s || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
   function drawMax() {
     const P = $('panel'), all = mx.prospects.contacts, posts = mx.posts.posts;
     const waiting = posts.filter(p => p.status === 'draft');
-    const tabs = `<div class="ptabs"><button class="qa ${mxTab === 'contacts' ? 'on' : ''}" data-mt="contacts">Contacts (${all.length})</button><button class="qa ${mxTab === 'posts' ? 'on' : ''}" data-mt="posts">Post drafts${waiting.length ? ` (${waiting.length})` : ''}</button></div>`;
+    const rv = mxReviews();
+    const tabs = `<div class="ptabs"><button class="qa ${mxTab === 'contacts' ? 'on' : ''}" data-mt="contacts">Contacts (${all.length})</button><button class="qa ${mxTab === 'posts' ? 'on' : ''}" data-mt="posts">Post drafts${waiting.length ? ` (${waiting.length})` : ''}</button><button class="qa ${mxTab === 'reviews' ? 'on' : ''}" data-mt="reviews">Review requests${rv.waiting.length ? ` (${rv.waiting.length})` : ''}</button></div>`;
     const note = mx.live ? '' : '<p class="soon">The lists are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>';
-    if (mxTab === 'posts') {
+    if (mxTab === 'reviews') {
+      const nm = x => { const n = String(x.name || ''); const i = n.indexOf(', '); return i > 0 ? n.slice(i + 2) + ' ' + n.slice(0, i) : n; };
+      const line = (x, extra) => `<li><b>${esc(nm(x))}</b> · WO ${esc(String(x.wo || ''))}${x.date ? ` · job ${esc(fmtDate(String(x.date).slice(0, 10)))}` : ''}${extra ? ` · ${extra}` : ''}</li>`;
+      P.innerHTML = `<div class="report maxd">${tabs}
+        <h3>REVIEW REQUESTS</h3>
+        <p class="small">Max emails each residential customer a "Thank you from Home Pros Group" note asking for a Google review, the evening of their job. ${rv.autoSend ? 'He sends them on his own now.' : 'For now he waits for you to approve each one before it goes.'}</p>
+        <div class="q"><h4>WAITING FOR YOU <small>(${rv.waiting.length})</small></h4>${rv.waiting.length ? `<ul>${rv.waiting.map(x => line(x, (x.draftId ? 'draft in Gmail: open it and press Send' : 'on tonight\'s list, not drafted yet') + ` <button class="qa tiny" data-rvdone="${esc(String(x.wo))}" title="Already sent: take it off Max's list">Done, it was sent</button>`)).join('')}</ul><p class="small">Already sent it yourself? Tap "Done, it was sent" and Max moves it to Sent and won't send it again.</p>` : '<p>Nothing waiting.</p>'}</div>
+        <div class="q"><h4>SENT <small>(${rv.sent.length})</small></h4>${rv.sent.length ? `<ul>${rv.sent.slice(0, 25).map(x => line(x)).join('')}</ul>` : '<p>None sent yet.</p>'}</div>
+        ${rv.skipped.length ? `<details class="q"><summary><b>NOT ASKED</b> <small>(${rv.skipped.length})</small></summary><ul>${rv.skipped.map(x => line(x, esc(x.reason || ''))).join('')}</ul></details>` : ''}
+        ${rv.builtAt ? `<p class="soon">Tonight's list built ${esc(new Date(rv.builtAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}.</p>` : ''}
+        ${note}</div>`;
+    } else if (mxTab === 'posts') {
       const done = posts.filter(p => p.status !== 'draft').sort((a, b) => String(b.doneAt || '').localeCompare(String(a.doneAt || ''))).slice(0, 10);
       P.innerHTML = `<div class="report maxd">${tabs}
         <h3>POST DRAFTS</h3>
@@ -4902,6 +5027,23 @@ Accounts assistant, Home Pros Group`;
     }
     P.querySelectorAll('button[data-mt]').forEach(b => b.onclick = () => { mxTab = b.dataset.mt; try { A.select(); } catch (e) { } drawMax(); });
     const fail = () => say("Couldn't save that just now. Try again in a minute.");
+    P.querySelectorAll('button[data-rvdone]').forEach(b => b.onclick = async () => {
+      const wo = b.dataset.rvdone, x = mxReviews().waiting.find(y => String(y.wo) === wo);
+      if (!x) return;
+      b.disabled = true;
+      try {
+        mx.reviews = await root.HP_LIVE.maxChange('reviews', d => {
+          const same = y => String(y.wo) === wo;
+          d.drafted = (d.drafted || []).filter(y => !same(y));
+          if (d.pending && d.pending.send) d.pending.send = d.pending.send.filter(y => !same(y));
+          d.sent = d.sent || [];
+          if (!d.sent.some(same)) d.sent.push({ wo: x.wo, name: x.name || '', date: x.date || '', accountID: x.accountID || '', orderID: x.orderID || '', markedBy: 'keith', markedAt: new Date().toISOString() });
+        });
+        try { A.select(); } catch (e) { }
+        drawMax();
+        say(`Got it. ${String(x.name || 'That one').split(', ').reverse().join(' ')} is off my list and logged as sent.`);
+      } catch (e) { b.disabled = false; fail(); }
+    });
     P.querySelectorAll('button[data-rm]').forEach(b => b.onclick = async () => {
       const c = all.find(x => x.id === b.dataset.rm);
       if (!c || !confirm(`Remove ${c.name || c.company} from the list? Max won't add them again.`)) return;

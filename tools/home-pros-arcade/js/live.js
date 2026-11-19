@@ -158,7 +158,7 @@
     },
     /* Max: eddie/prospects = {contacts:[{id, type:'pm'|'agent', name, company, phone, email, area, source, addedAt}], removed:[keys], lastRun:{date, added, areas, note}}
             eddie/posts = {posts:[{id, network:'facebook'|'hpg-linkedin'|'keith-linkedin', text, photo, status:'draft'|'posted'|'skipped', createdAt, doneAt}]} */
-    async max() { const [p, s] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie')]); if (p === undefined && s === undefined) return undefined; return { prospects: p || null, posts: s || null }; },
+    async max() { const [p, s, v] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie'), read('reviews', 'eddie')]); if (p === undefined && s === undefined && v === undefined) return undefined; return { prospects: p || null, posts: s || null, reviews: v || null }; },
     /* Change one of Max's docs: re-read it first so a change made meanwhile by Max's task is kept. */
     async maxChange(docId, fn) {
       const db = await timeout(dbP, 6000);
@@ -188,6 +188,14 @@
       } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
     },
     /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
+    /* Everything Grace needs to walk Keith through a board meeting, in one read. */
+    async meeting() {
+      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['list', 'hank']];
+      const got = await Promise.all(want.map(([id, col]) => read(id, col)));
+      if (got.every(x => x === undefined)) return undefined;
+      const out = {}; want.forEach(([id, col], i) => { out[col + '/' + id] = got[i] || null; });
+      return out;
+    },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {
