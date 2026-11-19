@@ -190,11 +190,17 @@
     /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
     /* Everything Grace needs to walk Keith through a board meeting, in one read. */
     async meeting() {
-      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['list', 'hank']];
+      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['marks', 'penny'], ['list', 'hank']];
       const got = await Promise.all(want.map(([id, col]) => read(id, col)));
       if (got.every(x => x === undefined)) return undefined;
       const out = {}; want.forEach(([id, col], i) => { out[col + '/' + id] = got[i] || null; });
       return out;
+    },
+    /* Ask Claude (Talk to Grace). turns: [{role, content}] starting and ending on user. Rejects {code}. */
+    async ask(turns, opts) {
+      const s = await timeout(sampleP, 8000);
+      if (!s) throw { code: 'unavailable' };
+      return s(turns, Object.assign({ cache: false }, opts || {}));
     },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },

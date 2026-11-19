@@ -32,22 +32,24 @@
   }
 
   /* -------------------------------------------------------------- dialog */
-  const fill = s => s.replace('{host}', cfg.host.name).replace('{email}', state.customer.email || 'your inbox');
+  const fill = s => s.replace('{host}', cfg.host.name).replace('{email}', state.customer.email || 'your inbox').replace(/\{owner\}/g, cfg.owner.name);
 
+  const talkOn = on => { S.talk(on); gTalk(on); };
   function say(text) {
     const id = run;
     const target = $('say');
     text = fill(text);
     return new Promise(resolve => {
-      if (reduce) { target.textContent = text; resolve(); return; }
+      if (reduce) { target.textContent = text; if (gOn && gMirror) gSay(text); resolve(); return; }
       let i = 0;
-      S.talk(true);
+      talkOn(true);
       target.innerHTML = '';
-      const finish = () => { clearInterval(timer); typing = null; target.textContent = text; S.talk(false); resolve(); };
+      const finish = () => { clearInterval(timer); typing = null; target.textContent = text; if (gOn && gMirror) gSay(text); talkOn(false); resolve(); };
       const timer = setInterval(() => {
-        if (id !== run) { clearInterval(timer); S.talk(false); return; }
+        if (id !== run) { clearInterval(timer); talkOn(false); return; }
         i++;
         target.innerHTML = esc(text.slice(0, i)) + '<span class="caret">&#9612;</span>';
+        if (gOn && gMirror) gSay(text.slice(0, i), true);
         if (i % 2 === 0 && text[i] !== ' ') A.blip();
         if (i >= text.length) finish();
       }, 24);
@@ -751,7 +753,7 @@
   }
 
   function boardChoices(except) {
-    const list = cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }));
+    const list = [{ label: 'Talk to Grace', kind: 'primary', onPick: () => talkGrace() }, ...cfg.directors.filter(d => d.id !== except).map(d => ({ label: `${d.name}, ${d.title}`, onPick: () => talkTo(d.id) }))];
     if (except) list.push({ label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() });
     if (except !== 'rosa') list.push({ label: 'Customer Service desk', onPick: csDesk });
     if (except !== 'penny') list.push({ label: 'Accounting desk', onPick: () => acctDesk() });
@@ -775,6 +777,7 @@
 
   async function floor(first) {
     if (inMeeting && mtg && !first) return meetingStep(mtg.i);
+    gShow(false);
     const id = clear();
     nameplate(inMeeting ? 'BOARD MEETING' : 'HEAD OFFICE');
     S.office.select(null);
@@ -801,6 +804,7 @@
 
   async function adjourn() {
     inMeeting = false; mtg = null;
+    gShow(false);
     S.office.meeting(false);
     const id = clear();
     nameplate('HEAD OFFICE');
@@ -810,6 +814,7 @@
   }
 
   async function talkTo(dirId) {
+    gShow(false);
     if (dirId === 'keith') {
       const id = clear();
       S.office.select('keith');
@@ -1901,95 +1906,355 @@ Accounts assistant, Home Pros Group`;
     ['accounts@homeprosgroup.com', 'Penny', 'Penny', 'Invoices, payment notices, supplier bills'],
     ['receipts@homeprosgroup.com', 'Penny', 'Penny', 'Receipts you email or forward; Penny files them'],
   ];
-  /* ------------------------------------------------ Board meeting: Grace goes round the table */
+  /* ------------------------------------------------ Grace on screen: she presents board meetings and chats */
+  var gOn = false, gMirror = true, gTimer = null;
+  const G_IMG = ['img/grace-bust.webp', 'img/grace-bust-talk.webp'];
+  function gEl() {
+    let el = $('gScreen');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'gScreen'; el.className = 'gscreen'; el.hidden = true;
+      el.innerHTML = `<div class="gcam"><img id="gImg" alt="Grace, General Manager" src="${G_IMG[0]}"><img alt="" aria-hidden="true" class="gpre" src="${G_IMG[1]}"><div class="gtag"><b>GRACE</b><span class="glive">&#9679; LIVE</span></div></div>
+        <div class="gbubble"><div class="gwho" id="gWho"></div><div class="gtext" id="gText" aria-hidden="true"></div></div>`;
+      $('stage').appendChild(el);
+    }
+    return el;
+  }
+  function gShow(on, who) {
+    gOn = !!on;
+    const el = gEl();
+    el.hidden = !gOn;
+    if (who != null) $('gWho').textContent = who;
+    if (!gOn) gTalk(false);
+  }
+  function gTalk(on) {
+    const img = $('gImg');
+    if (!img) return;
+    on = !!on && gOn;
+    if (on && gTimer) return;
+    clearInterval(gTimer); gTimer = null;
+    if (on && !reduce) { let f = 0; gTimer = setInterval(() => { f ^= 1; img.src = G_IMG[f]; }, 140); }
+    else img.src = G_IMG[0];
+    $('gScreen').classList.toggle('talking', on);
+  }
+  function gSay(text, typingNow) {
+    const t = $('gText');
+    if (!t) return;
+    t.innerHTML = esc(text) + (typingNow ? '<span class="caret">&#9612;</span>' : '');
+    t.scrollTop = t.scrollHeight;
+  }
+
+  /* ------------------------------------------------ Board meeting: Grace presents every director's report, then their questions */
   let mtg = null;
   const $2 = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const first = n => { const t = String(n || ''); const i = t.indexOf(', '); return i > 0 ? t.slice(i + 2) + ' ' + t.slice(0, i) : t; };
-  function meetingSteps(d) {
-    const g = k => (d && d[k]) || null, rep = [g('grace/morning'), g('grace/evening')].filter(Boolean).sort((a, b) => String(b.generatedAt || '').localeCompare(String(a.generatedAt || '')))[0];
+  const dirName = id => (cfg.directors.find(x => x.id === id) || {}).name || id;
+  const nowLocal = () => (window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString().slice(0, 19));
+  const dshort = s => s ? fmtDate(String(s).slice(0, 10)) : '';
+  const mPct = (a, b) => b ? `${a >= b ? "+" : ""}${Math.round((a - b) / b * 100)}%` : "";
+  // Before 4 PM it's the start-of-day meeting (the first one of the day opens the day); from 4 PM on, the end-of-day meeting.
+  function meetingKind() {
+    const t = nowLocal(), day = t.slice(0, 10), hr = Number(t.slice(11, 13));
+    let n = 1;
+    try { const k = 'hp-meetings-' + day; n = Number(localStorage.getItem(k) || 0) + 1; localStorage.setItem(k, String(n)); } catch (e) { }
+    return { kind: hr >= 16 ? 'evening' : 'morning', nth: n, day };
+  }
+  function meetingSteps(d, k) {
+    const g = key => (d && d[key]) || null, eve = k.kind === 'evening';
+    const rep = (eve ? g('grace/evening') : g('grace/morning')) || (eve ? g('grace/morning') : g('grace/evening'));
+    const repDay = rep ? String(rep.date || rep.generatedAt || '').slice(0, 10) : '';
     const steps = [];
-    steps.push({ id: 'grace', title: 'Where we stand', lines: rep ? [rep.headline, ...(rep.problems || []).map(x => 'Problem: ' + x)].filter(Boolean) : ['No report from me yet today.'],
-      say: `Thanks for coming, everyone. ${rep && rep.headline ? rep.headline + ' ' : ''}I'll go round the table one at a time, then finish with what needs you.` });
-    const ib = g('rosa/inbox'), rem = g('rosa/reminders');
-    const rl = [];
+    const addQ = (id, qs, intro) => { if (qs.length) steps.push({ id, q: true, title: `${dirName(id)}'s questions for you`, lines: qs, numbered: true, sayList: [intro || `${dirName(id)} has ${plural(qs.length, 'question')} for you.`, ...qs.map((x, i) => `${qs.length > 1 ? `Number ${i + 1}: ` : ''}${x}`)] }); };
+
+    // Grace opens
+    const open = eve ? `Good evening, {owner}. This is the end-of-day meeting.`
+      : k.nth <= 1 ? `Good morning, {owner}. This is the start-of-day meeting.` : `Welcome back, {owner}. Here's where the day stands.`;
+    const stale = rep && repDay && repDay !== k.day ? ` My last written report is from ${dshort(repDay)}, so some of it may be behind.` : !rep ? ' I have no written report yet, so I\'ll go from everyone\'s records.' : '';
+    steps.push({ id: 'grace', title: eve ? 'End of day · Grace' : 'Start of day · Grace',
+      lines: rep ? [rep.headline].filter(Boolean) : ['No written report from me yet.'],
+      sections: rep ? [...(rep.sections || []), ...((rep.problems || []).length ? [{ title: 'Problems', lines: rep.problems, warn: true }] : [])] : [],
+      say: `${open}${rep && rep.headline ? ' ' + rep.headline : ''}${stale} I'll take each director in turn: their report first, then their questions for you.` });
+
+    // Rosa
+    const ib = g('rosa/inbox'), rem = g('rosa/reminders'), rl = [], rq = [];
     if (ib) {
       (ib.results || []).forEach(x => rl.push(x));
-      if (ib.status !== 'done' && (ib.plan || []).length) rl.push(`${plural(ib.plan.length, 'Jayman booking')} waiting for your answer.`);
-      if ((ib.held || []).length) rl.push(`Held ${ib.held.length}: ${ib.held.map(h => `${h.address} (${h.why})`).join('; ')}.`);
+      (ib.held || []).forEach(h => rl.push(`Held: ${h.address}${h.city ? ', ' + h.city : ''}${h.why ? ' (' + h.why + ')' : ''}.`));
+      if (ib.status !== 'done') {
+        (ib.warranty || []).forEach(w => rq.push(`Jayman warranty ${w.ref || ''}${w.address ? ' at ' + w.address : ''}: should I create the work order?`));
+        (ib.plan || []).forEach(p => rq.push(`Book the Jayman job at ${p.address}${p.city ? ', ' + p.city : ''}${p.date ? ' on ' + dshort(p.date) : ''}${p.note ? ' (' + p.note + ')' : ''}?`));
+        (ib.ready || []).forEach(x => rq.push(`Ready to book: ${x.address || (x.pos || []).join(', ')}. Go ahead?`));
+        (ib.drive || []).forEach(x => rq.push(`New driving order for ${x.date ? dshort(x.date) : 'one day'}: use it?`));
+      }
     }
-    const sentR = (rem && rem.sent) || [], lastR = sentR.slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))[0];
-    if (lastR) rl.push(`Last reminder: ${first(lastR.name)}, for ${fmtDate(String(lastR.date).slice(0, 10))}.`);
+    const pend = (rem && rem.pending) || {};
+    (pend.send || []).forEach(x => rl.push(`Reminder ready for ${first(x.name)} (${dshort(x.date)}).`));
+    (pend.ask || []).forEach(x => rq.push(`${first(x.name)}'s appointment on ${dshort(x.date)} looks commercial. Send them a reminder, or skip it?`));
+    const sentR = ((rem && rem.sent) || []).slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+    if (sentR.length) rl.push(`Reminders sent lately: ${sentR.slice(0, 4).map(x => `${first(x.name)} (${dshort(x.date)})`).join(', ')}.`);
+    const booked = ((ib && ib.results) || []).filter(x => /^Created WO/.test(x)).length;
     steps.push({ id: 'rosa', title: 'Rosa · Customer Service', lines: rl.length ? rl : ['Nothing new from Rosa.'],
-      say: ib && (ib.results || []).length ? `Rosa's up first. On her Jayman run she ${ib.results.filter(x => /^Created WO/.test(x)).length ? `booked ${plural(ib.results.filter(x => /^Created WO/.test(x)).length, 'job')}` : 'had nothing new to book'}.` : "Rosa's up first. Quiet on the Jayman side." });
-    const er = g('eddie/report'), el2 = [];
+      say: `Rosa first. ${booked ? `She booked ${plural(booked, 'Jayman job')} on her last run.` : 'No new Jayman bookings on her last run.'} ${rq.length ? `She has ${plural(rq.length, 'question')} for you.` : 'No questions from her.'}` });
+    addQ('rosa', rq, `Rosa's questions. You can answer them on her desk.`);
+
+    // Eddie
+    const er = g('eddie/report'), el = [], eq = [];
     if (er) {
-      el2.push(`${er.date ? fmtDate(er.date) + ': ' : ''}${Number(er.received || 0)} emails in, ${Number(er.sent || 0)} sent, ${(er.missed || []).length} missed, ${Number(er.drafts || 0)} drafts, ${(er.spamMoved || []).length} moved to spam. Status: ${er.status || '?'}.`);
-      (er.review || []).forEach(x => el2.push('Check over: ' + x));
+      el.push(`${er.date ? dshort(er.date) + ': ' : ''}${Number(er.received || 0)} emails in, ${Number(er.sent || 0)} sent, ${Number(er.drafts || 0)} drafts waiting, ${(er.spamMoved || []).length} moved to spam. Overall: ${er.status || 'not reported'}.`);
+      (er.checks || []).forEach(c => el.push(`${c.name}: ${c.status}${c.detail ? ', ' + c.detail : ''}.`));
+      (er.draftsMade || []).forEach(x => el.push('Reply draft: ' + (x.text || x)));
+      (er.spamMoved || []).forEach(x => el.push('Moved to spam: ' + x));
+      (er.formatting || []).forEach(x => el.push('Formatting: ' + x));
+      (er.review || []).forEach(x => eq.push('Check this over: ' + x));
+      (er.missed || []).forEach(x => eq.push('Missed: ' + x));
+      (er.unanswered || []).forEach(x => eq.push('Still waiting for a reply: ' + x));
     }
-    steps.push({ id: 'eddie', title: 'Eddie · Email', lines: el2.length ? el2 : ['No email report yet.'],
-      say: er ? `Eddie, your turn. ${(er.missed || []).length ? plural(er.missed.length, 'email') + ' slipped through.' : 'Nothing was missed.'}${(er.review || []).length ? ` He's got ${plural(er.review.length, 'thing')} for you to check over.` : ''}` : 'Eddie has no report in yet.' });
+    steps.push({ id: 'eddie', title: 'Eddie · Email', lines: el.length ? el : ['No email report yet.'],
+      say: er ? `Eddie. ${Number(er.received || 0)} emails came in${(er.draftsMade || []).length ? `, and he wrote ${plural(er.draftsMade.length, 'reply draft')} for you` : ''}. ${eq.length ? `He has ${plural(eq.length, 'thing')} for you to look at.` : 'Nothing for you to look at.'}` : 'Eddie has no report in yet.' });
+    addQ('eddie', eq, `Eddie's list for you.`);
+
+    // Max
     mx = { live: true, prospects: { contacts: [], ...(g('eddie/prospects') || {}) }, posts: { posts: [], ...(g('eddie/posts') || {}) }, reviews: g('eddie/reviews') || {} };
-    const rv = mxReviews(), drafts = mx.posts.posts.filter(p => p.status === 'draft');
-    steps.push({ id: 'max', title: 'Max · Marketing', lines: [
-      `Review requests: ${rv.sent.length} sent, ${rv.waiting.length} waiting for you${rv.waiting.length ? ` (${rv.waiting.map(x => first(x.name)).join(', ')})` : ''}.`,
-      `${plural(drafts.length, 'post draft')} ready to check and post.`,
-      `${plural(mx.prospects.contacts.length, 'contact')} on the property manager and agent list.`],
-      say: `Max. ${rv.waiting.length ? `${plural(rv.waiting.length, 'review request')} need${rv.waiting.length === 1 ? 's' : ''} your OK.` : 'Review requests are all caught up.'}${drafts.length ? ` And ${plural(drafts.length, 'post')} ready to go out.` : ''}`, open: 'max' });
-    const pb = g('penny/brief'), pl = [];
+    const rv = mxReviews(), drafts = mx.posts.posts.filter(p => p.status === 'draft'), lr = mx.prospects.lastRun, mq = [];
+    const byNet = {}; drafts.forEach(p => { byNet[p.network] = (byNet[p.network] || 0) + 1; });
+    const ml = [`Review requests: ${rv.sent.length} sent, ${rv.waiting.length} waiting for you.`,
+      `Contact list: ${plural(mx.prospects.contacts.length, 'property manager and agent')}${lr ? `, ${lr.added || 0} added on ${dshort(lr.date)}${lr.areas ? ' (' + lr.areas + ')' : ''}` : ''}.`,
+      `${plural(drafts.length, 'post draft')} ready${drafts.length ? ': ' + Object.entries(byNet).map(([n, c]) => `${c} ${NETS[n] || n}`).join(', ') : ''}.`];
+    rv.waiting.forEach(x => mq.push(`The review request for ${first(x.name)}${x.wo ? ' (WO ' + x.wo + ')' : ''} is in your Gmail drafts. Send it, or tap Done on Max's desk if you already did.`));
+    if (drafts.length) mq.push(`${plural(drafts.length, 'post')} to check and post: copy each one on Max's desk, post it, then tap "I posted it".`);
+    steps.push({ id: 'max', title: 'Max · Marketing', lines: ml,
+      say: `Max. ${rv.sent.length} review requests sent so far${lr && lr.added ? `, and he added ${lr.added} contacts to the list` : ''}. ${mq.length ? `He has ${plural(mq.length, 'thing')} for you.` : 'Nothing waiting on you.'}` });
+    addQ('max', mq, `Max needs you for these.`);
+
+    // Penny
+    const pb = g('penny/brief'), pl = [], pq = [];
     if (pb) {
-      const t = pb.today || {}, u = pb.unpaid || {}, m = pb.month || {}, cnt = v => Array.isArray(v) ? v.length : Number(v || 0);
-      pl.push(`${pb.date ? fmtDate(pb.date) + ': ' : ''}${plural(Number(t.jobs || 0), 'job')}${t.jayman ? ` (${t.jayman} Jayman)` : ''}, ${$2(t.revenue)} revenue, ${$2(t.paid)} collected.`);
-      pl.push(`Month to date: ${plural(Number(m.jobs || 0), 'job')}, ${$2(m.revenue)} revenue, ${$2(m.paid)} paid.`);
-      pl.push(`Not paid yet: ${plural(cnt(u.notPaid), 'job')}, ${$2(u.notPaidTotal)} (${$2(u.over60)} over 60 days). Commercial: ${$2(u.commercialTotal)}.`);
-      (pb.askPaid || []).forEach(x => pl.push(`Question: was ${first(x.account)} WO ${x.wo} (${$2(x.balance)}) paid?`));
-      (pb.notInvoiced || []).forEach(x => pl.push(`Not invoiced: WO ${x.wo} ${x.account || ''}`));
-    }
-    steps.push({ id: 'penny', title: 'Penny · Accounting', lines: pl.length ? pl : ['No brief from Penny yet.'],
-      say: pb ? `Penny, the numbers. ${pb.date ? fmtDate(pb.date) : 'Last day'}: ${$2((pb.today || {}).revenue)} in revenue. ${$2((pb.unpaid || {}).notPaidTotal)} still owed to us.` : 'Penny has no brief in yet.', open: 'penny' });
-    const hl = g('hank/list'), items = ((hl && hl.items) || []).filter(x => x.status !== 'got');
+      const t = pb.today || {}, u = pb.unpaid || {}, m = pb.month || {}, lm = pb.lastMonth || {};
+      const isToday = String(pb.date || '').slice(0, 10) === k.day, dayName = isToday ? 'Today' : dshort(pb.date);
+      pl.push(`${dayName}: ${plural(Number(t.jobs || 0), 'job')}${t.jayman ? ` (${t.jayman} Jayman)` : ''}, ${$2(t.revenue)} revenue, ${$2(t.billed)} billed, ${$2(t.paid)} paid, ${$2(t.gst)} GST, about ${Number(t.km || 0)} km.`);
+      pl.push(`Month to date: ${plural(Number(m.jobs || 0), 'job')}, ${$2(m.revenue)} revenue${lm.revenue ? ` (${mPct(Number(m.revenue || 0), Number(lm.revenue))} on the same days last month)` : ''}, ${$2(m.paid)} paid.`);
+      pl.push(`Not paid yet: ${plural((u.notPaid || []).length, 'job')}, ${$2(u.notPaidTotal)} (${$2(u.over30)} over 30 days, ${$2(u.over60)} over 60). Commercial on account: ${$2(u.commercialTotal)}.`);
+      (u.notPaid || []).slice().sort((a, b) => Number(b.days || 0) - Number(a.days || 0)).slice(0, 5).forEach(x => pl.push(`Oldest: WO ${x.wo} ${first(x.account)}, ${$2(x.balance)}, ${x.days} days.`));
+      (pb.notes || []).forEach(x => pl.push('Note: ' + x));
+      const answered = ((g('penny/marks') || {}).jobs) || {};
+      (pb.askPaid || []).filter(x => !answered[String(x.wo)]).forEach(x => pq.push(`WO ${x.wo}, ${first(x.account)}, ${$2(x.balance)}: did they pay on site, or are they billed?`));
+      (pb.askCommercial || []).forEach(x => pq.push(`Do you bill ${x.name || x.account} on account?`));
+      (u.toRecord || []).forEach(x => pq.push(`WO ${x.wo} ${first(x.account)} was paid on site, but ServiceMonster still shows ${$2(x.balance)} owing. Please record the payment.`));
+      (pb.notInvoiced || []).forEach(x => pq.push(`WO ${x.wo}${x.account ? ' ' + first(x.account) : ''} is done but not invoiced yet.`));
+      steps.push({ id: 'penny', title: 'Penny · Accounting', lines: pl,
+        say: `Penny, the numbers. ${dayName}: ${$2(t.revenue)} in revenue from ${plural(Number(t.jobs || 0), 'job')}. ${$2(u.notPaidTotal)} is still owed to us. ${pq.length ? `She has ${plural(pq.length, 'question')} for you.` : 'No questions from her.'}` });
+    } else steps.push({ id: 'penny', title: 'Penny · Accounting', lines: ['No brief from Penny yet.'], say: 'Penny has no brief in yet.' });
+    addQ('penny', pq, `Penny's questions. Answer them on her desk, under Penny's questions.`);
+
+    // Hank
+    const hl = g('hank/list'), items = ((hl && hl.items) || []).filter(x => x.status !== 'got'), hq = [];
     const due = !hl || !hl.lastCountAt || (Date.now() - new Date(hl.lastCountAt)) / 864e5 >= 7;
-    steps.push({ id: 'hank', title: 'Hank · Purchasing', lines: [
-      `${plural(items.length, 'item')} on the purchase list${items.filter(x => x.special).length ? `, ${items.filter(x => x.special).length} special orders` : ''}.`,
-      due ? `Stock count is due${hl && hl.lastCountAt ? ` (last one ${fmtDate(hl.lastCountAt.slice(0, 10))})` : ' (never done)'}.` : `Stock counted ${fmtDate(hl.lastCountAt.slice(0, 10))}.`,
-      ...items.slice(0, 8).map(x => `${x.name || x.what || 'Item'}${x.qty ? ' × ' + x.qty : ''}${x.supplier ? ' · ' + x.supplier : ''}`)],
-      say: `Hank. ${items.length ? plural(items.length, 'thing') + ' to buy.' : 'Nothing to buy right now.'}${due ? ' And the stock count is due.' : ''}`, open: 'hank' });
+    const hlines = [`${plural(items.length, 'item')} on the purchase list.`, ...items.slice(0, 12).map(x => `${x.qty ? x.qty + ' ' : ''}${x.name}${x.supplier ? ' · ' + x.supplier : ''}${x.source === 'special' ? ' (special order)' : x.source === 'restock' ? ' (restock)' : ''}${x.status === 'ordered' ? ' · ordered' : ''}`)];
+    const unset = items.filter(x => !x.supplier);
+    if (due) hq.push(`The weekly stock count is due${hl && hl.lastCountAt ? ` (last one ${dshort(hl.lastCountAt)})` : ''}. Count the shelf on Hank's desk.`);
+    if (unset.length) hq.push(`Where do we buy ${unset.map(x => x.name).join(', ')}? Tell Hank once and he'll remember.`);
+    const notOrdered = items.filter(x => x.status === 'needed').length;
+    if (notOrdered) hq.push(`${plural(notOrdered, 'item')} still to order. Want Hank to email you the list?`);
+    steps.push({ id: 'hank', title: 'Hank · Purchasing', lines: hlines,
+      say: `Hank. ${items.length ? plural(items.length, 'thing') + ' on the purchase list.' : 'Nothing on the purchase list.'} ${hq.length ? `He has ${plural(hq.length, 'question')} for you.` : ''}` });
+    addQ('hank', hq, `Hank's questions.`);
+
+    // Grace closes
     const need = rep ? rep.needsYou || [] : [];
-    steps.push({ id: 'grace', title: 'What needs you', lines: need.length ? need : ['Nothing needs you right now.'], done: rep ? rep.done || [] : [], numbered: true,
-      say: need.length ? `That's everyone. ${plural(need.length, 'thing')} need${need.length === 1 ? 's' : ''} you, most important first.` : "That's everyone. Nothing needs you right now.", last: true });
+    steps.push({ id: 'grace', title: eve ? 'Before you head out' : 'What needs you today', lines: need.length ? need : ['Nothing else needs you right now.'], done: rep ? rep.done || [] : [], numbered: true, last: true,
+      sayList: need.length ? [`That's everyone. Here's what needs you${eve ? ' before tomorrow' : ' today'}, most important first.`, ...need.map((x, i) => `${need.length > 1 ? `${i + 1}: ` : ''}${x}`)]
+        : [`That's everyone. Nothing else needs you right now.`] });
     return steps;
   }
   async function graceMeeting() {
     const id = clear();
-    nameplate('BOARD MEETING · GRACE');
+    const k = meetingKind();
+    nameplate(`BOARD MEETING · ${k.kind === 'evening' ? 'END OF DAY' : 'START OF DAY'}`);
     S.office.select('grace');
-    $('panel').innerHTML = '<div class="loading">Grace is getting her notes</div>';
+    gMirror = true; gShow(true, k.kind === 'evening' ? 'END-OF-DAY MEETING' : 'START-OF-DAY MEETING'); gSay('One moment, getting my notes...');
+    $('panel').innerHTML = '<div class="loading">Grace is getting everyone\'s reports</div>';
     const d = root.HP_LIVE && root.HP_LIVE.meeting ? await root.HP_LIVE.meeting() : undefined;
     if (id !== run) return;
-    mtg = { steps: meetingSteps(d), i: 0, live: d !== undefined };
+    mtg = { steps: meetingSteps(d, k), i: 0, live: d !== undefined, kind: k.kind };
     meetingStep(0);
   }
   async function meetingStep(i) {
     const id = clear();
     const st = mtg.steps[i]; mtg.i = i;
-    const who = cfg.directors.find(x => x.id === st.id) || { name: 'Grace' };
-    nameplate(`BOARD MEETING · ${i + 1}/${mtg.steps.length} · ${who.name.toUpperCase()}`);
+    const who = dirName(st.id);
+    nameplate(`BOARD MEETING · ${i + 1}/${mtg.steps.length} · ${who.toUpperCase()}`);
     S.office.select(st.id);
-    const li = x => `<li>${esc(x)}</li>`;
+    gMirror = true; gShow(true, /^(start|end) of day/i.test(st.title) ? st.title.toUpperCase() : `${mtg.kind === 'evening' ? 'END OF DAY' : 'START OF DAY'} · ${st.title.toUpperCase()}`);
+    const li = x => `<li>${esc(x)}</li>`, list = l => st.numbered ? `<ol>${l.map(li).join('')}</ol>` : `<ul>${l.map(li).join('')}</ul>`;
     $('panel').innerHTML = `<div class="report grace"><h3>${esc(st.title.toUpperCase())}</h3>
-      <div class="q">${st.numbered ? `<ol>${st.lines.map(li).join('')}</ol>` : `<ul>${st.lines.map(li).join('')}</ul>`}</div>
+      <div class="q">${list(st.lines)}</div>
+      ${(st.sections || []).map(s => `<div class="q"><h4>${esc(String(s.title || '').toUpperCase())}</h4><ul>${(s.lines || []).map(x => `<li${s.warn ? ' class="warnc"' : ''}>${esc(x)}</li>`).join('')}</ul></div>`).join('')}
       ${(st.done || []).length ? `<details class="q"><summary><b>ALREADY DONE</b> <small>(${st.done.length})</small></summary><ul>${st.done.map(x => `<li class="okc">${esc(x)}</li>`).join('')}</ul></details>` : ''}
       ${mtg.live ? '' : '<p class="soon">The team\'s records only load when the arcade is open in claude.ai.</p>'}</div>`;
-    await say(st.say);
+    const next = mtg.steps[i + 1], btns = [];
+    const nextLabel = !next ? '' : next.last ? 'Wrap up: what needs me' : next.q ? `${dirName(next.id)}'s questions` : `Next: ${dirName(next.id)}`;
+    if (next) btns.push({ label: nextLabel, kind: 'primary', onPick: () => meetingStep(i + 1) });
+    else btns.push({ label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn });
+    if (i > 0) btns.push({ label: 'Back one', kind: 'ghost', sound: 'back', onPick: () => meetingStep(i - 1) });
+    if (st.id !== 'grace') btns.push({ label: `Open ${who}'s desk`, onPick: () => talkTo(st.id) });
+    btns.push({ label: 'Talk to Grace', onPick: () => talkGrace() });
+    if (next) btns.push({ label: 'Adjourn the meeting', kind: 'ghost', onPick: adjourn });
+    if (st.sayList) { choices(btns, false); await sayAll(st.sayList); }
+    else { await say(st.say); if (id !== run) return; choices(btns, false); }
     if (id !== run) return;
-    const next = mtg.steps[i + 1], list = [];
-    if (next) list.push({ label: next.last ? 'Wrap up: what needs me' : `Next: ${(cfg.directors.find(x => x.id === next.id) || {}).name || 'Next'}`, kind: 'primary', onPick: () => meetingStep(i + 1) });
-    else list.push({ label: 'Adjourn the meeting', kind: 'primary', onPick: adjourn });
-    if (i > 0) list.push({ label: 'Back one', kind: 'ghost', sound: 'back', onPick: () => meetingStep(i - 1) });
-    if (st.id !== 'grace') list.push({ label: `Open ${who.name}'s desk`, onPick: () => talkTo(st.id) });
-    if (next) list.push({ label: 'Adjourn the meeting', kind: 'ghost', onPick: adjourn });
-    choices(list, false);
-    $('hint').textContent = st.id !== 'grace' ? `Open ${who.name}'s desk to act on anything; "Back to the meeting" brings you back here.` : '';
+    $('hint').textContent = st.id !== 'grace' ? `Open ${who}'s desk to answer or act; "Back to the meeting" brings you back here.` : '';
+  }
+
+  /* ------------------------------------------------ Talk to Grace: a chat with Claude, as Grace */
+  const GMODELS = { opus: { id: 'claude-opus-5-5', name: 'Opus 5.5' }, fable: { id: 'claude-fable-5-2', name: 'Fable 5.2' } };
+  const GIMP = {
+    quick: { label: 'Quick question', tier: 'default', how: 'This is a quick question. Answer in two to four sentences unless Keith asks for more.' },
+    important: { label: 'Important', tier: 'default', how: 'This is important. Be thorough but concise; use a short dash list where it helps.' },
+    critical: { label: 'Critical', tier: 'complex', how: 'This is critical to the business. Think it through carefully, check every number against the records, say what you are unsure of, and end with the risks and the next step.' },
+  };
+  const GFOCUS = { low: 'Light', medium: 'Focused', high: 'Deep' };
+  let gchat = null;
+  async function talkGrace() {
+    const id = clear();
+    nameplate('TALK TO GRACE');
+    S.office.select('grace');
+    gMirror = true; gShow(true, 'TALK TO GRACE');
+    const back = { label: inMeeting ? 'Back to the meeting' : 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => { gShow(false); floor(); } };
+    if (gchat && gchat.turns.length) {
+      await say(`Want to pick up where we left off? We were on ${GMODELS[gchat.model].name}, ${GIMP[gchat.importance].label.toLowerCase()}, ${GFOCUS[gchat.effort].toLowerCase()} concentration.`);
+      if (id !== run) return;
+      return choices([{ label: 'Pick up where we left off', kind: 'primary', onPick: () => gChat() },
+        { label: 'Start a new chat', onPick: () => { gchat = null; talkGrace(); } }, back], false);
+    }
+    const pick = {};
+    await say('Hi {owner}. Which brain do you want me to think with?');
+    if (id !== run) return;
+    choices([{ label: 'Opus 5.5', kind: 'primary', onPick: () => step2('opus') }, { label: 'Fable 5.2', onPick: () => step2('fable') }, back], false);
+    async function step2(m) {
+      pick.model = m;
+      const id2 = clear(); gShow(true, `TALK TO GRACE · ${GMODELS[m].name.toUpperCase()}`);
+      await say('How important is this chat?');
+      if (id2 !== run) return;
+      choices([...Object.entries(GIMP).map(([k, v], n) => ({ label: v.label, kind: n === 1 ? 'primary' : undefined, onPick: () => step3(k) })), back], false);
+    }
+    async function step3(imp) {
+      pick.importance = imp;
+      const id3 = clear();
+      await say('And how hard should I concentrate? Deeper takes me longer, but I check my work more.');
+      if (id3 !== run) return;
+      choices([{ label: 'Light: quick answers', onPick: () => go('low') }, { label: 'Focused', kind: 'primary', onPick: () => go('medium') }, { label: 'Deep: take your time', onPick: () => go('high') }, back], false);
+    }
+    function go(effort) {
+      gchat = { model: pick.model, importance: pick.importance, effort, turns: [], ctx: null, ctxP: null };
+      gChat(true);
+    }
+  }
+  function gContext(d) {
+    const g = key => (d && d[key]) || null, out = {};
+    for (const key of ['grace/morning', 'grace/evening', 'rosa/inbox', 'rosa/reminders', 'eddie/report', 'eddie/reviews', 'penny/brief', 'hank/list']) out[key] = g(key);
+    const pr = g('eddie/prospects');
+    if (pr) out['eddie/prospects (Max\'s contact list)'] = { total: (pr.contacts || []).length, lastRun: pr.lastRun, contacts: (pr.contacts || []).map(c => [c.type, c.name, c.company, c.phone, c.email, c.area].filter(Boolean).join(' | ')) };
+    const po = g('eddie/posts');
+    if (po) out['eddie/posts (Max\'s social post drafts)'] = (po.posts || []).slice(-20).map(p => ({ network: p.network, status: p.status, text: String(p.text || '').slice(0, 400) }));
+    let s = JSON.stringify(out);
+    if (s.length > 90000) { delete out['eddie/prospects (Max\'s contact list)'].contacts; s = JSON.stringify(out); }
+    return s.slice(0, 120000);
+  }
+  function gRules() {
+    const c = gchat, imp = GIMP[c.importance];
+    return `You are Grace, the General Manager at Home Pros Group: furnace, duct and dryer vent cleaning in the Edmonton area of Alberta (base in Stony Plain). You are talking with ${cfg.owner.name}, the owner, inside the Home Pros arcade, where you appear as his on-screen assistant. You oversee Rosa (customer service and Jayman builder bookings), Eddie (email), Max (marketing: reviews, social posts, the property manager and agent contact list), Penny (accounting) and Hank (purchasing and inventory).
+
+How to talk: as Grace, warm, direct and practical, like a trusted manager. Plain text only: no markdown headings, bold or tables; short dash lists are fine. ${imp.how}
+
+Facts: use the team's records below for anything about jobs, customers, money, email, posts and tasks. Quote numbers exactly from them and give the date of the record you use. If something isn't in the records, or a record looks old, say so plainly instead of guessing. Never invent customers, jobs, amounts or dates.
+
+What you can do: talk and advise only. You can't change ServiceMonster, Gmail, the scheduled tasks or the records yourself. When something needs doing, say which desk in the arcade or which director handles it, or what Keith should do.
+
+Price list (plus GST): first furnace $345, each extra furnace $150, each A/C coil $60, each extra zone $60, dryer vent $60 with a furnace and duct cleaning or $150 on its own (side-wall vents only: no residential roofs). Free travel in Edmonton, St. Albert, Sherwood Park, Spruce Grove, Stony Plain, Leduc and Fort Saskatchewan; elsewhere the first 30 km are free, then $1.50 per km.
+
+Right now it is ${nowLocal().replace('T', ' ').slice(0, 16)} in Alberta.
+
+TEAM RECORDS (JSON, from the arcade's database):
+${c.ctx || '(the records could not be loaded in this view)'}`;
+  }
+  async function gChat(fresh) {
+    const id = clear();
+    const c = gchat;
+    nameplate(`TALK TO GRACE · ${GMODELS[c.model].name.toUpperCase()}`);
+    S.office.select('grace');
+    gMirror = false; gShow(true, `${GMODELS[c.model].name.toUpperCase()} · ${GIMP[c.importance].label.toUpperCase()} · ${GFOCUS[c.effort].toUpperCase()}`);
+    if (!c.ctxP) c.ctxP = (root.HP_LIVE && root.HP_LIVE.meeting ? root.HP_LIVE.meeting() : Promise.resolve(undefined)).then(d => { c.ctx = d === undefined ? '' : gContext(d); }).catch(() => { c.ctx = ''; });
+    const msg = t => `<div class="gm ${t.role === 'user' ? 'me' : 'her'}"><b>${t.role === 'user' ? esc(cfg.owner.name.toUpperCase()) : 'GRACE'}</b>${esc(t.content)}</div>`;
+    $('panel').innerHTML = `<div class="report gchat questions">
+      <p class="gset">${esc(GMODELS[c.model].name)} · ${esc(GIMP[c.importance].label)} · ${esc(GFOCUS[c.effort])} concentration</p>
+      <div class="glog" id="gLog">${c.turns.map(msg).join('')}</div>
+      <div class="gform"><textarea id="gIn" rows="3" placeholder="Ask Grace anything about the business"></textarea>
+        <button class="qa send" id="gSend" type="button">Send</button><button class="qa" id="gStop" type="button" hidden>Stop</button></div>
+      <p class="small" id="gNote"></p></div>`;
+    const log = $('gLog'), input = $('gIn'), send = $('gSend'), stop = $('gStop'), note = $('gNote');
+    log.scrollTop = log.scrollHeight;
+    const last = c.turns.filter(t => t.role === 'assistant').pop();
+    if (fresh || !last) { gSay(''); await say('All right, I\'m listening. Type your question below and I\'ll answer here.'); }
+    else { gSay(last.content); $('say').textContent = 'Go ahead, I\'m listening.'; }
+    if (id !== run) return;
+    choices([{ label: 'Start a new chat', onPick: () => { if (c.ctl) c.ctl.abort(); gchat = null; talkGrace(); } },
+      { label: inMeeting ? 'End chat: back to the meeting' : 'End chat', kind: 'ghost', sound: 'back', isBack: true, onPick: () => { if (c.ctl) c.ctl.abort(); gShow(false); floor(); } }], false);
+    $('hint').textContent = 'Enter sends, Shift+Enter for a new line.';
+    if (matchMedia('(pointer: fine)').matches) input.focus();
+    input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send.click(); } };
+    stop.onclick = () => { if (c.ctl) c.ctl.abort(); };
+    send.onclick = async () => {
+      const q = input.value.trim();
+      if (!q || c.busy) return;
+      try { A.select(); } catch (e) { }
+      c.busy = true; send.disabled = true; stop.hidden = false; note.textContent = '';
+      c.turns.push({ role: 'user', content: q });
+      input.value = '';
+      log.insertAdjacentHTML('beforeend', msg({ role: 'user', content: q }) + '<div class="gm her" id="gNow"><b>GRACE</b><span>Thinking...</span></div>');
+      const now = $('gNow').querySelector('span');
+      log.scrollTop = log.scrollHeight;
+      gSay('Thinking...', true);
+      // type the answer out at a steady pace, catching up with what has arrived
+      let target = '', shown = 0;
+      const tick = setInterval(() => {
+        if (shown >= target.length) { if (!c.busy) { clearInterval(tick); gTalk(false); gSay(target); } return; }
+        shown = Math.min(target.length, shown + Math.max(1, Math.ceil((target.length - shown) / 25)));
+        const part = target.slice(0, shown);
+        now.textContent = part; gSay(part, true); gTalk(true);
+        if (shown % 3 === 0) { try { A.blip(); } catch (e) { } }
+        log.scrollTop = log.scrollHeight;
+      }, 28);
+      const ctl = c.ctl = new AbortController();
+      try {
+        await c.ctxP;
+        const turns = c.turns.slice(-24);
+        while (turns.length && turns[0].role !== 'user') turns.shift();
+        const r = await root.HP_LIVE.ask([{ role: 'user', content: gRules() }, ...turns], {
+          model: GMODELS[c.model].id, modelTier: GIMP[c.importance].tier, effort: c.effort, signal: ctl.signal,
+          onText: ({ text }) => { target = text; },
+        });
+        target = r.text;
+        c.turns.push({ role: 'assistant', content: r.text });
+        note.textContent = (r.modelApplied ? `Answered by ${GMODELS[c.model].name}` : `${GMODELS[c.model].name} wasn't available here, so the ${r.modelTierApplied} model answered`) + (r.truncated ? '. The answer was cut short: ask for less at a time.' : '.');
+      } catch (e) {
+        const code = (e && e.code) || 'upstream_error';
+        if (e && e.text) { target = e.text; c.turns.push({ role: 'assistant', content: e.text }); }
+        else if (code === 'cancelled') { target = '(stopped)'; }
+        else target = '';
+        note.textContent = code === 'cancelled' ? 'Stopped.'
+          : ['not_granted', 'sampling_disabled', 'unavailable', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code) ? 'I can\'t think in this view: open the arcade in claude.ai and allow it to use Claude when it asks.'
+          : code === 'rate_limited' ? 'That\'s a lot of questions for now. Give me a minute and try again.'
+          : code === 'refused' ? 'I can\'t answer that one. Try asking it a different way.'
+          : code === 'session_expired' ? 'Your claude.ai sign-in expired: sign in again, then ask me again.'
+          : 'Something went wrong on my end. Ask me again.';
+        if (!target) { now.textContent = note.textContent; gSay(note.textContent); }
+      } finally {
+        c.busy = false; c.ctl = null; send.disabled = false; stop.hidden = true;
+        const gn = $('gNow'); if (gn) gn.removeAttribute('id');
+        if (matchMedia('(pointer: fine)').matches && document.body.contains(input)) input.focus();
+      }
+    };
   }
 
   /* ------------------------------------------------ Grace: the morning and evening reports */
@@ -2443,6 +2708,7 @@ Accounts assistant, Home Pros Group`;
   }
 
   async function backToShop() {
+    gShow(false);
     clear();
     boardOpen = false; inMeeting = false;
     S.office.clear();
@@ -2452,6 +2718,7 @@ Accounts assistant, Home Pros Group`;
   }
 
   function logout() {
+    gShow(false);
     store.set(null);
     backToShop();
   }
