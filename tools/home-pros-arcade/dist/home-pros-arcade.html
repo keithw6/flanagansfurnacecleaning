@@ -1613,7 +1613,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
     /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
     /* Everything Grace needs to walk Keith through a board meeting, in one read. */
     async meeting() {
-      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['marks', 'penny'], ['list', 'hank']];
+      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['marks', 'penny'], ['list', 'hank'], ['notes', 'grace']];
       const got = await Promise.all(want.map(([id, col]) => read(id, col)));
       if (got.every(x => x === undefined)) return undefined;
       const out = {}; want.forEach(([id, col], i) => { out[col + '/' + id] = got[i] || null; });
@@ -5016,7 +5016,8 @@ Accounts assistant, Home Pros Group`;
     addQ('hank', hq, `Hank's questions.`);
 
     // Grace closes
-    const need = rep ? rep.needsYou || [] : [];
+    const notes = (((g('grace/notes') || {}).items) || []).filter(x => x.status !== 'done').map(x => 'To-do: ' + x.text);
+    const need = [...notes, ...(rep ? (rep.needsYou || []).filter(x => !notes.some(n => n.slice(7, 40) && x.includes(n.slice(7, 40)))) : [])];
     steps.push({ id: 'grace', title: eve ? 'Before you head out' : 'What needs you today', lines: need.length ? need : ['Nothing else needs you right now.'], done: rep ? rep.done || [] : [], numbered: true, last: true,
       sayList: need.length ? [`That's everyone. Here's what needs you${eve ? ' before tomorrow' : ' today'}, most important first.`, ...need.map((x, i) => `${need.length > 1 ? `${i + 1}: ` : ''}${x}`)]
         : [`That's everyone. Nothing else needs you right now.`] });

@@ -2063,7 +2063,8 @@ Accounts assistant, Home Pros Group`;
     addQ('hank', hq, `Hank's questions.`);
 
     // Grace closes
-    const need = rep ? rep.needsYou || [] : [];
+    const notes = (((g('grace/notes') || {}).items) || []).filter(x => x.status !== 'done').map(x => 'To-do: ' + x.text);
+    const need = [...notes, ...(rep ? (rep.needsYou || []).filter(x => !notes.some(n => n.slice(7, 40) && x.includes(n.slice(7, 40)))) : [])];
     steps.push({ id: 'grace', title: eve ? 'Before you head out' : 'What needs you today', lines: need.length ? need : ['Nothing else needs you right now.'], done: rep ? rep.done || [] : [], numbered: true, last: true,
       sayList: need.length ? [`That's everyone. Here's what needs you${eve ? ' before tomorrow' : ' today'}, most important first.`, ...need.map((x, i) => `${need.length > 1 ? `${i + 1}: ` : ''}${x}`)]
         : [`That's everyone. Nothing else needs you right now.`] });

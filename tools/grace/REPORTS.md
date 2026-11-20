@@ -54,6 +54,12 @@ error or "can't" message is a **problem**: say which and why.
 - `eddie/report`: overall status, reply drafts waiting, check-over list.
 - `eddie/reviews`: Max's review requests sent; Gmail drafts waiting for approval
   (Gmail list_drafts with subject "Thank you from Home Pros Group").
+- `grace/notes`: Keith's to-dos for Grace ("remind Hannah to...", "call so-and-so").
+  Every item with status "open" goes in **Needs you** in BOTH reports, every day, until
+  Keith says it's done (then set its status "done" with doneAt). Grace can't send email or
+  call anyone herself: she reminds Keith, and if the item is to contact someone she says
+  whether a Gmail draft is ready for him to send.
+- `rosa/reminders` `toCall`: customers with no email for tomorrow: Keith calls or texts them.
 - `hank/list`: open purchase list items (by supplier, special orders, restocks) and
   `lastCountAt` (stock count due if 7+ days ago or never).
 
@@ -65,7 +71,8 @@ error or "can't" message is a **problem**: say which and why.
 3. **Overnight** (from last night's tasks): Max's review drafts (how many, approved or
    still waiting), Penny's brief (yesterday's jobs, revenue, paid; her questions).
 4. **Coming up this morning**: Rosa's Jayman run at 6:01, Eddie's email check at 7:12.
-5. **Needs you today**: one list, most important first: Rosa's open Jayman questions,
+5. **Needs you today**: one list, most important first: open `grace/notes` to-dos, Rosa's
+   call-or-text list (`toCall`), Rosa's open Jayman questions,
    Penny's questions, Max's drafts to approve, Eddie's check-over items, done-but-not-
    invoiced jobs, Supply Pro acknowledgements, Hank's stock count if due and the purchase
    list size, any task that failed.
