@@ -44,13 +44,13 @@ const sched = await sm(`/scheduling?startDate=${date}&endDate=${date}&getJobColo
 const jobs = (sched.items || sched).filter(i => i.itemType === 'Job' && (i.startDateTime || '').slice(0, 10) === date && i.accountID)
   .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime));
 
-const send = [], ask = [], skipped = [], seen = new Set();
+const send = [], ask = [], call = [], skipped = [], seen = new Set();
 for (const j of jobs) {
   let wo = '';
   try { wo = (await sm(`/orders/${j.orderID}?fields=orderNumber`)).orderNumber || ''; } catch (e) { }
   wo = Number(wo) || wo;
   let a;
-  try { a = await sm(`/accounts/${j.accountID}?fields=accountName,firstName,lastName,companyName,commercial,doNotEmail,email`); } catch (e) { skipped.push({ wo, name: '', reason: 'could not read the account' }); continue; }
+  try { a = await sm(`/accounts/${j.accountID}?fields=accountName,firstName,lastName,companyName,commercial,doNotEmail,email,phone1,phone2`); } catch (e) { skipped.push({ wo, name: '', reason: 'could not read the account' }); continue; }
   const name = a.accountName || '';
   if (/complete|cancel/i.test(j.status || '')) { skipped.push({ wo, name, reason: `job is ${j.status}` }); continue; }
   if (jayman.has(j.accountID)) { skipped.push({ wo, name, reason: 'Jayman (builder)' }); continue; }
@@ -58,9 +58,14 @@ for (const j of jobs) {
   seen.add(j.accountID);
   if (commercialIds.has(j.accountID)) { skipped.push({ wo, name, reason: "commercial (Penny's list)" }); continue; }
   if (yes(a.commercial)) { skipped.push({ wo, name, reason: 'commercial in ServiceMonster' }); continue; }
-  if (yes(a.doNotEmail)) { skipped.push({ wo, name, reason: 'Do not email' }); continue; }
-  const email = String(a.email || '').split(/[;, ]+/).find(e => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(e));
-  if (!email) { skipped.push({ wo, name, reason: 'no email address' }); continue; }
+  const email = yes(a.doNotEmail) ? '' : String(a.email || '').split(/[;, ]+/).find(e => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(e));
+  if (!email) {
+    // no way to email them: Keith calls or texts instead, so they still get a reminder
+    const fn = (a.firstName || '').trim() || (name.includes(',') ? name.split(',')[1].trim().split(' ')[0] : name.split(' ')[0]);
+    call.push({ wo, date, name, firstName: fn.charAt(0).toUpperCase() + fn.slice(1).toLowerCase(), phone: a.phone1 || a.phone2 || '', time: clock(j.startDateTime), day: dayName(date),
+      address: [j.address1, j.address2, j.city].filter(x => x && String(x).trim()).join(', '), reason: yes(a.doNotEmail) ? 'Do not email' : 'no email address' });
+    continue;
+  }
   const first0 = (a.firstName || '').trim() || (name.includes(',') ? name.split(',')[1].trim().split(' ')[0] : name.split(' ')[0]);
   const firstName = first0.charAt(0).toUpperCase() + first0.slice(1).toLowerCase();
   const address = [j.address1, j.address2, j.city].filter(x => x && String(x).trim()).join(', ');
@@ -72,8 +77,9 @@ for (const j of jobs) {
 
 const out = arg('out') || 'rosa-out';
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'reminders.json'), JSON.stringify({ date, send, ask, skipped }, null, 1));
-console.log(`${date}: ${jobs.length} job(s) scheduled; ${send.length} reminder(s), ${ask.length} to ask Keith about, ${skipped.length} skipped`);
+writeFileSync(join(out, 'reminders.json'), JSON.stringify({ date, send, ask, call, skipped }, null, 1));
+console.log(`${date}: ${jobs.length} job(s) scheduled; ${send.length} reminder(s), ${ask.length} to ask Keith about, ${call.length} to call or text (no email), ${skipped.length} skipped`);
+for (const c of call) console.log(`  call  WO ${c.wo}  ${c.name} ${c.phone || '(no phone)'} ${c.time}: ${c.reason}`);
 for (const s of send) console.log(`  SEND  WO ${s.wo}  ${s.time}  ${s.name}`);
 for (const s of ask) console.log(`  ASK   WO ${s.wo}  ${s.time}  ${s.name} (${s.why})`);
 for (const s of skipped) console.log(`  skip  WO ${s.wo}  ${s.name}: ${s.reason}`);

@@ -4943,6 +4943,8 @@ Accounts assistant, Home Pros Group`;
     }
     const pend = (rem && rem.pending) || {};
     (pend.send || []).forEach(x => rl.push(`Reminder ready for ${first(x.name)} (${dshort(x.date)}).`));
+    const callList = [...((rem && rem.toCall) || []), ...(pend.call || [])].filter((x, i, l) => String(x.date || '').slice(0, 10) >= k.day && l.findIndex(y => y.wo === x.wo) === i);
+    callList.forEach(x => rq.push(`${first(x.name)} has no email, so call or text ${x.phone || '(no phone on file)'} to remind them about ${x.day || 'their appointment'} at ${x.time || ''}${x.address ? ', ' + x.address : ''}.`));
     (pend.ask || []).forEach(x => rq.push(`${first(x.name)}'s appointment on ${dshort(x.date)} looks commercial. Send them a reminder, or skip it?`));
     const sentR = ((rem && rem.sent) || []).slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
     if (sentR.length) rl.push(`Reminders sent lately: ${sentR.slice(0, 4).map(x => `${first(x.name)} (${dshort(x.date)})`).join(', ')}.`);
