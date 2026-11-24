@@ -1078,6 +1078,7 @@
       { label: 'Profit & loss', kind: current === 'pl' ? 'primary' : '', onPick: () => profitLoss() },
       { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
+      { label: 'Jayman cheque', kind: current === 'chq' ? 'primary' : '', onPick: () => chequeDesk() },
       { label: 'Card statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
@@ -1791,6 +1792,87 @@ Accounts assistant, Home Pros Group`;
       c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
       return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', 0.85));
     } catch (e) { return file; }
+  }
+
+  /* ---------------------------------------------- Penny: Jayman cheques (photo -> paid in ServiceMonster) */
+  let cq = null;
+  async function chequeDesk() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    const L = root.HP_LIVE;
+    const [can, doc] = L ? await Promise.all([L.receiptAbilities(), L.cheques()]) : [{}, undefined];
+    if (id !== run) return;
+    cq = { can, list: ((doc && doc.items) || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))), photos: [], previews: [], stub: null, reading: false, msg: '' };
+    drawCheque();
+    await say(can.canRead ? "Got a Jayman cheque? Snap the stub, flat and straight on, in good light. I'll read it, find every invoice in ServiceMonster and mark them paid." : 'I can only take cheque photos when the arcade is open in claude.ai.');
+    if (id !== run) return;
+    acctChoices('chq');
+  }
+  function chequeCheck(st) {
+    if (!st) return { ok: false, why: [] };
+    const c = n => Math.round(Number(n || 0) * 100), lines = st.lines || [], sum = lines.reduce((t, l) => t + c(l.net), 0), why = [];
+    if (!/^\d+$/.test(String(st.chequeNo || ''))) why.push("I couldn't read the cheque number.");
+    if (!/^\d{4}-\d\d-\d\d$/.test(st.chequeDate || '')) why.push("I couldn't read the cheque date.");
+    if (!lines.length) why.push("I couldn't find any lines.");
+    if (lines.some(l => !/^\d{8}$/.test(String(l.po || '')))) why.push('A PO number is not 8 clear digits.');
+    if (sum !== c(st.chequeTotal)) why.push(`The lines add up to ${$$(sum / 100)}, but the cheque total is ${$$(st.chequeTotal)}.`);
+    if (st.sure === false) why.push('Some of it was hard to read' + (st.unclear ? `: ${st.unclear}` : '.'));
+    return { ok: !why.length, why, sum: sum / 100 };
+  }
+  function drawCheque() {
+    const Q = cq, st = Q.stub, chk = chequeCheck(st);
+    const res = x => {
+      const r = x.result || {}, line = (cls, l) => `<li class="${cls}">${esc(l)}</li>`;
+      return `${r.summary ? `<p>${esc(r.summary)}</p>` : ''}<ul>${(r.applied || []).map(l => line('okc', 'Paid: ' + l)).join('')}${(r.paid || []).map(l => line('', 'Already paid: ' + l)).join('')}${(r.held || []).map(l => line('warnc', 'Held: ' + l)).join('')}${(r.problems || []).map(l => line('warnc', l)).join('')}</ul>`;
+    };
+    const STATUS = { sent: 'Sent to Penny, waiting to start', working: 'Penny is working on it', done: 'Done', held: 'Done, with some held for you', problem: 'Needs you' };
+    $('panel').innerHTML = `<div class="report questions chq"><h3>JAYMAN CHEQUE</h3>
+      ${Q.can.canRead ? `<div class="q"><h4>1. PHOTO OF THE STUB</h4>
+        <label class="qa photo">${Q.photos.length ? 'Add another photo' : 'Take or choose a photo'}<input id="cphoto" type="file" accept="image/*" capture="environment" hidden></label>
+        ${Q.photos.length ? ` <button class="qa" id="cclear">Start over</button>` : ''}
+        ${Q.previews.map(u => `<img class="rprev" src="${u}" alt="Cheque stub photo">`).join('')}
+        <p class="small">Flat, straight on, good light. A long stub can take two photos.</p>
+        <span id="cstatus" class="small">${Q.reading ? 'Penny is reading it...' : ''}</span></div>` : '<p><b>Cheque photos need the arcade open in claude.ai.</b></p>'}
+      ${st ? `<div class="q"><h4>2. WHAT PENNY READ</h4>
+        <p>Cheque <b>${esc(st.chequeNo || '?')}</b>, dated <b>${st.chequeDate ? esc(fmtDate(st.chequeDate)) + ', ' + esc(String(st.chequeDate).slice(0, 4)) : '?'}</b>, total <b>${$$(st.chequeTotal)}</b></p>
+        <table><tr><th>PO</th><th>Address</th><th>Adjusts</th><th>Net</th></tr>${(st.lines || []).map(l => `<tr><td>${esc(l.po)}</td><td>${esc(l.address || '')}</td><td>${Number(l.adjusts) ? `<span class="warnc">${$$(l.adjusts)}</span>` : ''}</td><td>${$$(l.net)}</td></tr>`).join('')}
+        <tr><td></td><td><b>Lines add up to</b></td><td></td><td><b class="${chk.ok ? 'okc' : 'warnc'}">${$$(chk.sum)}</b></td></tr></table>
+        ${chk.ok ? '<p class="small okc">Adds up to the cheque total. Check the PO numbers against the stub, then send it.</p>' : `<p class="warnline">${chk.why.map(esc).join(' ')} Retake the photo (flatter, closer, more light) and I'll read it again.</p>`}</div>
+      <div class="q send"><button class="qa send ${chk.ok ? '' : 'dim'}" id="csend">Send to Penny: apply it in ServiceMonster</button><span id="cmsg" class="small">${esc(Q.msg)}</span>
+        <p class="small">She finds each invoice, pays the ones that match to the cent with one Check payment (cheque date and number), and holds anything that doesn't match, with the reason.</p></div>` : ''}
+      ${Q.list.length ? `<div class="q"><h4>RECENT CHEQUES</h4>${Q.list.slice(0, 8).map(x => `<details${x === Q.list[0] ? ' open' : ''}><summary><b>Cheque ${esc((x.stub || {}).chequeNo || '?')}</b> · ${$$((x.stub || {}).chequeTotal)} · <span class="${x.status === 'done' ? 'okc' : x.status === 'problem' || x.status === 'held' ? 'warnc' : ''}">${esc(STATUS[x.status] || x.status || '')}</span></summary>${res(x)}${x.session ? `<p class="small"><a href="${esc(x.session)}" target="_blank" rel="noopener noreferrer">Penny's session</a></p>` : ''}</details>`).join('')}</div>` : ''}
+    </div>`;
+    const ph = $('cphoto');
+    if (ph) ph.onchange = async () => {
+      const f = ph.files && ph.files[0];
+      if (!f) return;
+      const img = await shrink(f);
+      Q.photos.push(img); Q.previews.push(URL.createObjectURL(img));
+      Q.reading = true; Q.stub = null; Q.msg = ''; drawCheque();
+      try {
+        const got = await root.HP_LIVE.readCheque(Q.photos);
+        Q.stub = got && typeof got === 'object' ? { ...got, lines: (got.lines || []).map(l => ({ po: String(l.po || '').replace(/\D/g, ''), address: String(l.address || '').slice(0, 80), gross: Number(l.gross || 0), adjusts: Number(l.adjusts || 0), net: Number(l.net || 0) })) } : null;
+      } catch (e) { Q.stub = null; Q.msg = ''; }
+      Q.reading = false; drawCheque();
+      const c = chequeCheck(Q.stub);
+      say(!Q.stub ? "I couldn't read that one. Try a clearer photo." : c.ok ? `Cheque ${Q.stub.chequeNo}, ${$$(Q.stub.chequeTotal)}, ${Q.stub.lines.length} lines, and it adds up. Check it and send it to me.` : c.why[0] + ' Better photo, please.');
+    };
+    const cl = $('cclear'); if (cl) cl.onclick = () => { Q.photos = []; Q.previews = []; Q.stub = null; Q.msg = ''; drawCheque(); };
+    const sb = $('csend');
+    if (sb) sb.onclick = async () => {
+      if (!chequeCheck(Q.stub).ok) return say("It doesn't add up yet, so I won't touch ServiceMonster. Retake the photo.");
+      if (Q.list.some(x => x.stub && String(x.stub.chequeNo) === String(Q.stub.chequeNo) && x.status !== 'problem')) { if (!confirm(`Cheque ${Q.stub.chequeNo} was already sent. Send it again?`)) return; }
+      sb.disabled = true; $('cmsg').textContent = ' Saving the photos...';
+      const photos = [];
+      for (const p of Q.photos) { const r = await root.HP_LIVE.storeFile(p); if (r) photos.push(r); }
+      const entry = { id: 'chq-' + Date.now().toString(36), at: new Date().toISOString(), photos, stub: Q.stub, status: 'sent' };
+      const r = await root.HP_LIVE.sendCheque(entry);
+      if (r.ok || r.how === 'notask') { Q.list.unshift(entry); Q.photos = []; Q.previews = []; Q.stub = null; }
+      Q.msg = r.ok ? ' Sent. Penny is on it.' : r.how === 'notask' ? " Saved, but Penny's cheque task isn't connected yet." : r.how === 'task' ? " Saved, but I couldn't start Penny's task. Try again in a minute." : " Couldn't save it. Try again in a minute.";
+      drawCheque();
+      say(r.ok ? "Thanks, boss. I'll find every invoice and mark them paid. Check back here in a few minutes for what I did." : r.how === 'notask' ? "I've kept the cheque, but my cheque task isn't hooked up yet. Once it is, I'll pick this one up." : "Something went wrong sending that. Try again in a minute.");
+    };
   }
 
   async function receiptForm(defDate, backMonth) {

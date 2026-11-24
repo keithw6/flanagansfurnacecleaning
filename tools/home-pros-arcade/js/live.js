@@ -251,6 +251,38 @@
         + 'Never guess a number you cannot read: use 0 and set sure to false.';
       return sample.json(prompt, { images: [blob], modelTier: 'default', cache: false });
     },
+    /* Jayman cheques: penny/cheques = {items:[{id, at, photos:[{id,url}], stub, status, result, session}]} */
+    async cheques() { return read('cheques', 'penny'); },
+    /* Ask Claude to read a Jayman cheque stub (one or more photos). Resolves the stub, or rejects {code}. */
+    async readCheque(blobs) {
+      const sample = await timeout(sampleP, 6000);
+      if (!sample) throw { code: 'unavailable' };
+      const prompt = 'The images are photos of one Jayman Master Builders cheque remittance stub, paid to Home Pros Group (vendor b7227). '
+        + 'Header: Cheque No., Cheque Date, Cheque Total. The table columns are Invoice | Date | Description | Gross Amt | Adjusts | Net Amount. '
+        + 'Each purchase order takes TWO printed rows: the first has the 8-digit PO number, date and job code; the second repeats the PO number with the job ADDRESS and project name. '
+        + 'Do not count the second row as a separate line. The amount block is printed offset by half a line: there is exactly one amount per PO, in order, and the last PO gets the last amount. '
+        + 'The Net Amount column must add up to the Cheque Total. Each net amount divided by 1.05 is usually a round price (265, 314, 315, 363, 50...). Adjusts is normally 0.00. '
+        + 'Answer with JSON only: {"chequeNo":"digits","chequeDate":"YYYY-MM-DD","chequeTotal":number,"lines":[{"po":"8 digits","address":"street address from the second row","gross":number,"adjusts":number,"net":number}],'
+        + '"sure":true or false,"unclear":"which digits or fields you could not read for certain, else empty"}. '
+        + 'NEVER guess a digit: if any PO digit or amount is uncertain, still give your best reading but set sure to false and name it in "unclear".';
+      return sample.json(prompt, { images: blobs, modelTier: 'default', cache: false });
+    },
+    /* Save a cheque for Penny and start her cheque task. Resolves {ok, how, error}. */
+    async sendCheque(entry) {
+      const db = await timeout(dbP, 5000), mcp = await timeout(mcpP, 5000);
+      if (!db) return { ok: false, how: 'none' };
+      try {
+        const ref = db.collection('penny').doc('cheques'), cur = await ref.get();
+        const items = ((cur.exists && cur.data().items) || []).filter(x => x.id !== entry.id).concat([entry]);
+        await ref.set({ items });
+      } catch (e) { return { ok: false, how: 'db', error: (e && e.code) || 'unavailable' }; }
+      const task = root.HP_CONFIG && root.HP_CONFIG.office && root.HP_CONFIG.office.chequeTask;
+      if (!task) return { ok: false, how: 'notask' };
+      if (!mcp) return { ok: false, how: 'task', error: 'unavailable' };
+      try { await mcp.callTool(CONNECTOR, 'fire_trigger', { trigger_id: task, text: JSON.stringify({ chequeId: entry.id }) }); }
+      catch (e) { return { ok: false, how: 'task', error: (e && e.code) || 'upstream_error' }; }
+      return { ok: true };
+    },
     /* Keep the photo. Resolves {id, url} or null. */
     async storeReceipt(blob) {
       const assets = await timeout(assetsP, 6000);
