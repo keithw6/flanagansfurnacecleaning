@@ -558,6 +558,29 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .chq .okc { color: var(--edge); } .chq .warnc { color: #ffcf73; }
 .chq .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; font-size: 18px; white-space: normal; }
 .chq td { white-space: normal; } .chq summary { cursor: pointer; }
+/* Grace: documents */
+.gdocs .ptabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.gdocs .ptabs .qa.on { background: var(--edge); color: #0c0e0d; }
+.gdocs .dform { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.gdocs .dform .dfull { grid-column: 1 / -1; }
+.gdocs label.rf { display: block; margin: 0 0 6px; }
+.gdocs label.rf span { display: block; font-size: 15px; color: var(--dim); margin-bottom: 2px; }
+.gdocs label.rf input, .gdocs label.rf select, .gdocs label.rf textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 6px 8px; background: #0c0f0d; color: #e9efe9; border: 2px solid #4a544f; }
+.gdocs label.rf textarea { resize: vertical; white-space: pre-wrap; }
+.gdocs label.qa.photo { display: inline-block; font-size: 18px; padding: 8px 14px; border: 2px solid var(--edge); color: var(--edge); cursor: pointer; }
+.gdocs .dpages { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.gdocs .dpage { position: relative; display: flex; flex-direction: column; align-items: center; width: 110px; border: 2px solid #39413d; background: #0c0f0d; padding: 4px; }
+.gdocs .dpage img { width: 100%; height: 130px; object-fit: cover; object-position: top; }
+.gdocs .dpage.dfile { justify-content: center; min-height: 150px; text-align: center; overflow-wrap: anywhere; }
+.gdocs .dpage button { position: absolute; top: 2px; right: 2px; }
+.gdocs .dpage small { font-size: 13px; color: var(--dim); }
+.gdocs .dcc { display: flex; gap: 8px; align-items: center; font-size: 17px; margin: 2px 0 8px; }
+.gdocs .dlist { list-style: none; padding: 0; margin: 0; }
+.gdocs .dlist li { border-top: 1px solid #2a312d; padding: 7px 0; font-size: 18px; }
+.gdocs .dlist a { color: var(--edge); }
+.gdocs .okc { color: var(--edge); } .gdocs .warnc { color: #ffcf73; }
+.gdocs button.qa.tiny { font-size: 13px; padding: 1px 7px; }
+@media (max-width: 640px) { .gdocs .dform { grid-template-columns: 1fr; } }
 
 </style>
 </head>
@@ -1632,6 +1655,50 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
       const s = await timeout(sampleP, 8000);
       if (!s) throw { code: 'unavailable' };
       return s(turns, Object.assign({ cache: false }, opts || {}));
+    },
+    /* Grace's documents: grace/docs = {items:[{id, at, kind, title, who, note, files:[{id,url,name,type,pages}], sent:[{to,cc,subject,at}]}]}.
+       Saving one also puts "email it" on Grace's to-do list (grace/notes) until it's sent. */
+    async graceDocs() { return read('docs', 'grace'); },
+    async saveGraceDoc(d, todo) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('grace').doc('docs'), cur = await ref.get();
+      const items = ((cur.exists && JSON.parse(JSON.stringify(cur.data())).items) || []).filter(x => x.id !== d.id);
+      await ref.set({ items: [d, ...items].slice(0, 200) });
+      if (todo) {
+        const nref = db.collection('grace').doc('notes'), n = await nref.get();
+        const nd = n.exists ? JSON.parse(JSON.stringify(n.data())) : { items: [] };
+        nd.items = [...(nd.items || []), { id: 'n-' + d.id, docId: d.id, text: todo, status: 'open', addedAt: d.at }];
+        await nref.set(nd);
+      }
+    },
+    async markGraceDocSent(docId, sent) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('grace').doc('docs'), cur = await ref.get();
+      if (cur.exists) {
+        const dd = JSON.parse(JSON.stringify(cur.data()));
+        (dd.items || []).forEach(x => { if (x.id === docId) x.sent = [...(x.sent || []), sent]; });
+        await ref.set(dd);
+      }
+      const nref = db.collection('grace').doc('notes'), n = await nref.get();
+      if (n.exists) {
+        const nd = JSON.parse(JSON.stringify(n.data()));
+        let hit = false;
+        (nd.items || []).forEach(x => { if (x.docId === docId && x.status !== 'done') { x.status = 'done'; x.doneAt = sent.at; hit = true; } });
+        if (hit) await nref.set(nd);
+      }
+    },
+    /* Email files from Keith's Gmail (sends from keith@homeprosgroup.com). files: [{filename, mimeType, bytes}] */
+    async emailFiles({ to, cc, subject, body, files }) {
+      const mcp = await timeout(mcpP, 6000);
+      if (!mcp) return { ok: false, error: 'unavailable' };
+      try {
+        const args = { to: [to], subject, body, attachments: files.map(f => ({ filename: f.filename, mimeType: f.mimeType, content: b64(f.bytes) })) };
+        if (cc) args.cc = [cc];
+        await mcp.callTool('Gmail', 'send_message', args);
+        return { ok: true };
+      } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
     },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
@@ -3084,7 +3151,7 @@ window.HP_OFFICE_DATA = {"generatedAt":"2026-11-16T09:01:02","capacity":{"from":
   }
 
   document.addEventListener('keydown', e => {
-    if (e.target.matches('input, textarea')) return;
+    if (e.target.matches('input, textarea, select')) return;
     if (!$('outside').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!$('startBtn').disabled) enter(); return; }
     if (typing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); typing(); return; }
     const n = parseInt(e.key, 10);
@@ -5335,9 +5402,175 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
     };
   }
 
+  /* ------------------------------------------------ Grace: documents (photos -> one PDF, kept, emailed when Keith presses Send) */
+  const DOC_KINDS = ['New employee forms', 'Contract or agreement', 'Insurance', 'Vehicle', 'Tax or government', 'Receipt or invoice', 'Other'];
+  const DOC_TO = [['bookkeeping@fusedaccounting.ca', 'Fused Accounting: bookkeeping and payroll'], ['admin@fusedaccounting.ca', 'Fused Accounting: admin'], ['denise@fusedaccounting.ca', 'Denise at Fused Accounting']];
+  let gd = null;
+  // A photo of a page, kept sharp enough to read: JPEG, longest side 2200 px.
+  async function docImage(file) {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 2200 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
+    return { blob, w: c.width, h: c.height, bytes: new Uint8Array(await blob.arrayBuffer()) };
+  }
+  // Pages (JPEGs) -> one letter-size PDF, one photo per page.
+  function imagesPdf(pages) {
+    const enc = new TextEncoder(), parts = [], offs = [];
+    let len = 0;
+    const push = v => { const b = typeof v === 'string' ? enc.encode(v) : v; parts.push(b); len += b.length; };
+    const obj = (n, body) => { offs[n] = len; push(`${n} 0 obj\n`); body(); push('\nendobj\n'); };
+    const W = 612, H = 792, n = pages.length, total = 3 + 3 * n;
+    push('%PDF-1.4\n');
+    obj(1, () => push('<< /Type /Catalog /Pages 2 0 R >>'));
+    obj(2, () => push(`<< /Type /Pages /Count ${n} /Kids [${pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] >>`));
+    pages.forEach((p, i) => {
+      const pg = 3 + 3 * i, im = pg + 1, ct = pg + 2;
+      const s = Math.min((W - 36) / p.w, (H - 36) / p.h), dw = p.w * s, dh = p.h * s, x = (W - dw) / 2, y = (H - dh) / 2;
+      obj(pg, () => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im${i} ${im} 0 R >> >> /Contents ${ct} 0 R >>`));
+      obj(im, () => { push(`<< /Type /XObject /Subtype /Image /Width ${p.w} /Height ${p.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.bytes.length} >>\nstream\n`); push(p.bytes); push('\nendstream'); });
+      const cs = `q ${dw.toFixed(2)} 0 0 ${dh.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im${i} Do Q`;
+      obj(ct, () => push(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+    });
+    const xref = len;
+    push(`xref\n0 ${total}\n0000000000 65535 f \n` + Array.from({ length: total - 1 }, (_, k) => String(offs[k + 1]).padStart(10, '0') + ' 00000 n \n').join(''));
+    push(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    const out = new Uint8Array(len); let o = 0;
+    for (const b of parts) { out.set(b, o); o += b.length; }
+    return out;
+  }
+  const docName = (d, ext) => `${d.title || d.kind}${d.who ? ' - ' + d.who : ''} - ${String(d.at || '').slice(0, 10)}`.replace(/[\\/:*?"<>|]+/g, ' ').trim() + ext;
+  function docMail(d) {
+    const emp = /employee/i.test(d.kind || d.title);
+    return {
+      to: 'bookkeeping@fusedaccounting.ca', cc: true,
+      subject: `${d.title || d.kind}${d.who ? ': ' + d.who : ''} (Home Pros Group)`,
+      body: emp
+        ? `Hi,\n\nAttached are the employment forms for our new hire${d.who ? ', ' + d.who : ''}. Please set them up for payroll, and let me know if anything is missing.${d.note ? '\n\n' + d.note : ''}\n\nThanks,\n${cfg.owner.name} Wick\nHome Pros Group, 780-932-7337`
+        : `Hi,\n\nAttached: ${d.title || d.kind}${d.who ? ' (' + d.who + ')' : ''}.${d.note ? '\n\n' + d.note : ''}\n\nThanks,\n${cfg.owner.name} Wick\nHome Pros Group, 780-932-7337`,
+    };
+  }
+  async function graceDocs() {
+    const id = clear();
+    S.office.select('grace');
+    nameplate('GRACE · DOCUMENTS');
+    const L = root.HP_LIVE;
+    $('panel').innerHTML = '<div class="loading">Getting the files</div>';
+    const [can, doc] = L ? await Promise.all([L.receiptAbilities(), L.graceDocs ? L.graceDocs() : undefined]) : [{}, undefined];
+    if (id !== run) return;
+    gd = { can, live: doc !== undefined, list: ((doc && doc.items) || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at))), pages: [], extra: [], kind: DOC_KINDS[0], title: DOC_KINDS[0], who: '', note: '', mail: null, busy: false, msg: '' };
+    drawDocs();
+    await say('Hand me the paperwork. Take a photo of each page, tell me what it is, and I\'ll keep it as one PDF. Say the word and I\'ll email it to Fused Accounting.');
+    if (id !== run) return;
+    choices([{ label: "Grace's reports", onPick: () => graceDesk('morning') }, ...boardChoices('grace')]);
+  }
+  function drawDocs() {
+    const D = gd, P = $('panel');
+    const pagesHtml = D.pages.map((p, i) => `<span class="dpage"><img src="${p.url}" alt="Page ${i + 1}"><button class="qa tiny no" data-rmp="${i}" aria-label="Remove page ${i + 1}">&times;</button><small>Page ${i + 1}</small></span>`).join('')
+      + D.extra.map((f, i) => `<span class="dpage dfile"><b>PDF</b><small>${esc(f.name)}</small><button class="qa tiny no" data-rmx="${i}" aria-label="Remove ${esc(f.name)}">&times;</button></span>`).join('');
+    const has = D.pages.length || D.extra.length;
+    const sentLine = x => (x.sent || []).map(s => `Sent to ${esc(s.to)} ${s.at ? esc(new Date(s.at).toLocaleString('en-CA', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) : ''}`).join('; ');
+    P.innerHTML = `<div class="report questions gdocs">
+      <div class="ptabs"><button class="qa" data-g="morning">6 AM: today</button><button class="qa" data-g="evening">5 PM: end of day</button><button class="qa on" data-g="docs">Documents</button></div>
+      <h3>DOCUMENTS</h3>
+      ${D.can.canStore ? `<div class="q"><h4>1. WHAT IS IT?</h4>
+        <div class="dform"><label class="rf"><span>Kind</span><select id="dKind">${DOC_KINDS.map(k => `<option${k === D.kind ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
+          <label class="rf"><span>Who or what it's for</span><input id="dWho" type="text" placeholder="e.g. the new hire's name" value="${esc(D.who)}"></label>
+          <label class="rf dfull"><span>Title</span><input id="dTitle" type="text" value="${esc(D.title)}"></label>
+          <label class="rf dfull"><span>Note (optional, goes in the email)</span><input id="dNote" type="text" placeholder="e.g. starts Monday, $25/hour" value="${esc(D.note)}"></label></div></div>
+      <div class="q"><h4>2. PHOTOS OF EACH PAGE</h4>
+        <label class="qa photo">${D.pages.length ? 'Add another page' : 'Take or choose photos'}<input id="dPhoto" type="file" accept="image/*,application/pdf" multiple hidden></label>
+        <p class="small">Flat, straight on, good light, one page per photo. You can pick several at once, or add a PDF.</p>
+        ${has ? `<div class="dpages">${pagesHtml}</div>` : ''}<span class="small" id="dStat">${D.busy ? 'Working...' : ''}</span></div>
+      <div class="q send"><button class="qa send ${has ? '' : 'dim'}" id="dSave">Save it</button> <button class="qa ${has ? '' : 'dim'}" id="dSaveMail">Save and email it</button> <span class="small" id="dMsg">${esc(D.msg)}</span>
+        <p class="small">These forms can hold personal details (SIN, banking). They're kept in the arcade, which only you can open, and emailed only when you press Send.</p></div>`
+      : '<p><b>Uploading documents needs the arcade open in claude.ai.</b></p>'}
+      ${D.mail ? `<div class="q dmail" id="dMailBox"><h4>EMAIL IT: ${esc(D.mail.doc.title || D.mail.doc.kind)}${D.mail.doc.who ? ' · ' + esc(D.mail.doc.who) : ''}</h4>
+        <label class="rf"><span>To</span><input id="mTo" type="email" list="mTos" value="${esc(D.mail.to)}"><datalist id="mTos">${DOC_TO.map(([a, l]) => `<option value="${a}">${esc(l)}</option>`).join('')}</datalist></label>
+        <label class="dcc"><input id="mCc" type="checkbox"${D.mail.cc ? ' checked' : ''}> Copy me (keith@homeprosgroup.com)</label>
+        <label class="rf"><span>Subject</span><input id="mSub" type="text" value="${esc(D.mail.subject)}"></label>
+        <label class="rf"><span>Message</span><textarea id="mBody" rows="7">${esc(D.mail.body)}</textarea></label>
+        <p class="small">Attached: ${(D.mail.doc.files || []).map(f => esc(f.name)).join(', ')}. Sent from keith@homeprosgroup.com.</p>
+        <button class="qa send" id="mSend">Send</button> <button class="qa" id="mCancel">Not now</button> <span class="small" id="mMsg"></span></div>` : ''}
+      ${D.list.length ? `<div class="q"><h4>SAVED DOCUMENTS</h4><ul class="dlist">${D.list.slice(0, 30).map(x => `<li><b>${esc(x.title || x.kind)}</b>${x.who ? ' · ' + esc(x.who) : ''} <small>${esc(String(x.at || '').slice(0, 10))} · ${(x.files || []).map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.pages ? f.pages + '-page PDF' : f.name)}</a>`).join(', ')}</small>
+          <br><small class="${(x.sent || []).length ? 'okc' : 'warnc'}">${(x.sent || []).length ? sentLine(x) : 'Not emailed yet'}</small> <button class="qa tiny" data-mail="${esc(x.id)}">Email it</button></li>`).join('')}</ul></div>` : ''}
+      ${D.live ? '' : '<p class="soon">Documents are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>'}
+    </div>`;
+    P.querySelectorAll('button[data-g]').forEach(b => b.onclick = () => { try { A.select(); } catch (x) { } if (b.dataset.g === 'docs') return; graceDesk(b.dataset.g); });
+    const keep = () => { const g = i => { const e = $(i); return e ? e.value : ''; }; if ($('dKind')) { D.who = g('dWho'); D.title = g('dTitle'); D.note = g('dNote'); } };
+    const kind = $('dKind');
+    if (kind) kind.onchange = () => { keep(); const old = D.kind; D.kind = kind.value; if (!D.title || D.title === old) D.title = D.kind; drawDocs(); };
+    ['dWho', 'dTitle', 'dNote'].forEach(i => { const e = $(i); if (e) e.oninput = keep; });
+    const ph = $('dPhoto');
+    if (ph) ph.onchange = async () => {
+      keep();
+      const files = Array.from(ph.files || []);
+      if (!files.length) return;
+      D.busy = true; drawDocs();
+      for (const f of files) {
+        if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)) { D.extra.push({ name: f.name, blob: f }); continue; }
+        try { const p = await docImage(f); p.url = URL.createObjectURL(p.blob); D.pages.push(p); } catch (e) { D.msg = `Couldn't read ${f.name}.`; }
+      }
+      D.busy = false; drawDocs();
+    };
+    P.querySelectorAll('button[data-rmp]').forEach(b => b.onclick = () => { keep(); D.pages.splice(Number(b.dataset.rmp), 1); drawDocs(); });
+    P.querySelectorAll('button[data-rmx]').forEach(b => b.onclick = () => { keep(); D.extra.splice(Number(b.dataset.rmx), 1); drawDocs(); });
+    const save = async andMail => {
+      keep();
+      if (!D.pages.length && !D.extra.length) return say('Add a photo of each page first.');
+      if (/employee/i.test(D.kind) && !D.who.trim()) { say('Who is the new hire? Put their name in, so Fused knows who to set up.'); const w = $('dWho'); if (w) w.focus(); return; }
+      D.busy = true; $('dMsg').textContent = ' Saving...';
+      const d = { id: 'doc-' + Date.now().toString(36), at: new Date().toISOString(), kind: D.kind, title: D.title.trim() || D.kind, who: D.who.trim(), note: D.note.trim(), files: [], sent: [] };
+      const L = root.HP_LIVE;
+      if (D.pages.length) {
+        const pdf = new Blob([imagesPdf(D.pages)], { type: 'application/pdf' });
+        const r = await L.storeFile(pdf);
+        if (!r) { D.busy = false; $('dMsg').textContent = " Couldn't save the PDF. Try again in a minute."; return; }
+        d.files.push({ id: r.id, url: r.url, name: docName(d, '.pdf'), type: 'application/pdf', pages: D.pages.length });
+      }
+      for (const f of D.extra) { const r = await L.storeFile(f.blob); if (r) d.files.push({ id: r.id, url: r.url, name: f.name, type: 'application/pdf' }); }
+      try { await L.saveGraceDoc(d, `Email ${d.title}${d.who ? ' (' + d.who + ')' : ''} to Fused Accounting.`); }
+      catch (e) { D.busy = false; $('dMsg').textContent = " Saved the files, but couldn't record them. Try again in a minute."; return; }
+      D.list.unshift(d); D.pages = []; D.extra = []; D.who = ''; D.note = ''; D.title = D.kind; D.busy = false;
+      D.msg = andMail ? '' : ' Saved. I\'ll keep reminding you until it\'s emailed.';
+      D.mail = andMail ? { doc: d, ...docMail(d) } : null;
+      try { A.select(); } catch (e) { }
+      drawDocs();
+      if (andMail) { const box = $('dMailBox'); if (box) box.scrollIntoView({ block: 'nearest' }); say('Saved. Check the email below, then press Send.'); }
+      else say(`Saved ${d.title}${d.who ? ' for ' + d.who : ''}. It's on my list until it's emailed.`);
+    };
+    const s1 = $('dSave'); if (s1) s1.onclick = () => save(false);
+    const s2 = $('dSaveMail'); if (s2) s2.onclick = () => save(true);
+    P.querySelectorAll('button[data-mail]').forEach(b => b.onclick = () => { const d = D.list.find(x => x.id === b.dataset.mail); if (!d) return; D.mail = { doc: d, ...docMail(d) }; drawDocs(); const box = $('dMailBox'); if (box) box.scrollIntoView({ block: 'nearest' }); });
+    const mc = $('mCancel'); if (mc) mc.onclick = () => { D.mail = null; drawDocs(); };
+    const ms = $('mSend');
+    if (ms) ms.onclick = async () => {
+      const to = $('mTo').value.trim(), cc = $('mCc').checked, subject = $('mSub').value.trim(), body = $('mBody').value, doc = D.mail.doc;
+      const mm = $('mMsg'), note = t => { if (mm && document.body.contains(mm)) mm.textContent = t; };
+      if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(to)) { note(' Check the email address.'); return; }
+      if (!confirm(`Send "${subject}" with ${(doc.files || []).length} attachment(s) to ${to}?`)) return;
+      ms.disabled = true; note(' Sending...');
+      const files = [];
+      try { for (const f of doc.files || []) files.push({ filename: f.name, mimeType: f.type || 'application/pdf', bytes: new Uint8Array(await (await fetch(f.url)).arrayBuffer()) }); }
+      catch (e) { ms.disabled = false; note(" Couldn't load the saved files. Try again."); return; }
+      const r = await root.HP_LIVE.emailFiles({ to, cc: cc ? 'keith@homeprosgroup.com' : '', subject, body, files });
+      if (!r.ok) { ms.disabled = false; note(r.error === 'unavailable' ? ' Email only works with the arcade open in claude.ai, with Gmail allowed.' : " Couldn't send it. Try again in a minute."); return; }
+      const sent = { to, cc: cc ? 'keith@homeprosgroup.com' : '', subject, at: new Date().toISOString() };
+      try { await root.HP_LIVE.markGraceDocSent(doc.id, sent); } catch (e) { }
+      const d = D.list.find(x => x.id === doc.id); if (d) d.sent = [...(d.sent || []), sent];
+      D.mail = null; D.msg = ` Sent to ${to}.`;
+      try { A.select(); } catch (e) { }
+      drawDocs();
+      say(`Sent to ${to}. I've crossed it off my list.`);
+    };
+  }
+
   /* ------------------------------------------------ Grace: the morning and evening reports */
   let graceTab = null;
   async function graceDesk(tab) {
+    if (tab === 'docs') return graceDocs();
     const id = clear();
     S.office.select('grace');
     nameplate('GRACE · GENERAL MANAGER');
@@ -5351,7 +5584,7 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
     const when = x => x && x.generatedAt ? new Date(x.generatedAt).toLocaleString('en-US', { timeZone: cfg.business.timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
     const d = cfg.directors.find(x => x.id === 'grace');
     $('panel').innerHTML = `<div class="report grace">
-      <div class="ptabs"><button class="qa ${graceTab === 'morning' ? 'on' : ''}" data-g="morning">6 AM: today${m ? ' · ' + esc(when(m)) : ''}</button><button class="qa ${graceTab === 'evening' ? 'on' : ''}" data-g="evening">5 PM: end of day${e ? ' · ' + esc(when(e)) : ''}</button></div>
+      <div class="ptabs"><button class="qa ${graceTab === 'morning' ? 'on' : ''}" data-g="morning">6 AM: today${m ? ' · ' + esc(when(m)) : ''}</button><button class="qa ${graceTab === 'evening' ? 'on' : ''}" data-g="evening">5 PM: end of day${e ? ' · ' + esc(when(e)) : ''}</button><button class="qa" data-g="docs">Documents</button></div>
       ${rep ? `<h3>${esc(rep.headline || (graceTab === 'morning' ? 'TODAY' : 'END OF DAY'))}</h3>
         ${(rep.problems || []).length ? `<div class="q"><h4>PROBLEMS</h4><ul>${rep.problems.map(x => `<li class="warnc">${esc(x)}</li>`).join('')}</ul></div>` : ''}
         ${(rep.needsYou || []).length ? `<div class="q"><h4>NEEDS YOU</h4><ol>${rep.needsYou.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
@@ -5364,7 +5597,7 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
     const need = rep ? (rep.needsYou || []).length : 0;
     await say(rep ? `${rep.headline || 'Here\'s my report.'}${need ? ` ${need} thing${need === 1 ? '' : 's'} need${need === 1 ? 's' : ''} you.` : ''}` : d.intro);
     if (id !== run) return;
-    choices(boardChoices('grace'));
+    choices([{ label: 'Upload documents', kind: 'primary', onPick: () => graceDocs() }, ...boardChoices('grace')]);
   }
 
   /* ------------------------------------------------ Max: contact list and social post drafts */

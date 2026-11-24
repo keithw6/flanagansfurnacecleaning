@@ -202,6 +202,50 @@
       if (!s) throw { code: 'unavailable' };
       return s(turns, Object.assign({ cache: false }, opts || {}));
     },
+    /* Grace's documents: grace/docs = {items:[{id, at, kind, title, who, note, files:[{id,url,name,type,pages}], sent:[{to,cc,subject,at}]}]}.
+       Saving one also puts "email it" on Grace's to-do list (grace/notes) until it's sent. */
+    async graceDocs() { return read('docs', 'grace'); },
+    async saveGraceDoc(d, todo) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('grace').doc('docs'), cur = await ref.get();
+      const items = ((cur.exists && JSON.parse(JSON.stringify(cur.data())).items) || []).filter(x => x.id !== d.id);
+      await ref.set({ items: [d, ...items].slice(0, 200) });
+      if (todo) {
+        const nref = db.collection('grace').doc('notes'), n = await nref.get();
+        const nd = n.exists ? JSON.parse(JSON.stringify(n.data())) : { items: [] };
+        nd.items = [...(nd.items || []), { id: 'n-' + d.id, docId: d.id, text: todo, status: 'open', addedAt: d.at }];
+        await nref.set(nd);
+      }
+    },
+    async markGraceDocSent(docId, sent) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection('grace').doc('docs'), cur = await ref.get();
+      if (cur.exists) {
+        const dd = JSON.parse(JSON.stringify(cur.data()));
+        (dd.items || []).forEach(x => { if (x.id === docId) x.sent = [...(x.sent || []), sent]; });
+        await ref.set(dd);
+      }
+      const nref = db.collection('grace').doc('notes'), n = await nref.get();
+      if (n.exists) {
+        const nd = JSON.parse(JSON.stringify(n.data()));
+        let hit = false;
+        (nd.items || []).forEach(x => { if (x.docId === docId && x.status !== 'done') { x.status = 'done'; x.doneAt = sent.at; hit = true; } });
+        if (hit) await nref.set(nd);
+      }
+    },
+    /* Email files from Keith's Gmail (sends from keith@homeprosgroup.com). files: [{filename, mimeType, bytes}] */
+    async emailFiles({ to, cc, subject, body, files }) {
+      const mcp = await timeout(mcpP, 6000);
+      if (!mcp) return { ok: false, error: 'unavailable' };
+      try {
+        const args = { to: [to], subject, body, attachments: files.map(f => ({ filename: f.filename, mimeType: f.mimeType, content: b64(f.bytes) })) };
+        if (cc) args.cc = [cc];
+        await mcp.callTool('Gmail', 'send_message', args);
+        return { ok: true };
+      } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
+    },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {

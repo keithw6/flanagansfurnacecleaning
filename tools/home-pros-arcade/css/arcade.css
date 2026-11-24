@@ -545,3 +545,26 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .chq .okc { color: var(--edge); } .chq .warnc { color: #ffcf73; }
 .chq .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; font-size: 18px; white-space: normal; }
 .chq td { white-space: normal; } .chq summary { cursor: pointer; }
+/* Grace: documents */
+.gdocs .ptabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.gdocs .ptabs .qa.on { background: var(--edge); color: #0c0e0d; }
+.gdocs .dform { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.gdocs .dform .dfull { grid-column: 1 / -1; }
+.gdocs label.rf { display: block; margin: 0 0 6px; }
+.gdocs label.rf span { display: block; font-size: 15px; color: var(--dim); margin-bottom: 2px; }
+.gdocs label.rf input, .gdocs label.rf select, .gdocs label.rf textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 6px 8px; background: #0c0f0d; color: #e9efe9; border: 2px solid #4a544f; }
+.gdocs label.rf textarea { resize: vertical; white-space: pre-wrap; }
+.gdocs label.qa.photo { display: inline-block; font-size: 18px; padding: 8px 14px; border: 2px solid var(--edge); color: var(--edge); cursor: pointer; }
+.gdocs .dpages { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.gdocs .dpage { position: relative; display: flex; flex-direction: column; align-items: center; width: 110px; border: 2px solid #39413d; background: #0c0f0d; padding: 4px; }
+.gdocs .dpage img { width: 100%; height: 130px; object-fit: cover; object-position: top; }
+.gdocs .dpage.dfile { justify-content: center; min-height: 150px; text-align: center; overflow-wrap: anywhere; }
+.gdocs .dpage button { position: absolute; top: 2px; right: 2px; }
+.gdocs .dpage small { font-size: 13px; color: var(--dim); }
+.gdocs .dcc { display: flex; gap: 8px; align-items: center; font-size: 17px; margin: 2px 0 8px; }
+.gdocs .dlist { list-style: none; padding: 0; margin: 0; }
+.gdocs .dlist li { border-top: 1px solid #2a312d; padding: 7px 0; font-size: 18px; }
+.gdocs .dlist a { color: var(--edge); }
+.gdocs .okc { color: var(--edge); } .gdocs .warnc { color: #ffcf73; }
+.gdocs button.qa.tiny { font-size: 13px; padding: 1px 7px; }
+@media (max-width: 640px) { .gdocs .dform { grid-template-columns: 1fr; } }
