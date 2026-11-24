@@ -41,7 +41,8 @@ const HP_CONFIG = {
     // every Jayman account in ServiceMonster (the all-caps one is the live one)
     jaymanAccounts: ['1b833231-89e7-11e7-8c1a-fec578518208', 'b803ae7f-e037-11e3-b8c3-d9b28ac835cd',
       'fbcd4a4f-77fe-11ee-8213-9988e7b79539', 'bffc865a-531e-11ee-820e-bc04de1dccaf', '6bd33c7b-342a-11eb-a7d2-bd12f7e942c9'],
-    chequeTask: '',                  // trigger id of the task "Penny · Jayman cheque" (tools/penny/CHEQUE-TASK.md)
+    chequeTask: 'trig_01GVZgpZ9zviw2qNujrD35Aw',   // Grace's orders task also does Jayman cheques (tools/grace/ORDERS.md)
+    ordersTask: 'trig_01GVZgpZ9zviw2qNujrD35Aw',   // "Grace · Orders from Keith": does what Keith approves in Talk to Grace
     warrantyWord: 'warr[ae]nt',       // "Warranty" or "Warrenty" in a call = timed warranty call
     base: { lat: 53.53039, lon: -113.99049, name: '53 Umbach Rd, Stony Plain' },   // the truck starts and ends every day here
     roadFactor: 1.3,

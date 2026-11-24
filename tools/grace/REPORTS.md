@@ -59,6 +59,12 @@ error or "can't" message is a **problem**: say which and why.
   Keith says it's done (then set its status "done" with doneAt). Grace can't send email or
   call anyone herself: she reminds Keith, and if the item is to contact someone she says
   whether a Gmail draft is ready for him to send.
+- `grace/cleared`: things Keith already dealt with while talking to Grace in the arcade
+  (`{items: [{key, text, how, at}]}`). Never list anything whose text matches an item there
+  (same task, even if worded a little differently): it's done.
+- `grace/orders`: orders Keith approved in Talk to Grace and the result of each (status sent,
+  working, done, held, problem). In Needs you, list held/problem orders with their problems; in
+  the evening report, list what the directors did today from done orders.
 - `rosa/reminders` `toCall`: customers with no email for tomorrow: Keith calls or texts them.
 - `hank/list`: open purchase list items (by supplier, special orders, restocks) and
   `lastCountAt` (stock count due if 7+ days ago or never).

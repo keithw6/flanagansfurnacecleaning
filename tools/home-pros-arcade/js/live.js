@@ -190,7 +190,7 @@
     /* Grace's reports: grace/morning and grace/evening = {kind, date, generatedAt, headline, sections:[{title, lines}], needsYou, problems, session} */
     /* Everything Grace needs to walk Keith through a board meeting, in one read. */
     async meeting() {
-      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['marks', 'penny'], ['list', 'hank'], ['notes', 'grace']];
+      const want = [['morning', 'grace'], ['evening', 'grace'], ['inbox', 'rosa'], ['reminders', 'rosa'], ['report', 'eddie'], ['reviews', 'eddie'], ['posts', 'eddie'], ['prospects', 'eddie'], ['brief', 'penny'], ['marks', 'penny'], ['list', 'hank'], ['notes', 'grace'], ['cleared', 'grace'], ['orders', 'grace'], ['accounts', 'penny'], ['cheques', 'penny']];
       const got = await Promise.all(want.map(([id, col]) => read(id, col)));
       if (got.every(x => x === undefined)) return undefined;
       const out = {}; want.forEach(([id, col], i) => { out[col + '/' + id] = got[i] || null; });
@@ -246,6 +246,33 @@
         return { ok: true };
       } catch (e) { return { ok: false, error: (e && e.code) || 'upstream_error' }; }
     },
+    /* Change any arcade doc: re-read it first so other changes are kept. fn gets a plain copy and edits it. */
+    async change(col, docId, fn) {
+      const db = await timeout(dbP, 6000);
+      if (!db) throw { code: 'unavailable' };
+      const ref = db.collection(col).doc(docId), cur = await ref.get();
+      const doc = cur.exists ? JSON.parse(JSON.stringify(cur.data())) : {};
+      const out = fn(doc);
+      await ref.set(doc);
+      return out === undefined ? doc : out;
+    },
+    /* Save an order Keith approved in Talk to Grace and start Grace's orders task. Resolves {ok, how, error}. */
+    async startOrder(order) {
+      const db = await timeout(dbP, 5000), mcp = await timeout(mcpP, 5000);
+      if (!db) return { ok: false, how: 'none' };
+      try {
+        const ref = db.collection('grace').doc('orders'), cur = await ref.get();
+        const items = ((cur.exists && JSON.parse(JSON.stringify(cur.data())).items) || []).filter(x => x.id !== order.id);
+        await ref.set({ items: [order, ...items].slice(0, 100) });
+      } catch (e) { return { ok: false, how: 'db', error: (e && e.code) || 'unavailable' }; }
+      const task = root.HP_CONFIG && root.HP_CONFIG.office && root.HP_CONFIG.office.ordersTask;
+      if (!task) return { ok: false, how: 'notask' };
+      if (!mcp) return { ok: false, how: 'task', error: 'unavailable' };
+      try { await mcp.callTool(CONNECTOR, 'fire_trigger', { trigger_id: task, text: JSON.stringify({ orderId: order.id }) }); }
+      catch (e) { return { ok: false, how: 'task', error: (e && e.code) || 'upstream_error' }; }
+      return { ok: true };
+    },
+    async askLimits() { const s = await timeout(sampleP, 6000); if (!s || !s.limits) return null; try { return await s.limits(); } catch (e) { return null; } },
     async graceReports() { const [m, e] = await Promise.all([read('morning', 'grace'), read('evening', 'grace')]); return { morning: m, evening: e }; },
     async reportsSent() { return read('reports', 'penny'); },
     async markReportSent(month, info) {

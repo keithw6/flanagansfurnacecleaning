@@ -568,3 +568,11 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .gdocs .okc { color: var(--edge); } .gdocs .warnc { color: #ffcf73; }
 .gdocs button.qa.tiny { font-size: 13px; padding: 1px 7px; }
 @media (max-width: 640px) { .gdocs .dform { grid-template-columns: 1fr; } }
+/* Grace acting in the chat */
+.gchat .gm.act { align-self: stretch; max-width: 100%; background: #10251a; border-color: #2c7a25; font-size: 17px; }
+.gchat .gm.act.ask { background: #2a2410; border-color: #d99a1e; }
+.gchat .gm.act.ask b { color: #ffcf73; }
+.gchat .gm.act .atitle { font-weight: bold; margin-bottom: 4px; }
+.gchat .gm.act .aline { white-space: pre-wrap; color: #dfe4e0; margin-bottom: 4px; }
+.gchat .gm.act .abtns { margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.gchat .gm.act.yes { border-color: var(--edge); } .gchat .gm.act.no { opacity: .65; }
