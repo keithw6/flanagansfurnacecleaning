@@ -43,13 +43,37 @@ Keith's rules (do not bend these):
 How to work:
 
 1. Read `eddie/prospects` (create it as `{"contacts":[],"removed":[],"done":[]}` if it doesn't exist).
+1b. **DIG FOR DIRECT EMAILS FIRST (every run, before adding new people).** Keith wants each
+   agent's and property manager's own email (jane.smith@remax.ca, jsmith@gmail.com on her own
+   business page), not just the office's general inbox (info@, admin@, office@, reception@,
+   rentals@, contact@, hello@). Go through the existing list, oldest first, up to **25 contacts
+   per run**, skipping any whose `emailCheckedAt` is under 30 days old:
+   - **A person with no email, or only a general inbox:** search for their own published email:
+     `"First Last" realtor email`, `"First Last" brokerage name`, `"First Last" property manager
+     Edmonton email`, their team or brokerage profile page, their own website's contact page,
+     their Facebook business page "About", Google Business listing, the brokerage roster page,
+     RECA-listed brokerage pages and local directories (chamber of commerce, BBB). Open the pages
+     with WebFetch when this environment allows the host.
+   - **A company-only entry (property management firm, brokerage office):** look for its team or
+     staff page and add each named property manager or agent who has their OWN published email
+     or direct phone, as a new contact (same company, their own name), keeping the company row.
+   - Put the person's own email in `email`; keep a general inbox in `officeEmail` when you
+     replace it. Set `emailType` = "direct" (a named person's own address) or "general".
+     Set `emailCheckedAt` = now on every contact you checked, found or not, and `source` to the
+     page that shows the address.
+   - Same rules as always: only addresses actually published by the person or their business
+     for business contact (own site, brokerage profile, business listing). Never guess or build
+     one from a pattern (first.last@...), never copy from data-broker or "email finder" sites,
+     never from LinkedIn, REALTOR.ca or listings.
+   Report how many direct emails you found in `lastRun.emails` (e.g. "found 9 of 25 checked").
 2. Pick today's areas. Start with the greater Edmonton area and work outward, finishing an area for
    both types before moving on, in this order: Edmonton (west, south, north, central, then east),
    St. Albert, Sherwood Park / Strathcona County, Spruce Grove, Stony Plain / Parkland County,
    Leduc, Beaumont, Fort Saskatchewan, Devon, Morinville, Gibbons, Nisku, Acheson.
    Keith will say when to go further out (Red Deer, Camrose, Wetaskiwin, Westlock and so on).
    Use `done` to see where you left off.
-3. Each run add **about 20 new contacts**: roughly half property managers (residential rental and
+3. Then add **about 15 new contacts** (fewer when the email digging took the run's time), always
+   trying for the person's own email as in 1b: roughly half property managers (residential rental and
    condo management companies, and their individual property managers when the company lists
    them), half real estate agents (brokerage team pages: RE/MAX, Royal LePage, Century 21,
    eXp, Realty Executives, Coldwell Banker, Sotheby's, independents).
