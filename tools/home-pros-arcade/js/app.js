@@ -2467,11 +2467,11 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
   // A photo of a page, kept sharp enough to read: JPEG, longest side 2200 px.
   async function docImage(file) {
     const bmp = await createImageBitmap(file);
-    const k = Math.min(1, 2200 / Math.max(bmp.width, bmp.height));
+    const k = Math.min(1, 1700 / Math.max(bmp.width, bmp.height));
     const c = document.createElement('canvas');
     c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height);
-    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
     return { blob, w: c.width, h: c.height, bytes: new Uint8Array(await blob.arrayBuffer()) };
   }
   // Pages (JPEGs) -> one letter-size PDF, one photo per page.
@@ -2498,6 +2498,21 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
     const out = new Uint8Array(len); let o = 0;
     for (const b of parts) { out.set(b, o); o += b.length; }
     return out;
+  }
+  const docBytes = {};
+  // The bytes of a saved file: from memory if saved in this visit, else the saved copy (it can take a few seconds to be ready).
+  async function docFileBytes(f) {
+    if (docBytes[f.id]) return docBytes[f.id];
+    for (let i = 0; i < 4; i++) {
+      try {
+        const r = await fetch(f.url || ('/_blob/' + f.id));
+        const b = new Uint8Array(await r.arrayBuffer());
+        const pdf = /pdf/i.test(f.type || '') || /\.pdf$/i.test(f.name || '');
+        if (r.ok && b.length > 1000 && (!pdf || String.fromCharCode(...b.slice(0, 5)) === '%PDF-')) return (docBytes[f.id] = b);
+      } catch (e) { }
+      await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+    }
+    throw new Error(`Couldn't load ${f.name} yet. Wait a minute and press Send again.`);
   }
   const docName = (d, ext) => `${d.title || d.kind}${d.who ? ' - ' + d.who : ''} - ${String(d.at || '').slice(0, 10)}`.replace(/[\\/:*?"<>|]+/g, ' ').trim() + ext;
   function docMail(d) {
@@ -2583,12 +2598,13 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
       const d = { id: 'doc-' + Date.now().toString(36), at: new Date().toISOString(), kind: D.kind, title: D.title.trim() || D.kind, who: D.who.trim(), note: D.note.trim(), files: [], sent: [] };
       const L = root.HP_LIVE;
       if (D.pages.length) {
-        const pdf = new Blob([imagesPdf(D.pages)], { type: 'application/pdf' });
+        const bytes = imagesPdf(D.pages), pdf = new Blob([bytes], { type: 'application/pdf' });
         const r = await L.storeFile(pdf);
+        docBytes[r ? r.id : ''] = bytes;
         if (!r) { D.busy = false; $('dMsg').textContent = " Couldn't save the PDF. Try again in a minute."; return; }
         d.files.push({ id: r.id, url: r.url, name: docName(d, '.pdf'), type: 'application/pdf', pages: D.pages.length });
       }
-      for (const f of D.extra) { const r = await L.storeFile(f.blob); if (r) d.files.push({ id: r.id, url: r.url, name: f.name, type: 'application/pdf' }); }
+      for (const f of D.extra) { const r = await L.storeFile(f.blob); if (r) docBytes[r.id] = new Uint8Array(await f.blob.arrayBuffer()); if (r) d.files.push({ id: r.id, url: r.url, name: f.name, type: 'application/pdf' }); }
       try { await L.saveGraceDoc(d, `Email ${d.title}${d.who ? ' (' + d.who + ')' : ''} to Fused Accounting.`); }
       catch (e) { D.busy = false; $('dMsg').textContent = " Saved the files, but couldn't record them. Try again in a minute."; return; }
       D.list.unshift(d); D.pages = []; D.extra = []; D.who = ''; D.note = ''; D.title = D.kind; D.busy = false;
@@ -2611,8 +2627,10 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
       if (!confirm(`Send "${subject}" with ${(doc.files || []).length} attachment(s) to ${to}?`)) return;
       ms.disabled = true; note(' Sending...');
       const files = [];
-      try { for (const f of doc.files || []) files.push({ filename: f.name, mimeType: f.type || 'application/pdf', bytes: new Uint8Array(await (await fetch(f.url)).arrayBuffer()) }); }
-      catch (e) { ms.disabled = false; note(" Couldn't load the saved files. Try again."); return; }
+      try { for (const f of doc.files || []) files.push({ filename: f.name, mimeType: f.type || 'application/pdf', bytes: await docFileBytes(f) }); }
+      catch (e) { ms.disabled = false; note(' ' + ((e && e.message) || "Couldn't load the saved files. Try again in a minute.")); return; }
+      const total = files.reduce((t, f) => t + f.bytes.length, 0);
+      if (total > 3 * 1024 * 1024) { ms.disabled = false; note(` The files are ${(total / 1048576).toFixed(1)} MB, over the 3 MB email limit here. Email it in two parts, or ask Claude to send it.`); return; }
       const r = await root.HP_LIVE.emailFiles({ to, cc: cc ? 'keith@homeprosgroup.com' : '', subject, body, files });
       if (!r.ok) { ms.disabled = false; note(r.error === 'unavailable' ? ' Email only works with the arcade open in claude.ai, with Gmail allowed.' : " Couldn't send it. Try again in a minute."); return; }
       const sent = { to, cc: cc ? 'keith@homeprosgroup.com' : '', subject, at: new Date().toISOString() };
