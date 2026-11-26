@@ -38,10 +38,10 @@ $req = json_decode($raw, true);
 if (!is_array($req)) out(400, ['error' => 'bad JSON']);
 $op = $req['op'] ?? '';
 
-$ARTICLE = '#^blog/[a-z0-9][a-z0-9-]{1,90}\.html$#';
+$ARTICLE = '#^(blog/[a-z0-9][a-z0-9-]{1,90}|blog-[a-z0-9][a-z0-9-]{2,90})\.html$#';   // new pages only: blog-<slug>.html like the site's own articles
 $IMAGE = '#^img/blog/[a-z0-9][a-z0-9-]{1,90}\.(jpg|jpeg|png|webp)$#';
 $SHARED = ['blog.html', 'sitemap.xml'];
-$READABLE = '#^[a-z0-9][a-z0-9-]{0,90}\.(html|xml|txt)$|^css/[a-z0-9-]+\.css$|^blog/[a-z0-9-]+\.html$#';
+$READABLE = '#^[a-z0-9][a-z0-9-]{0,90}\.(html|xml|txt)$|^css/[a-z0-9-]+\.css$|^blog/[a-z0-9-]+\.html$|^img/blog/[a-z0-9-]+\.(jpg|jpeg|png|webp)$#';
 $ledgerFile = $STATE . '/ledger.json';
 $ledger = file_exists($ledgerFile) ? (json_decode(file_get_contents($ledgerFile), true) ?: []) : [];
 function log_it($line) { global $STATE; file_put_contents($STATE . '/log.txt', gmdate('c') . ' ' . $line . "\n", FILE_APPEND); }
@@ -49,6 +49,7 @@ function log_it($line) { global $STATE; file_put_contents($STATE . '/log.txt', g
 if ($op === 'list') {
   $files = [];
   foreach (['blog', 'img/blog'] as $d) foreach (glob($DIR . '/' . $d . '/*') ?: [] as $f) $files[] = substr($f, strlen($DIR) + 1);
+  foreach (glob($DIR . '/blog-*.html') ?: [] as $f) $files[] = substr($f, strlen($DIR) + 1);
   out(200, ['ok' => true, 'files' => $files, 'mine' => array_keys($ledger)]);
 }
 

@@ -2729,7 +2729,7 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
         <p class="small">Max writes one local article a week with Higgsfield pictures. Nothing goes on your website until you tap Approve; then it's added as a new page, listed on your blog page and in your sitemap. Your existing pages are never changed.</p>
         ${artAll.length ? artAll.slice(0, 12).map(card).join('') : '<div class="q"><p>No articles yet. Max writes his first one on his next weekly run.</p></div>'}
         ${note}</div>`;
-      P.querySelectorAll('iframe[data-art]').forEach(f => { const x = artAll.find(y => y.id === f.dataset.art); if (x) f.srcdoc = String(x.html || '').replace(/<head([^>]*)>/i, '<head$1><base href="https://homeprosgroup.com/blog/">'); });
+      P.querySelectorAll('iframe[data-art]').forEach(f => { const x = artAll.find(y => y.id === f.dataset.art); if (x) f.srcdoc = String(x.html || '').replace(/<head([^>]*)>/i, '<head$1><base href="https://homeprosgroup.com/">'); });
       const setArt = async (aid, fn, msg) => { const m = P.querySelector(`[data-amsg="${aid}"]`); try { mx.articles = await root.HP_LIVE.change('eddie', 'articles', d => { (d.items || []).forEach(x => { if (x.id === aid) fn(x); }); }); drawMax(); if (msg) say(msg); } catch (e) { if (m) m.textContent = " Couldn't save just now."; } };
       P.querySelectorAll('button[data-apub]').forEach(b => b.onclick = async () => {
         const x = artAll.find(y => y.id === b.dataset.apub); if (!x) return;
