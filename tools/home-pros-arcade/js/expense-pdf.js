@@ -166,6 +166,63 @@
     return assemble([p], {});
   }
 
+  // A multi-page report of tables (the accountant package). Runs onto new pages as needed.
+  // sections: [{head, intro: [lines], cols: [{label, w, align}], rows: [[cell...]], total: [cell...], bold: [rowIndex]}]
+  // cells are strings (already formatted); a column w is its share of the page width.
+  function buildReport({ title, sub, summary, sections, notes }) {
+    const pages = [];
+    let p, yy;
+    const top = 92, bottom = H - 48, full = W - 2 * M;
+    const newPage = () => { p = new Page(); header(p, title, sub); pages.push(p); yy = top; };
+    const need = h => { if (yy + h > bottom) { newPage(); return true; } return false; };
+    newPage();
+    if (summary && summary.length) {
+      const bw = (full - 10 * (summary.length - 1)) / summary.length;
+      summary.forEach((s, i) => {
+        const x = M + i * (bw + 10);
+        p.rect(x, yy - 4, bw, 44, [0.94, 0.97, 0.94]);
+        p.text(x + 8, yy + 10, fit(s.label, 7.5, bw - 16), { size: 7.5, color: DIM });
+        p.text(x + 8, yy + 30, fit(s.value, 13, bw - 16, true), { size: 13, bold: true });
+      });
+      yy += 58;
+    }
+    for (const sec of sections) {
+      const cols = sec.cols || [], tw = cols.reduce((a, c) => a + (c.w || 1), 0);
+      const xs = []; let acc = M; cols.forEach(c => { const w = full * (c.w || 1) / tw; xs.push({ x: acc, w }); acc += w; });
+      const colHead = () => {
+        if (!cols.length) return;
+        yy += 14;
+        cols.forEach((c, i) => p.text(c.align === 'right' ? xs[i].x + xs[i].w - 4 : xs[i].x, yy, fit(c.label, 7.5, xs[i].w - 6, true), { size: 7.5, bold: true, color: GREEN, align: c.align === 'right' ? 'right' : undefined }));
+        yy += 4; p.line(M, yy, W - M, yy, GREEN, 0.6);
+      };
+      const row = (cells, bold) => {
+        if (need(13)) colHead();
+        yy += 12;
+        cells.forEach((v, i) => { if (!cols[i]) return; const right = cols[i].align === 'right'; p.text(right ? xs[i].x + xs[i].w - 4 : xs[i].x, yy, fit(v, 8, xs[i].w - 6, bold), { size: 8, bold, align: right ? 'right' : undefined }); });
+      };
+      need(60);
+      yy += 22; p.text(M, yy, sec.head, { size: 10, bold: true, color: GREEN });
+      for (const l of sec.intro || []) { need(11); yy += 11; p.text(M, yy, fit(l, 7.5, full), { size: 7.5, color: DIM }); }
+      if (!(sec.rows || []).length && sec.empty) { yy += 13; p.text(M, yy, sec.empty, { size: 8.5, color: DIM }); continue; }
+      colHead();
+      (sec.rows || []).forEach((r, k) => row(r, (sec.bold || []).includes(k)));
+      if (sec.total) { need(16); yy += 3; p.line(M, yy, W - M, yy, INK, 0.6); row(sec.total, true); }
+    }
+    if (notes && notes.length) {
+      need(30); yy += 22; p.text(M, yy, 'NOTES', { size: 9, bold: true, color: GREEN });
+      for (const n of notes) {
+        // wrap long notes
+        const words = clean(n).split(' '); let lineS = '';
+        const flush = () => { need(11); yy += 11; p.text(M, yy, lineS, { size: 7.5, color: DIM }); lineS = ''; };
+        for (const w of words) { if (width(lineS + ' ' + w, 7.5) > full && lineS) flush(); lineS = lineS ? lineS + ' ' + w : w; }
+        if (lineS) flush();
+        yy += 3;
+      }
+    }
+    pages.forEach((pg, i) => pg.text(W / 2, H - 22, `${clean(title)}  |  page ${i + 1} of ${pages.length}`, { size: 7.5, color: DIM, align: 'center' }));
+    return assemble(pages, {});
+  }
+
   function assemble(pages, images) {
     const enc = new TextEncoder(), latin = s => Uint8Array.from(s, c => c.charCodeAt(0) & 255);
     const parts = [], offsets = [];
@@ -212,5 +269,5 @@
     return { bytes: new Uint8Array(await out.arrayBuffer()), w: c.width, h: c.height };
   }
 
-  root.HP_EXPENSE_PDF = { sourceOf, buildPL, build, jpeg, MONTHS };
+  root.HP_EXPENSE_PDF = { sourceOf, buildPL, buildReport, build, jpeg, MONTHS, money };
 })(window);

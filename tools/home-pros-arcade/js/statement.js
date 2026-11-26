@@ -89,10 +89,11 @@
     return 'These images are pages ' + from + ' to ' + to + ' of a credit card or bank statement belonging to Keith Wick, owner of Home Pros Group, '
       + 'a furnace, duct and dryer vent cleaning company in Stony Plain, Alberta, with one service van (a 2012 Chevrolet Express) and a truck-mounted compressor. Today is ' + today + '. '
       + 'Read every transaction on these pages and answer with JSON only, no other text: '
-      + '{"statement":{"card":"card name, e.g. Visa or Mastercard or bank account","last4":"last 4 digits if shown","holder":"cardholder name as printed","period":"statement period as printed","from":"YYYY-MM-DD","to":"YYYY-MM-DD","year":number,'
-      + '"purchasesTotal":number or null (add up the statement\'s own printed summary totals for the period: purchases and other charges, PLUS fees, PLUS interest, PLUS cash advances; null if not shown),"creditsTotal":number or null},'
+      + '{"statement":{"type":"card or bank","card":"card name, e.g. Visa or Mastercard, or the bank account, e.g. TD Business Chequing","last4":"last 4 digits if shown","holder":"cardholder name as printed","period":"statement period as printed","from":"YYYY-MM-DD","to":"YYYY-MM-DD","year":number,'
+      + '"purchasesTotal":number or null (add up the statement\'s own printed summary totals for the period: purchases and other charges, PLUS fees, PLUS interest, PLUS cash advances; null if not shown),"creditsTotal":number or null,'
+      + '"depositsTotal":number or null (bank only: total deposits/credits printed for the period),"withdrawalsTotal":number or null (bank only: total withdrawals/debits printed),"openingBalance":number or null,"closingBalance":number or null},'
       + '"transactions":[{"date":"YYYY-MM-DD (the transaction date, use the statement period to get the year right)","description":"merchant as printed",'
-      + '"amount":number (positive for purchases and charges, negative for refunds and credits),"kind":"purchase|refund|fee|interest|payment",'
+      + '"amount":number (positive for purchases and charges, negative for refunds and credits),"kind":"purchase|refund|fee|interest|payment|deposit|withdrawal|transfer|other",'
       + '"category":"one of: ' + categories.join('; ') + '",'
       + '"business":"likely|maybe|personal",'
       + '"question":"one short, friendly question to ask Keith when it is not clearly business, else empty"}]}. '
@@ -101,15 +102,28 @@
       + 'Likely business: fuel, auto parts and repairs, tires, tools, hardware and building supply, HVAC and compressor suppliers, phone and internet, software, advertising, vehicle insurance and registration. '
       + 'Maybe (ask): restaurants and coffee (client or crew meal?), Costco, Walmart, Amazon, Canadian Tire, Home Depot when the item is unclear, hotels, travel, subscriptions. '
       + 'Likely personal (still list them, ask to confirm): groceries, clothing, entertainment, streaming, pharmacy, liquor, personal care. '
+      + 'If this is a BANK account statement (chequing or savings) set statement.type to "bank" and: every deposit or credit is kind "deposit" (amount positive, business "likely" for customer payments, e-transfers received, Jayman or ServiceMonster deposits, else "maybe"); every cheque, pre-authorized debit, bill payment, e-transfer sent, debit card purchase, withdrawal or bank fee is kind "withdrawal" or "fee" (amount positive) and is judged business or personal like a card purchase; a payment to one of Keith\'s own credit cards is kind "payment"; a transfer between his own accounts is kind "transfer"; money out that is not an expense (payroll paid to Keith or staff, CRA payroll remittances, GST or income tax payments, loan principal, owner draws) is kind "other". '
       + 'Never guess an amount you cannot read: skip that line instead of inventing it.';
   }
 
   function finish(all) {
+    const ok = t => t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount));
+    // bank deposits are kept on their own (money in, never an expense); transfers between Keith's own accounts are dropped
+    all.deposits = all.transactions.filter(t => ok(t) && t.kind === 'deposit').map(t => ({ date: t.date, description: t.description, amount: Math.abs(Number(t.amount)), business: t.business || '' })).sort((a, b) => a.date.localeCompare(b.date));
+    all.otherOut = all.transactions.filter(t => ok(t) && t.kind === 'other').map(t => ({ date: t.date, description: t.description, amount: Math.abs(Number(t.amount)) })).sort((a, b) => a.date.localeCompare(b.date));
+    all.transactions = all.transactions.filter(t => !t || (t.kind !== 'deposit' && t.kind !== 'transfer' && t.kind !== 'other'));
+    if (all.deposits.length || all.statement.depositsTotal != null) all.statement.type = 'bank';
     all.transactions = all.transactions.filter(t => t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment' && !/payment\s*-?\s*thank you/i.test(t.description || ''));
     all.transactions.sort((a, b) => a.date.localeCompare(b.date));
     const pur = all.transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
     all.check = { found: all.transactions.length, foundPurchases: Math.round(pur * 100) / 100, printed: all.statement.purchasesTotal != null ? Number(all.statement.purchasesTotal) : null };
     all.check.ok = all.check.printed == null ? null : Math.abs(all.check.printed - all.check.foundPurchases) < 1;
+    // a bank statement is checked on its deposits (money in), since card payments and transfers out are left out on purpose
+    if (all.statement.type === 'bank') {
+      const dep = Math.round(all.deposits.reduce((x, t) => x + t.amount, 0) * 100) / 100;
+      all.check = { found: all.transactions.length, what: 'deposits', foundPurchases: dep, printed: all.statement.depositsTotal != null ? Number(all.statement.depositsTotal) : null };
+      all.check.ok = all.check.printed == null ? null : Math.abs(all.check.printed - dep) < 1;
+    }
     return all;
   }
 
@@ -131,7 +145,7 @@
       if (onProgress) onProgress(i + 1, Math.min(i + per, pageBlobs.length), pageBlobs.length);
       const got = await sample.json(prompt(categories, i + 1, i + batch.length), { images: batch, modelTier: 'default', cache: false });
       if (got && got.statement) for (const [k, v] of Object.entries(got.statement)) if (v != null && v !== '' && (all.statement[k] == null || all.statement[k] === '')) all.statement[k] = v;
-      for (const t of (got && got.transactions) || []) if (t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment') all.transactions.push(t);
+      for (const t of (got && got.transactions) || []) if (t && /^\d{4}-\d\d-\d\d$/.test(t.date || '') && !isNaN(Number(t.amount)) && t.kind !== 'payment') all.transactions.push(t);   // deposits are split off in finish()
     }
     // the same line read twice (page overlap) counts once
     return finish(all);

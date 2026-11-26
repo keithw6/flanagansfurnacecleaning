@@ -1079,7 +1079,8 @@
       { label: 'Expenses by month', kind: current === 'exp' ? 'primary' : '', onPick: () => expenseMonth() },
       { label: 'Add a receipt', kind: current === 'rcpt' ? 'primary' : '', onPick: () => receiptForm() },
       { label: 'Jayman cheque', kind: current === 'chq' ? 'primary' : '', onPick: () => chequeDesk() },
-      { label: 'Card statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
+      { label: 'Statements', kind: current === 'stmt' ? 'primary' : '', onPick: () => stmtHome() },
+      { label: 'For the accountant', kind: current === 'pack' ? 'primary' : '', onPick: () => accountantPack() },
       { label: 'Back to the floor', kind: 'ghost', sound: 'back', isBack: true, onPick: () => floor() },
     ]);
   }
@@ -1319,9 +1320,11 @@
     'biz-keith': { label: "Business Visa (Keith's)", who: 'Keith', business: true },
     'biz-hannah': { label: "Business Visa (Hannah's)", who: 'Hannah', business: true },
     'personal-keith': { label: "Keith's personal Mastercard", who: 'Keith', business: false },
+    'bank-business': { label: 'Business bank account', who: 'Keith', business: true },
+    'bank-personal': { label: "Keith's personal bank account", who: 'Keith', business: false },
     other: { label: 'Another card or account', who: 'Keith', business: null },
   };
-  const guessOwner = st => { const c = (st && st.card) || '', h = (st && st.holder) || ''; if (/master/i.test(c)) return 'personal-keith'; if (/visa/i.test(c) && /hannah/i.test(h)) return 'biz-hannah'; if (/visa/i.test(c) && /keith/i.test(h)) return 'biz-keith'; return ''; };
+  const guessOwner = st => { const c = (st && st.card) || '', h = (st && st.holder) || ''; if (st && st.type === 'bank') return /business|corp|ltd|inc|home pros/i.test(c + ' ' + h) ? 'bank-business' : ''; if (/master/i.test(c)) return 'personal-keith'; if (/visa/i.test(c) && /hannah/i.test(h)) return 'biz-hannah'; if (/visa/i.test(c) && /keith/i.test(h)) return 'biz-keith'; return ''; };
   function applyOwner(o) {
     stmt.owner = o;
     const O = OWNERS[o];
@@ -1355,12 +1358,17 @@
     const owedBox = ow.length ? `<div class="q"><h4>MONEY OWED</h4>
       ${toK.length ? `<p><b>The business owes Keith ${$$(osum(toK))}</b> for ${toK.length} business purchase${toK.length === 1 ? '' : 's'} on his personal Mastercard.</p><table>${toK.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)}</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repK">Mark as paid back to Keith</button></div>` : ''}
       ${toB.length ? `<p><b>Owed to the business ${$$(osum(toB))}</b> for personal purchases on the business Visas.</p><table>${toB.map(x => `<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.vendor)} (${esc(x.who)})</td><td>${$$(x.amount)}</td></tr>`).join('')}</table><div class="qbtns"><button class="qa" id="repB">Mark as paid back to the business</button></div>` : ''}</div>` : '';
-    $('panel').innerHTML = `<div class="report questions stmts"><h3>CARD STATEMENTS</h3>${owedBox}
+    // from the 7th, ask for last month's statements until they're all in
+    const lastM = addMonths(nowMonth(), -1), dayNow = Number((window.HP_SCHEDULE ? HP_SCHEDULE.localNow(cfg.business.timeZone) : new Date().toISOString()).slice(8, 10));
+    const covers = l => list.some(x => (x.months || []).includes(lastM) && l(x));
+    const missing = [['the business bank account', x => x.type === 'bank'], ["Keith's personal Mastercard", x => x.owner === 'personal-keith'], ["Keith's business Visa", x => x.owner === 'biz-keith'], ["Hannah's business Visa", x => x.owner === 'biz-hannah']].filter(([, l]) => !covers(l)).map(([n]) => n);
+    const askBox = dayNow >= 7 && missing.length ? `<p class="warnline">I still need the ${esc(monthName(lastM))} statement${missing.length === 1 ? '' : 's'} for ${esc(missing.join(', '))}. Upload ${missing.length === 1 ? 'it' : 'them'} below when you have ${missing.length === 1 ? 'it' : 'them'}.</p>` : '';
+    $('panel').innerHTML = `<div class="report questions stmts"><h3>BANK &amp; CARD STATEMENTS</h3>${askBox}${owedBox}
       <div class="q"><h4>UPLOAD A STATEMENT</h4>
         <p>A Visa, Mastercard or bank statement as a PDF, or photos of its pages. I'll read every transaction, then go through them with you: business or personal, which category, and the GST. Only the business ones go into your expenses.</p>
         ${can.canRead && can.canSave ? `<label class="qa photo">Choose the statement (PDF or photos)<input id="stFile" type="file" accept="application/pdf,image/*" multiple hidden></label>` : '<p><b>Reading statements needs the arcade open in claude.ai.</b></p>'}
         <p id="stStatus" class="small"></p></div>
-      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b>${x.last4 ? ' ···' + esc(x.last4) : ''}${x.holder ? ` <small>(${esc(x.holder)})</small>` : ''}<br><small>${esc(x.period || '')} · ${esc(x.name || '')}</small>${x.check && x.check.ok === false ? `<br><small class="warnc">Found ${$$(x.check.foundPurchases)} of ${$$(x.check.printed)} printed: some lines may be missing</small>` : x.check && x.check.ok ? '<br><small class="okc">Matches the statement total</small>' : ''}</td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button>${x.files == null || x.files > 1 ? `<br><button class="qa" data-reread="${esc(x.id)}">Read ${x.files ? 'the ' + x.files : 'the'} files separately</button>` : ''}</td></tr>`).join('')}</table></div>` : ''}
+      ${list.length ? `<div class="q"><h4>YOUR STATEMENTS</h4><table>${list.map(x => `<tr><td><b>${esc(x.card || x.name || 'Statement')}</b>${x.last4 ? ' ···' + esc(x.last4) : ''}${x.holder ? ` <small>(${esc(x.holder)})</small>` : ''}<br><small>${esc(x.period || '')} · ${esc(x.name || '')}</small>${x.check && x.check.ok === false ? `<br><small class="warnc">Found ${$$(x.check.foundPurchases)} of ${$$(x.check.printed)} ${x.check.what === 'deposits' ? 'deposits ' : ''}printed: some lines may be missing</small>` : x.check && x.check.ok ? `<br><small class="okc">Matches the statement's ${x.check.what === 'deposits' ? 'deposit ' : ''}total</small>` : ''}</td><td>${x.decided}/${x.count} gone through${x.added ? `<br><small>${x.added} added to expenses</small>` : ''}</td><td><button class="qa" data-st="${esc(x.id)}">${x.decided < x.count ? 'Continue' : 'Open'}</button>${x.files == null || x.files > 1 ? `<br><button class="qa" data-reread="${esc(x.id)}">Read ${x.files ? 'the ' + x.files : 'the'} files separately</button>` : ''}</td></tr>`).join('')}</table></div>` : ''}
       <p class="soon">The statement file is kept with your records. Card statements show the total but usually not the GST: I'll assume 5% GST is included unless you tell me otherwise. Keep the receipts for anything over $30, since the CRA wants a receipt to claim the GST back.</p></div>`;
     $('panel').querySelectorAll('button[data-st]').forEach(b => b.onclick = () => stmtInterview(b.dataset.st));
     if ($('repK')) $('repK').onclick = async () => { await L.markOwedRepaid('toKeith'); A.select(); say('Marked as paid back to you.'); stmtHome(); };
@@ -1395,7 +1403,7 @@
         if (!part.text && !(part.images || []).length) { st.textContent = `${label}: I couldn't open ${file.name}. Skipping it.`; continue; }
         if (!kept) { const r = await L.storeFile(file); if (r) kept = { id: r.id, name: file.name || 'statement' }; }
         const got = await HP_STATEMENT.read(part, { categories: CATS, onProgress: (a, b2, n) => { st.textContent = part.text ? `${label}: reading ${file.name || 'the statement'}...` : `${label}: reading page${b2 > a ? 's' : ''} ${a}${b2 > a ? '-' + b2 : ''} of ${n}...`; } });
-        docs.push({ id: Date.now().toString(36) + k, name: file.name || 'statement', files: kept ? [kept] : [], readAs: part.text ? 'text' : 'images', uploadedAt: new Date().toISOString(), statement: got.statement, check: got.check, transactions: got.transactions, owner: '' });
+        docs.push({ id: Date.now().toString(36) + k, name: file.name || 'statement', files: kept ? [kept] : [], readAs: part.text ? 'text' : 'images', uploadedAt: new Date().toISOString(), statement: got.statement, check: got.check, transactions: got.transactions, deposits: got.deposits || [], otherOut: got.otherOut || [], owner: '' });
       }
       if (!docs.length) { st.textContent = "I couldn't read any transactions from that."; return; }
       // already filed? (receipts and earlier statements), and the same line in two overlapping statements
@@ -1578,6 +1586,150 @@
     return [15, Math.min(30, last)].map(d => `${m}-${String(d).padStart(2, '0')}`).filter(d => !through || d <= through);
   };
   let plSel = null;
+  // The accountant package: everything Fused Accounting needs for a run of months, as one PDF.
+  // Revenue (ServiceMonster), expenses by category and month, GST, bank deposits, business
+  // purchases paid personally, personal purchases on business cards, and the statements used.
+  let packFrom = null, packTo = null;
+  const addMonths = (m, k) => { let [y, mo] = m.split('-').map(Number); mo += k; while (mo < 1) { mo += 12; y--; } while (mo > 12) { mo -= 12; y++; } return `${y}-${String(mo).padStart(2, '0')}`; };
+  async function accountantPack() {
+    const id = clear();
+    S.office.select('penny');
+    nameplate('PENNY · ACCOUNTING');
+    $('panel').innerHTML = '<div class="loading">Putting the package together</div>';
+    await loadLedger();
+    if (id !== run) return;
+    const L = root.HP_LIVE, cur = nowMonth();
+    packTo = packTo || cur; packFrom = packFrom || addMonths(packTo, -3);
+    if (packFrom > packTo) [packFrom, packTo] = [packTo, packFrom];
+    const months = []; for (let m = packFrom; m <= packTo && months.length < 24; m = addMonths(m, 1)) months.push(m);
+    const inRange = d => d && d.slice(0, 7) >= packFrom && d.slice(0, 7) <= packTo;
+    const [docs, idx, owedDoc] = L ? await Promise.all([L.expenseMonths(months), L.statements(), L.owed()]) : [];
+    if (id !== run) return;
+    const stmts = ((idx && idx.list) ? await Promise.all(idx.list.map(x => L.statement(x.id))) : []).filter(Boolean);
+    if (id !== run) return;
+    const used = stmts.filter(s => (s.transactions || []).some(t => inRange(t.date)) || (s.deposits || []).some(t => inRange(t.date)));
+    const r2 = n => Math.round(Number(n || 0) * 100) / 100;
+    const net = x => Number(x.amount || 0) - Number(x.gst || 0);
+    const items = months.flatMap(m => (((docs && docs[m]) || {}).items || []).map(x => Object.assign({ month: m }, x))).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const cats = [...new Set(items.map(x => x.category || 'Other'))].sort();
+    const by = (m, c) => items.filter(x => x.month === m && (c == null || (x.category || 'Other') === c));
+    const sumNet = l => r2(l.reduce((a, x) => a + net(x), 0)), sumGst = l => r2(l.reduce((a, x) => a + Number(x.gst || 0), 0)), sumAmt = l => r2(l.reduce((a, x) => a + Number(x.amount || 0), 0));
+    const rbm = ledger.brief && ledger.brief.revenueByMonth;
+    const revOf = m => rbm && rbm.year === Number(m.slice(0, 4)) ? Number(((rbm.months || {})[m] || {}).revenue || 0) : null;
+    const revs = months.map(revOf), revKnown = revs.every(v => v != null), revTotal = revKnown ? r2(revs.reduce((a, b) => a + b, 0)) : null;
+    const expTotal = sumNet(items), gstPaid = sumGst(items);
+    const deposits = used.flatMap(s => (s.deposits || []).filter(t => inRange(t.date)).map(t => Object.assign({ account: (s.statement || {}).card || s.name }, t))).sort((a, b) => a.date.localeCompare(b.date));
+    const otherOut = used.flatMap(s => (s.otherOut || []).filter(t => inRange(t.date)).map(t => Object.assign({ account: (s.statement || {}).card || s.name }, t))).sort((a, b) => a.date.localeCompare(b.date));
+    const depTotal = r2(deposits.reduce((a, t) => a + t.amount, 0));
+    const paidPersonally = items.filter(x => x.reimburse);
+    const owedToBiz = ((owedDoc && owedDoc.items) || []).filter(x => x.direction === 'toBusiness' && inRange(x.date)).sort((a, b) => a.date.localeCompare(b.date));
+    const waiting = used.reduce((a, s) => a + (s.transactions || []).filter(t => !t.decision && inRange(t.date)).length, 0);
+    const span = months.length === 1 ? monthName(packFrom) : `${monthName(packFrom)} to ${monthName(packTo)}`;
+    const short = m => monthName(m).slice(0, 3) + (months.some(x => x.slice(0, 4) !== m.slice(0, 4)) ? ' ' + m.slice(2, 4) : '');
+    const money = v => v == null ? 'n/a' : (v < 0 ? '-' : '') + $$(Math.abs(v));
+    const d10 = s => String(s || '').slice(0, 10);
+
+    // the PDF
+    const made = new Date().toLocaleDateString('en-US', { timeZone: cfg.business.timeZone, month: 'short', day: 'numeric', year: 'numeric' });
+    const mcols = [{ label: '', w: 3.2 }, ...months.map(m => ({ label: short(m), w: 1.2, align: 'right' })), { label: 'Total', w: 1.3, align: 'right' }];
+    const plRows = [
+      ['Revenue, before GST (ServiceMonster)', ...months.map(m => money(revOf(m))), money(revTotal)],
+      ...cats.map(c => ['  ' + c, ...months.map(m => money(sumNet(by(m, c)))), money(sumNet(items.filter(x => (x.category || 'Other') === c)))]),
+      ['Total expenses, before GST', ...months.map(m => money(sumNet(by(m)))), money(expTotal)],
+      ['Net profit before owner pay', ...months.map(m => { const r = revOf(m); return r == null ? 'n/a' : money(r2(r - sumNet(by(m)))); }), revTotal == null ? 'n/a' : money(r2(revTotal - expTotal))],
+    ];
+    const pdf = () => HP_EXPENSE_PDF.buildReport({
+      title: `Accountant package: ${span}`, sub: `Prepared by Penny, ${made}`,
+      summary: [
+        { label: 'Revenue before GST', value: money(revTotal) },
+        { label: 'Expenses before GST', value: money(expTotal) },
+        { label: 'GST paid on expenses', value: money(gstPaid) },
+        { label: 'Bank deposits', value: deposits.length ? money(depTotal) : 'none read' },
+      ],
+      sections: [
+        { head: 'PROFIT AND LOSS BY MONTH', intro: ["Keith's salary is paid through payroll and is not included here."], cols: mcols, rows: plRows, bold: [0, plRows.length - 2, plRows.length - 1] },
+        { head: 'GST', cols: mcols, rows: [
+          ['GST paid on business expenses (ITCs)', ...months.map(m => money(sumGst(by(m)))), money(gstPaid)],
+          ['GST on revenue (5% of revenue, estimate)', ...months.map(m => { const r = revOf(m); return r == null ? 'n/a' : money(r2(r * 0.05)); }), revTotal == null ? 'n/a' : money(r2(revTotal * 0.05))],
+        ] },
+        { head: 'BANK DEPOSITS', intro: deposits.length ? [`${deposits.length} deposits, ${money(depTotal)}. By month: ${months.map(m => `${short(m)} ${money(r2(deposits.filter(t => t.date.slice(0, 7) === m).reduce((a, t) => a + t.amount, 0)))}`).join(', ')}.`] : [], empty: 'No bank statements for these months have been read yet.',
+          cols: [{ label: 'Date', w: 1.1 }, { label: 'Description', w: 4 }, { label: 'Account', w: 2 }, { label: 'Amount', w: 1.2, align: 'right' }],
+          rows: deposits.map(t => [t.date, t.description, t.account, money(t.amount)]), total: deposits.length ? ['', 'Total deposits', '', money(depTotal)] : null },
+        { head: 'BUSINESS PURCHASES PAID PERSONALLY (OWED TO THE OWNER)', intro: ["Business expenses paid on a personal card or account. They are included in the expenses above; the business owes them back."], empty: 'None in these months.',
+          cols: [{ label: 'Date', w: 1.1 }, { label: 'Vendor', w: 3 }, { label: 'Category', w: 2.4 }, { label: 'Paid by', w: 1 }, { label: 'Amount', w: 1.1, align: 'right' }, { label: 'GST', w: 0.9, align: 'right' }],
+          rows: paidPersonally.map(x => [d10(x.date), x.vendor, x.category || 'Other', x.reimburse, money(x.amount), money(x.gst)]), total: paidPersonally.length ? ['', 'Total', '', '', money(sumAmt(paidPersonally)), money(sumGst(paidPersonally))] : null },
+        { head: 'PERSONAL PURCHASES ON BUSINESS CARDS (OWED TO THE BUSINESS)', intro: ['Not included in the expenses.'], empty: 'None in these months.',
+          cols: [{ label: 'Date', w: 1.1 }, { label: 'Vendor', w: 4 }, { label: 'Who', w: 1.2 }, { label: 'Amount', w: 1.2, align: 'right' }],
+          rows: owedToBiz.map(x => [x.date, x.vendor, x.who, money(x.amount)]), total: owedToBiz.length ? ['', 'Total', '', money(sumAmt(owedToBiz))] : null },
+        ...(otherOut.length ? [{ head: 'OTHER MONEY OUT OF THE BANK (NOT EXPENSES)', intro: ['Payroll, CRA remittances, tax payments, loan principal and similar, as read from the bank statements. Not included in the expenses.'],
+          cols: [{ label: 'Date', w: 1.1 }, { label: 'Description', w: 4 }, { label: 'Account', w: 2 }, { label: 'Amount', w: 1.2, align: 'right' }],
+          rows: otherOut.map(t => [t.date, t.description, t.account, money(t.amount)]), total: ['', 'Total', '', money(r2(otherOut.reduce((a, t) => a + t.amount, 0)))] }] : []),
+        { head: 'ALL BUSINESS EXPENSES', empty: 'No expenses filed for these months yet.',
+          cols: [{ label: 'Date', w: 1.1 }, { label: 'Vendor', w: 2.8 }, { label: 'Category', w: 2.4 }, { label: 'Paid with', w: 2 }, { label: 'Amount', w: 1.1, align: 'right' }, { label: 'GST', w: 0.9, align: 'right' }],
+          rows: items.map(x => [d10(x.date), x.vendor, x.category || 'Other', x.paidWith || (x.enteredIn === 'statement' ? 'Card statement' : 'Receipt'), money(x.amount), money(x.gst)]), total: items.length ? ['', `${items.length} expenses`, '', '', money(sumAmt(items)), money(gstPaid)] : null },
+        { head: 'STATEMENTS USED', empty: 'No statements read for these months yet.',
+          cols: [{ label: 'Account', w: 3 }, { label: 'Period', w: 2.6 }, { label: 'Lines', w: 0.8, align: 'right' }, { label: 'Checked', w: 2.2 }],
+          rows: used.map(s => { const st = s.statement || {}, c = s.check || {}; return [`${st.card || s.name}${st.last4 ? ' ' + st.last4 : ''}${st.holder ? ' (' + st.holder + ')' : ''}`, st.period || '', String((s.transactions || []).length + (s.deposits || []).length), c.ok === true ? 'Matches the printed total' : c.ok === false ? `Read ${money(c.foundPurchases)} of ${money(c.printed)}` : 'No printed total']; }) },
+      ],
+      notes: [
+        'Revenue is from ServiceMonster: jobs count in the month they were done. Revenue and expenses are before GST.',
+        'Expenses are the receipts and statement items Keith confirmed as business. Card statements do not show GST, so 5% GST is assumed included unless the receipt showed otherwise.',
+        'Payments to the credit cards and transfers between Keith\'s own accounts are left out so nothing is counted twice.',
+        ...(waiting ? [`${waiting} statement line${waiting === 1 ? ' is' : 's are'} still waiting for Keith's answer (business or personal) and ${waiting === 1 ? 'is' : 'are'} not included.`] : []),
+        ...(cats.includes('Meals (50% deductible)') ? ['Meals are shown in full; only 50% is deductible.'] : []),
+        ...(revKnown ? [] : ['Revenue is n/a for a month Penny does not have ServiceMonster figures for yet.']),
+      ],
+    });
+    const fname = `Home-Pros-Accountant-Package-${packFrom}${packTo !== packFrom ? '-to-' + packTo : ''}.pdf`;
+
+    // on screen
+    const opt = sel => { const out = []; for (let m = addMonths(cur, -23); m <= cur; m = addMonths(m, 1)) out.push(`<option value="${m}" ${m === sel ? 'selected' : ''}>${monthName(m)}</option>`); return out.reverse().join(''); };
+    const head = `<tr><th></th>${months.map(m => `<th class="num">${esc(short(m))}</th>`).join('')}<th class="num">Total</th></tr>`;
+    const tr = (r, b) => `<tr class="${b ? 'plb plr' : ''}">${r.map((v, i) => `<td class="${i ? 'num' : (String(v).startsWith('  ') ? 'pli' : '')}">${esc(String(v).trim())}</td>`).join('')}</tr>`;
+    $('panel').innerHTML = `<div class="report expmonths pl pack">
+      <h3>FOR THE ACCOUNTANT</h3>
+      <div class="q"><p>From <select id="pkFrom">${opt(packFrom)}</select> to <select id="pkTo">${opt(packTo)}</select></p></div>
+      ${waiting ? `<p class="warnline">${waiting} statement line${waiting === 1 ? '' : 's'} in these months still need${waiting === 1 ? 's' : ''} your answer (business or personal). They're left out until you answer. <button class="qa" id="pkGo">Go through them</button></p>` : ''}
+      ${!used.some(s => (s.statement || {}).type === 'bank') ? `<p class="warnline">No bank statements for these months yet. Upload them on the Statements page so I can list the deposits.</p>` : ''}
+      <div class="kpis"><div>Revenue<br><span class="big">${money(revTotal)}</span></div><div>Expenses<br><span class="big">${money(expTotal)}</span></div><div>GST paid<br><span class="big">${money(gstPaid)}</span></div><div>Bank deposits<br><span class="big">${deposits.length ? money(depTotal) : '—'}</span></div></div>
+      <table class="pltab">${head}${plRows.map((r, k) => tr(r, k === 0 || k >= plRows.length - 2)).join('')}</table>
+      <p class="soon">Paid personally, owed to you: <b>${money(sumAmt(paidPersonally))}</b> (${paidPersonally.length}). Personal on business cards, owed to the business: <b>${money(sumAmt(owedToBiz))}</b> (${owedToBiz.length}). ${used.length} statement${used.length === 1 ? '' : 's'} used.</p>
+      <div class="q send"><button class="qa" id="pkPdf">Download the PDF</button> <button class="qa send" id="pkMail">Email it to Fused Accounting</button> <span id="pkStatus" class="small"></span></div>
+      <div id="pkAsk"></div>
+      <p class="soon">The PDF has the P&amp;L by month, GST, every bank deposit, the business purchases you paid personally, personal purchases on the business cards, every expense, and the list of statements used.</p></div>`;
+    $('pkFrom').onchange = () => { packFrom = $('pkFrom').value; accountantPack(); };
+    $('pkTo').onchange = () => { packTo = $('pkTo').value; accountantPack(); };
+    if ($('pkGo')) $('pkGo').onclick = () => { const s = used.find(x => (x.transactions || []).some(t => !t.decision && inRange(t.date))); if (s) stmtInterview(s.id); };
+    $('pkPdf').onclick = async () => { const ok = await L.download(fname, pdf()); $('pkStatus').textContent = ok ? ' Saved.' : " Couldn't save the file here."; };
+    $('pkMail').onclick = () => {
+      // only on Keith's say-so: pick who, read the email, then Send
+      $('pkMail').disabled = true;
+      const body = `Hi,\n\nAttached is the Home Pros Group package for ${span}: the profit and loss by month, GST, bank deposits, business purchases paid personally (owed back to Keith), personal purchases on the business cards, every expense, and the statements used.\n\n` +
+        `Revenue before GST: ${money(revTotal)}\nExpenses before GST: ${money(expTotal)}\nGST paid on expenses: ${money(gstPaid)}\nBusiness purchases paid personally: ${money(sumAmt(paidPersonally))}\n\nLet me know if you need anything else or the statements themselves.\n\nThanks,\n${cfg.owner.name} Wick\nHome Pros Group, 780-932-7337`;
+      $('pkAsk').innerHTML = `<div class="q"><h4>SEND THIS EMAIL?</h4>
+        <p>To <select id="pkTo2">${DOC_TO.map(([a, l]) => `<option value="${esc(a)}">${esc(l)} (${esc(a)})</option>`).join('')}</select>, copy to keith@homeprosgroup.com</p>
+        <p><b>Subject:</b> Home Pros Group: accountant package, ${esc(span)}</p>
+        <textarea id="pkBody" rows="9">${esc(body)}</textarea>
+        <p class="small">Attached: ${esc(fname)}</p>
+        <div class="qbtns"><button class="qa send" id="pkSend">Send it</button> <button class="qa" id="pkNo">Cancel</button></div></div>`;
+      $('pkNo').onclick = () => { $('pkAsk').innerHTML = ''; $('pkMail').disabled = false; };
+      $('pkSend').onclick = async () => {
+        $('pkSend').disabled = true; $('pkStatus').textContent = ' Sending...';
+        const sendTo = $('pkTo2').value;
+        const r = await L.emailFiles({ to: sendTo, cc: 'keith@homeprosgroup.com', subject: `Home Pros Group: accountant package, ${span}`, body: $('pkBody').value, files: [{ filename: fname, mimeType: 'application/pdf', bytes: pdf() }] });
+        if (r.ok) {
+          try { A.select(); } catch (e) { }
+          $('pkAsk').innerHTML = ''; $('pkStatus').textContent = ` Sent to ${sendTo}.`;
+          try { await L.change('penny', 'packages', d => { d.items = (d.items || []).concat([{ from: packFrom, to: packTo, sentTo: sendTo, at: new Date().toISOString() }]).slice(-40); }); } catch (e) { }
+          say(`Sent. Fused has the ${span} package, and you're copied.`);
+        } else { $('pkSend').disabled = false; $('pkStatus').textContent = r.error === 'server_not_connected' || r.error === 'not_in_manifest' || r.error === 'not_granted' ? ' Allow the Gmail connector for the arcade, then try again.' : " The email didn't go through. Try again, or download the PDF."; }
+      };
+    };
+    await say(items.length || deposits.length ? `Here's ${span} for the accountant. Download it, or tell me to email it to Fused.` : `I don't have anything filed for ${span} yet. Upload the statements and receipts first, then come back here.`);
+    if (id !== run) return;
+    acctChoices('pack');
+  }
+
   async function profitLoss(month) {
     const id = clear();
     S.office.select('penny');

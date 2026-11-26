@@ -579,3 +579,6 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .maxd .mart iframe.mprev { width: 100%; height: 460px; border: 2px solid #39413d; background: #fff; margin: 6px 0; }
 .maxd .mart .pbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .maxd .warnc { color: #ffcf73; }
+.pack select { font: inherit; font-size: 18px; background: #11160f; color: #e8f0e4; border: 2px solid #3faa35; padding: 4px 6px; }
+.pack textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; background: #11160f; color: #e8f0e4; border: 2px solid #3faa35; padding: 8px; white-space: pre-wrap; }
+.pack .warnline { background: #3a2a0c; border-left: 4px solid #d99a1e; padding: 8px 10px; margin: 0 0 8px; font-size: 18px; white-space: normal; }

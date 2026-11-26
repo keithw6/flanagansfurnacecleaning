@@ -105,7 +105,8 @@
       const list = ((cur.exists && cur.data().list) || []).filter(x => x.id !== doc.id);
       const t = doc.transactions || [];
       list.unshift({ id: doc.id, name: doc.name, card: (doc.statement || {}).card || '', holder: (doc.statement || {}).holder || '', period: (doc.statement || {}).period || '', uploadedAt: doc.uploadedAt,
-        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length, files: (doc.files || []).length, check: doc.check || null, owner: doc.owner || '', last4: (doc.statement || {}).last4 || '' });
+        count: t.length, decided: t.filter(x => x.decision).length, added: t.filter(x => x.added).length, files: (doc.files || []).length, check: doc.check || null, owner: doc.owner || '', last4: (doc.statement || {}).last4 || '', type: (doc.statement || {}).type || 'card', deposits: (doc.deposits || []).length,
+        months: [...new Set(t.concat(doc.deposits || []).map(x => String(x.date || '').slice(0, 7)).filter(m => /^\d{4}-\d\d$/.test(m)))].sort() });
       await ref.set({ list: list.slice(0, 60) });
     },
     /* Money between Keith/Hannah and the business: penny/owed = {items:[{id, date, vendor, amount, who, direction:'toKeith'|'toBusiness', statementId, repaidAt}]} */
