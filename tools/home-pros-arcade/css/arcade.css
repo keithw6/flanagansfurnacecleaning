@@ -576,3 +576,6 @@ body.street .cash, body.office .cash { visibility: hidden; }
 .gchat .gm.act .aline { white-space: pre-wrap; color: #dfe4e0; margin-bottom: 4px; }
 .gchat .gm.act .abtns { margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .gchat .gm.act.yes { border-color: var(--edge); } .gchat .gm.act.no { opacity: .65; }
+.maxd .mart iframe.mprev { width: 100%; height: 460px; border: 2px solid #39413d; background: #fff; margin: 6px 0; }
+.maxd .mart .pbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.maxd .warnc { color: #ffcf73; }

@@ -2688,7 +2688,7 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
     $('panel').innerHTML = '<div class="loading">Getting my lists</div>';
     const r = root.HP_LIVE ? await root.HP_LIVE.max() : undefined;
     if (id !== run) return;
-    mx = { live: r !== undefined, prospects: { contacts: [], ...((r && r.prospects) || {}) }, posts: { posts: [], ...((r && r.posts) || {}) }, reviews: (r && r.reviews) || {} };
+    mx = { live: r !== undefined, prospects: { contacts: [], ...((r && r.prospects) || {}) }, posts: { posts: [], ...((r && r.posts) || {}) }, reviews: (r && r.reviews) || {}, articles: { items: [], ...((r && r.articles) || {}) } };
     const waiting = mx.posts.posts.filter(p => p.status === 'draft');
     mxTab = tab || (waiting.length ? 'posts' : 'contacts');
     drawMax();
@@ -2712,10 +2712,37 @@ ${c.ctx || '(the records could not be loaded in this view)'}`;
   function drawMax() {
     const P = $('panel'), all = mx.prospects.contacts, posts = mx.posts.posts;
     const waiting = posts.filter(p => p.status === 'draft');
-    const rv = mxReviews();
-    const tabs = `<div class="ptabs"><button class="qa ${mxTab === 'contacts' ? 'on' : ''}" data-mt="contacts">Contacts (${all.length})</button><button class="qa ${mxTab === 'posts' ? 'on' : ''}" data-mt="posts">Post drafts${waiting.length ? ` (${waiting.length})` : ''}</button><button class="qa ${mxTab === 'reviews' ? 'on' : ''}" data-mt="reviews">Review requests${rv.waiting.length ? ` (${rv.waiting.length})` : ''}</button></div>`;
+    const rv = mxReviews(), artAll = ((mx.articles && mx.articles.items) || []).slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))), arts = artAll.filter(x => x.status === 'draft');
+    const tabs = `<div class="ptabs"><button class="qa ${mxTab === 'contacts' ? 'on' : ''}" data-mt="contacts">Contacts (${all.length})</button><button class="qa ${mxTab === 'posts' ? 'on' : ''}" data-mt="posts">Post drafts${waiting.length ? ` (${waiting.length})` : ''}</button><button class="qa ${mxTab === 'reviews' ? 'on' : ''}" data-mt="reviews">Review requests${rv.waiting.length ? ` (${rv.waiting.length})` : ''}</button><button class="qa ${mxTab === 'articles' ? 'on' : ''}" data-mt="articles">Articles${arts.length ? ` (${arts.length})` : ''}</button></div>`;
     const note = mx.live ? '' : '<p class="soon">The lists are kept in the arcade\'s database, which only works when the arcade is open in claude.ai.</p>';
-    if (mxTab === 'reviews') {
+    if (mxTab === 'articles') {
+      const ST = { draft: 'Waiting for you', approved: 'Approved: publishing now', published: 'Live on the website', skipped: 'Skipped' };
+      const card = x => `<div class="q mart"><h4>${esc(x.title || x.slug)} <small>${esc(ST[x.status] || x.status || '')}${x.createdAt ? ' · ' + esc(fmtDate(String(x.createdAt).slice(0, 10))) : ''}</small></h4>
+        ${x.description ? `<p class="small">${esc(x.description)}</p>` : ''}
+        ${x.status === 'published' && x.url ? `<p><a class="qa" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Open on homeprosgroup.com</a></p>` : ''}
+        ${x.status === 'draft' ? `<details open><summary>Read it</summary><iframe class="mprev" sandbox title="Article preview" data-art="${esc(x.id)}"></iframe></details>
+          ${x.notes ? `<p class="small warnc">Your notes: ${esc(x.notes)}</p>` : ''}
+          <div class="pbtns"><button class="qa send" data-apub="${esc(x.id)}">Approve and publish</button> <button class="qa" data-anote="${esc(x.id)}">Ask for changes</button> <button class="qa no" data-askip="${esc(x.id)}">Skip this one</button> <span class="small" data-amsg="${esc(x.id)}"></span></div>` : ''}
+        ${x.status !== 'draft' && x.notes ? `<p class="small">${esc(x.notes)}</p>` : ''}</div>`;
+      P.innerHTML = `<div class="report maxd">${tabs}
+        <h3>ARTICLES FOR HOMEPROSGROUP.COM</h3>
+        <p class="small">Max writes one local article a week with Higgsfield pictures. Nothing goes on your website until you tap Approve; then it's added as a new page, listed on your blog page and in your sitemap. Your existing pages are never changed.</p>
+        ${artAll.length ? artAll.slice(0, 12).map(card).join('') : '<div class="q"><p>No articles yet. Max writes his first one on his next weekly run.</p></div>'}
+        ${note}</div>`;
+      P.querySelectorAll('iframe[data-art]').forEach(f => { const x = artAll.find(y => y.id === f.dataset.art); if (x) f.srcdoc = String(x.html || '').replace(/<head([^>]*)>/i, '<head$1><base href="https://homeprosgroup.com/blog/">'); });
+      const setArt = async (aid, fn, msg) => { const m = P.querySelector(`[data-amsg="${aid}"]`); try { mx.articles = await root.HP_LIVE.change('eddie', 'articles', d => { (d.items || []).forEach(x => { if (x.id === aid) fn(x); }); }); drawMax(); if (msg) say(msg); } catch (e) { if (m) m.textContent = " Couldn't save just now."; } };
+      P.querySelectorAll('button[data-apub]').forEach(b => b.onclick = async () => {
+        const x = artAll.find(y => y.id === b.dataset.apub); if (!x) return;
+        if (!confirm(`Publish "${x.title}" on homeprosgroup.com?`)) return;
+        b.disabled = true;
+        const at = new Date().toISOString();
+        await setArt(x.id, y => { y.status = 'approved'; y.approvedAt = at; });
+        const r = await root.HP_LIVE.startOrder({ id: 'ord-' + Date.now().toString(36), at, director: 'Max', task: `Publish the approved article "${x.title}" on homeprosgroup.com`, details: `Follow tools/max/ARTICLE-TASK.md Part 3 for the eddie/articles item with id ${x.id} (slug ${x.slug}).`, status: 'sent', approvedAt: at, by: "Keith, on Max's desk" });
+        say(r.ok ? "Approved. I'm putting it up on the website now. You'll get a notification with the link." : "Approved, but I couldn't start the publishing task. Ask Grace to have me publish it.");
+      });
+      P.querySelectorAll('button[data-anote]').forEach(b => b.onclick = () => { const t = prompt('What should Max change?'); if (t && t.trim()) setArt(b.dataset.anote, y => { y.notes = t.trim().slice(0, 1000); y.notesAt = new Date().toISOString(); }, "Got it. I'll rework it on my next run."); });
+      P.querySelectorAll('button[data-askip]').forEach(b => b.onclick = () => setArt(b.dataset.askip, y => { y.status = 'skipped'; y.skippedAt = new Date().toISOString(); }, "Skipped. I'll write about something else next time."));
+    } else if (mxTab === 'reviews') {
       const nm = x => { const n = String(x.name || ''); const i = n.indexOf(', '); return i > 0 ? n.slice(i + 2) + ' ' + n.slice(0, i) : n; };
       const line = (x, extra) => `<li><b>${esc(nm(x))}</b> · WO ${esc(String(x.wo || ''))}${x.date ? ` · job ${esc(fmtDate(String(x.date).slice(0, 10)))}` : ''}${extra ? ` · ${extra}` : ''}</li>`;
       P.innerHTML = `<div class="report maxd">${tabs}

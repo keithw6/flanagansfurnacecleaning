@@ -158,7 +158,7 @@
     },
     /* Max: eddie/prospects = {contacts:[{id, type:'pm'|'agent', name, company, phone, email, area, source, addedAt}], removed:[keys], lastRun:{date, added, areas, note}}
             eddie/posts = {posts:[{id, network:'facebook'|'hpg-linkedin'|'keith-linkedin', text, photo, status:'draft'|'posted'|'skipped', createdAt, doneAt}]} */
-    async max() { const [p, s, v] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie'), read('reviews', 'eddie')]); if (p === undefined && s === undefined && v === undefined) return undefined; return { prospects: p || null, posts: s || null, reviews: v || null }; },
+    async max() { const [p, s, v, a] = await Promise.all([read('prospects', 'eddie'), read('posts', 'eddie'), read('reviews', 'eddie'), read('articles', 'eddie')]); if (p === undefined && s === undefined && v === undefined) return undefined; return { prospects: p || null, posts: s || null, reviews: v || null, articles: a || null }; },
     /* Change one of Max's docs: re-read it first so a change made meanwhile by Max's task is kept. */
     async maxChange(docId, fn) {
       const db = await timeout(dbP, 6000);

@@ -35,7 +35,8 @@ approvedAt, result, problems, finishedAt, session}]}`. Pin `if_version` on every
      is POST /credits with splits). Jayman cheques: the jayman-payments skill rules
      (match to the cent; never apply more than an invoice's balance; check for payments
      already entered first).
-   - **Max** (reviews, contacts, posts): tools/max. **Hank** (purchasing): arcade doc
+   - **Max** (reviews, contacts, posts, website articles): tools/max. Publishing an approved
+     article: tools/max/ARTICLE-TASK.md Part 3 (the homeprosgroup.com publisher). **Hank** (purchasing): arcade doc
      `hank/list`. **Eddie** (email): this task has no Gmail, so say what Eddie needs and
      leave it for Keith.
    Run node with `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`.
